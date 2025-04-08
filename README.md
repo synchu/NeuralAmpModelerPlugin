@@ -1,3 +1,23 @@
+# Drag and drop Fork NOTE!
+Please, note that this fork adds drag and drop of .nam models (and .wav IR) over the plugin GUI. 
+
+**However** - there is a necessary change in the iPlug2 code in order to implement it, i.e.:
+In IControl.h:
+From:
+ `virtual void OnDrop(const char* str) {}`
+to
+
+`virtual void OnDrop(const char* str)
+ {
+   if (OnDropFunc)
+   {
+     OnDropFunc(str);
+   }
+ };
+
+ std::function<void(const char* str)> OnDropFunc;`
+
+
 # Neural Amp Modeler Plug-in
 
 A VST3/AudioUnit plug-in\* for [Neural Amp Modeler](https://github.com/sdatkinson/neural-amp-modeler), built with [iPlug2](https://iplug2.github.io).
