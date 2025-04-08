@@ -3,11 +3,14 @@ Please, note that this fork adds drag and drop of .nam models (and .wav IR) over
 
 **However** - there is a necessary change in the iPlug2 code in order to implement it, i.e.:
 In IControl.h:
-From:
- `virtual void OnDrop(const char* str) {}`
-to
 
-`virtual void OnDrop(const char* str)
+From:
+
+virtual void OnDrop(const char* str) {}
+
+to:
+
+virtual void OnDrop(const char* str)
  {
    if (OnDropFunc)
    {
@@ -15,7 +18,7 @@ to
    }
  };
 
- std::function<void(const char* str)> OnDropFunc;`
+ std::function<void(const char* str)> OnDropFunc;
 
 
 # Neural Amp Modeler Plug-in
