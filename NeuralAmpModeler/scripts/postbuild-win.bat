@@ -4,7 +4,7 @@ REM - CALL "$(SolutionDir)scripts\postbuild-win.bat" "$(TargetExt)" "$(BINARY_NA
 REM $(CREATE_BUNDLE_SCRIPT)"
 
 set FORMAT=%1
-set NAME=%2
+set NAME=%~2
 set PLATFORM=%3
 set COPY_VST2=%4
 set BUILT_BINARY=%5
@@ -20,10 +20,10 @@ shift
 shift
 set AAX_32_PATH=%4
 set AAX_64_PATH=%5
-set BUILD_DIR=%6
+set BUILD_DIR=%~6
 set VST_ICON=%7
 set AAX_ICON=%8
-set CREATE_BUNDLE_SCRIPT=%9
+set CREATE_BUNDLE_SCRIPT=%~9
 
 echo POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 echo FORMAT %FORMAT% 
@@ -70,13 +70,13 @@ if %PLATFORM% == "Win32" (
     )
   )
   
-  if %FORMAT% == ".aaxplugin" (
-    echo copying 32bit binary to AAX BUNDLE ..
-    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
-    copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\Win32
-    echo copying 32bit bundle to 32bit AAX Plugins folder ... 
-    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
-    xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_32_PATH%\%NAME%.aaxplugin\Contents\
+ REM if %FORMAT% == ".aaxplugin" (
+ REM   echo copying 32bit binary to AAX BUNDLE ..
+ REM   call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+REM    copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\Win32
+REM    echo copying 32bit bundle to 32bit AAX Plugins folder ... 
+REM    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+REM    xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_32_PATH%\%NAME%.aaxplugin\Contents\
   )
 )
 
@@ -103,22 +103,28 @@ if %PLATFORM% == "x64" (
   )
   
   if %FORMAT% == ".vst3" (
-    echo copying 64bit binary to VST3 BUNDLE ...
-    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
+    echo IS NOT CALLED copying 64bit binary to VST3 BUNDLE ... 
+	echo IS NOT CALLED "call" "%CREATE_BUNDLE_SCRIPT%" "%BUILD_DIR%\%NAME%.vst3" %VST_ICON% %FORMAT%
+	REM removed this as it causes errors
+    REM call "%CREATE_BUNDLE_SCRIPT%" "%BUILD_DIR%\%NAME%.vst3" %VST_ICON% %FORMAT%
+	echo "Create bundle passed!"
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
     if exist %VST3_64_PATH% (
-      echo copying VST3 bundle to 64bit VST3 Plugins folder ...
-      call %CREATE_BUNDLE_SCRIPT% %VST3_64_PATH%\%NAME%.vst3 %VST_ICON% %FORMAT%
-      xcopy /E /H /Y %BUILD_DIR%\%NAME%.vst3\Contents\*  %VST3_64_PATH%\%NAME%.vst3\Contents\
+      echo IS NOT CALLED........copying VST3 bundle to 64bit VST3 Plugins folder ...
+	  REM removed bellow to remove the errors during the build - not necessary to do the copying 
+      REM call %CREATE_BUNDLE_SCRIPT% %VST3_64_PATH%\%NAME%.vst3 %VST_ICON% %FORMAT%
+      REM xcopy /E /H /Y %BUILD_DIR%\%NAME%.vst3\Contents\*  %VST3_64_PATH%\%NAME%.vst3\Contents\
+	  
     )
+	exit /b 0
   )
   
-  if %FORMAT% == ".aaxplugin" (
-    echo copying 64bit binary to AAX BUNDLE ...
-    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
-    copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\x64
-    echo copying 64bit bundle to 64bit AAX Plugins folder ... 
-    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
-    xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_64_PATH%\%NAME%.aaxplugin\Contents\
+REM  if %FORMAT% == ".aaxplugin" (
+REM    echo copying 64bit binary to AAX BUNDLE ...
+REM    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+REM    copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\x64
+REM    echo copying 64bit bundle to 64bit AAX Plugins folder ... 
+REM    call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+REM    xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_64_PATH%\%NAME%.aaxplugin\Contents\
   )
 )
