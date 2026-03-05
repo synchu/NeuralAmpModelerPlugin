@@ -178,6 +178,45 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     // Misc Areas
     const auto settingsButtonArea = CornerButtonArea(b);
 
+    // handle file drop with quick hack at IControl.h
+    auto handleFileDropFunc = [&](const char* str) {
+      WDL_String ss;
+      ss.Append(str);
+      if (!strlen(str))
+      {
+        return;
+      }
+      //_ShowMessageBox(GetUI(), ss.Get(), "FileDropped", kMB_OK);
+      if (!std::filesystem::exists(str) || !std::filesystem::file_size(str))
+        throw std::runtime_error("The file doesn't exist or is of zero size!\n");
+
+      std::filesystem::path filename;
+      filename.append(str);
+
+      if (filename.extension() == ".nam")
+      {
+        _StageModel(ss);
+        /* skip precautions
+        std::ifstream i(str);
+        nlohmann::json j;
+        i >> j;
+        std::string architecture = j["architecture"];
+        nlohmann::json config = j["config"];
+
+        WDL_String fileName, path;
+        fileName.Append(str);
+        if ((!config.is_null()) && (architecture.length()))
+        {
+          _StageModel(fileName);
+        }*/
+      }
+      if (filename.extension() == ".wav")
+      {
+        _StageIR(ss);
+      }
+    };
+
+
     // Model loader button
     auto loadModelCompletionHandler = [&](const WDL_String& fileName, const WDL_String& path) {
       if (fileName.GetLength())
@@ -271,6 +310,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       pControl->SetMouseOverWhenDisabled(true);
     });
 
+     // add support for FileDrag & Drop - quick HACK implemented at IControl.h - to support the below
+    pGraphics->ForAllControlsFunc([&](IControl* pControl) { pControl->OnDropFunc = handleFileDropFunc; });
     // pGraphics->GetControlWithTag(kCtrlTagOutNorm)->SetMouseEventsWhenDisabled(false);
     // pGraphics->GetControlWithTag(kCtrlTagCalibrateInput)->SetMouseEventsWhenDisabled(false);
   };
