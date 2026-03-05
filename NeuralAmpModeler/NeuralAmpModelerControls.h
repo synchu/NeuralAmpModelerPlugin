@@ -536,10 +536,10 @@ public:
     };
 
     SetControlStr("Sample rate", modelInfo.sampleRate, "Hz", mControlNames.sampleRate);
-    // SetControlStr(
-    //   "Input calibration level", modelInfo.inputCalibrationLevel, "dBu", mControlNames.inputCalibrationLevel);
-    // SetControlStr(
-    //   "Output calibration level", modelInfo.outputCalibrationLevel, "dBu", mControlNames.outputCalibrationLevel);
+    SetControlStr(
+       "Input calibration level", modelInfo.inputCalibrationLevel, "dBu", mControlNames.inputCalibrationLevel);
+     SetControlStr(
+       "Output calibration level", modelInfo.outputCalibrationLevel, "dBu", mControlNames.outputCalibrationLevel);
 
     mHasInfo = true;
   };
@@ -549,8 +549,8 @@ private:
   struct
   {
     const std::string sampleRate = "sampleRate";
-    // const std::string inputCalibrationLevel = "inputCalibrationLevel";
-    // const std::string outputCalibrationLevel = "outputCalibrationLevel";
+    const std::string inputCalibrationLevel = "inputCalibrationLevel";
+    const std::string outputCalibrationLevel = "outputCalibrationLevel";
   } mControlNames;
   // Do I have info?
   bool mHasInfo = false;
