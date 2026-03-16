@@ -353,60 +353,56 @@ void NeuralAmpModeler::OnUIClose()
 
 void NeuralAmpModeler::OpenLibraryBrowserWindow()
 {
-  // Check if the NAM library data file exists before opening the browser
-  const std::string jsonPath = GetNAMLibraryDataJsonPath();
-  if (jsonPath.empty() || !std::filesystem::exists(jsonPath))
+  // If a browser window is already open, don't create another.
+  if (mLibraryBrowserWindow && mLibraryBrowserWindow->IsOpen())
+    return;
+
+  // Refresh metadata (fast if unchanged; reloads only if data.json changed).
+  if (!InitializeLibraryManager() || !mLibraryRootNode)
   {
+    const std::string jsonPath = GetNAMLibraryDataJsonPath();
+
     std::stringstream ss;
-    ss << "The NAM Library data file could not be found.\n\n";
+    ss << "The NAM Library data file could not be loaded.\n\n";
     if (!jsonPath.empty())
       ss << "Expected location:\n    " << jsonPath << "\n\n";
     ss << "To use the Library Browser, please install the NAM Model Manager "
           "and ensure it has created its library data at the location above.";
+
     _ShowMessageBox(GetUI(), ss.str().c_str(), "NAM Library Not Found", kMB_OK);
     return;
   }
 
-  // Create library browser window if not exists
-  if (!mLibraryBrowserWindow)
-  {
-    mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(
-      &mLibraryManager,
-      mLibraryRootNode
-    );
-    
-    // Set callback for when user selects a model
-    mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
-      if (!node || !node->IsModel())
-        return;
-        
-      WDL_String modelPath(node->path.c_str());
-      
-      // Load the model using existing _StageModel function
-      const std::string msg = _StageModel(modelPath);
-      
-      if (msg.size())
-      {
-        std::stringstream ss;
-        ss << "Failed to load NAM model. Message:\n\n" << msg;
-        if (GetUI())
-          _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
-      }
-      else
-      {
-        // The _StageModel function already sends the kMsgTagLoadedModel message
-        // which will update the file browser control automatically via OnMsgFromDelegate
-        std::cout << "Loaded from library: " << node->path << std::endl;
-      }
-    });
-  }
-  
-  // Open the window if not already open
-  if (!mLibraryBrowserWindow->IsOpen())
-  {
-    void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
-    mLibraryBrowserWindow->Open(pParentWindow);
-  }
+  // Recreate the window object so it uses the latest root node.
+  mLibraryBrowserWindow.reset();
+  mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(
+    &mLibraryManager,
+    mLibraryRootNode
+  );
+
+  mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
+    if (!node || !node->IsModel())
+      return;
+
+    WDL_String modelPath(node->path.c_str());
+
+    const std::string msg = _StageModel(modelPath);
+
+    if (msg.size())
+    {
+      std::stringstream ss;
+      ss << "Failed to load NAM model. Message:\n\n" << msg;
+      if (GetUI())
+        _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+    }
+    else
+    {
+      std::cout << "Loaded from library: " << node->path << std::endl;
+    }
+  });
+
+  void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
+  mLibraryBrowserWindow->Open(pParentWindow);
 }
 
 void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
@@ -532,48 +528,71 @@ void NeuralAmpModeler::OnIdle()
 
 bool NeuralAmpModeler::InitializeLibraryManager()
 {
-  std::string jsonPath = GetNAMLibraryDataJsonPath();
-  
+  const std::string jsonPath = GetNAMLibraryDataJsonPath();
+
   char debugMsg[512];
-  
+
   if (jsonPath.empty())
   {
     OutputDebugStringA("NAM Library: Failed to determine data.json path\n");
     return false;
   }
-  
-  // Log the path being checked
-  snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Trying to load from: %s\n", jsonPath.c_str());
-  OutputDebugStringA(debugMsg);
-  
-  // Check if file exists
-  std::ifstream checkFile(jsonPath);
-  if (!checkFile.good())
+
+  // If the file doesn't exist, don't clobber any previously loaded metadata.
+  if (!std::filesystem::exists(jsonPath))
   {
-    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist or cannot be opened: %s\n", jsonPath.c_str());
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist: %s\n", jsonPath.c_str());
     OutputDebugStringA(debugMsg);
     return false;
   }
-  checkFile.close();
 
-  if (mLibraryManager.LoadMetadata(jsonPath))
+  std::error_code ec;
+  const auto writeTime = std::filesystem::last_write_time(jsonPath, ec);
+  if (ec)
+  {
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: last_write_time failed: %s\n", jsonPath.c_str());
+    OutputDebugStringA(debugMsg);
+    return false;
+  }
+
+  // If already loaded and unchanged, skip reload.
+  if (mLibraryManager.GetRootNode() &&
+      mLibraryDataJsonPath == jsonPath &&
+      mLibraryDataJsonWriteTime == writeTime)
   {
     mLibraryRootNode = mLibraryManager.GetRootNode();
-    if (mLibraryRootNode)
-    {
-      snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n", 
-               mLibraryRootNode->children.size());
-      OutputDebugStringA(debugMsg);
-      return true;
-    }
-    else
-    {
-      OutputDebugStringA("NAM Library: LoadMetadata succeeded but root node is null\n");
-      return false;
-    }
+    OutputDebugStringA("NAM Library: Up-to-date (skipping reload)\n");
+    return (mLibraryRootNode != nullptr);
   }
-  
-  OutputDebugStringA("NAM Library: LoadMetadata failed\n");
+
+  snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loading/reloading from: %s\n", jsonPath.c_str());
+  OutputDebugStringA(debugMsg);
+
+  // Load into a temporary manager so we don't destroy the existing one if parsing fails.
+  NAMLibraryManager candidate;
+  if (!candidate.LoadMetadata(jsonPath))
+  {
+    OutputDebugStringA("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
+    // Keep whatever was already loaded.
+    mLibraryRootNode = mLibraryManager.GetRootNode();
+    return (mLibraryRootNode != nullptr);
+  }
+
+  // Commit.
+  mLibraryManager = candidate;
+  mLibraryRootNode = mLibraryManager.GetRootNode();
+  mLibraryDataJsonPath = jsonPath;
+  mLibraryDataJsonWriteTime = writeTime;
+
+  if (mLibraryRootNode)
+  {
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n",
+             mLibraryRootNode->children.size());
+    OutputDebugStringA(debugMsg);
+    return true;
+  }
+
+  OutputDebugStringA("NAM Library: LoadMetadata succeeded but root node is null\n");
   return false;
 }
 

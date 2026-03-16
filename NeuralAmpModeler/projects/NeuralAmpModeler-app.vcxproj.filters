@@ -442,6 +442,8 @@
     <None Include="..\config\NeuralAmpModeler-win.props">
       <Filter>config</Filter>
     </None>
+    <None Include="NamModelHarness.vcxproj" />
+    <None Include="NamModelHarness.vcxproj.filters" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\resources\NeuralAmpModeler.ico">

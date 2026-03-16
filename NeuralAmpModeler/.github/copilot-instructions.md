@@ -2,6 +2,7 @@
 
 ## Project Guidelines
 - Prefers to overwrite remote changes when pushing (does not need remote changes).
+- The solution file `NeuralAmpModeler.sln` is located at `NeuralAmpModeler/NeuralAmpModeler.sln` under the repo root.
 
 ## Code Style
 - When providing code change suggestions, use the file’s exact casing as shown in Visual Studio (avoid all-caps filenames because it confuses VS).

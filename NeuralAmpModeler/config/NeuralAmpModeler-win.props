@@ -11,12 +11,17 @@
     <BUILD_DIR>$(SolutionDir)build-win</BUILD_DIR>
     <CREATE_BUNDLE_SCRIPT>$(IPLUG2_ROOT)\Scripts\create_bundle.bat</CREATE_BUNDLE_SCRIPT>
   </PropertyGroup>
+
   <ImportGroup Label="PropertySheets">
     <Import Project="$(IPLUG2_ROOT)\..\common-win.props" />
+    <Import Project="$(MSBuildThisFileDirectory)NamCompilerOptimizations.props"
+            Condition="Exists('$(MSBuildThisFileDirectory)NamCompilerOptimizations.props')" />
   </ImportGroup>
+
   <PropertyGroup>
     <TargetName>$(BINARY_NAME)</TargetName>
   </PropertyGroup>
+
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)dsp;$(IPLUG2_ROOT)\..\eigen;$(EXTRA_INC_PATHS);$(IPLUG_INC_PATHS);$(IGRAPHICS_INC_PATHS);$(GLAD_GL2_PATHS);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -33,6 +38,7 @@
       <Command>CALL "$(SolutionDir)scripts\prebuild-win.bat" "$(TargetExt)" "$(BINARY_NAME)" "$(Platform)" "$(TargetPath)" "$(OutDir)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
+
   <ItemGroup>
     <BuildMacro Include="BINARY_NAME">
       <Value>$(BINARY_NAME)</Value>

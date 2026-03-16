@@ -7,6 +7,8 @@
 #include "AudioDSPTools/dsp/wav.h"
 #include "AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
 
+#include <filesystem>
+
 #include "Colors.h"
 #include "ToneStack.h"
 #include "NeuralAmpModelerCore/NAMLibraryManager.h"
@@ -331,5 +333,9 @@ private:
   // Library browser
   NAMLibraryManager mLibraryManager;
   std::shared_ptr<NAMLibraryTreeNode> mLibraryRootNode;
-  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;  // Add this
+  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;
+
+  // Used to auto-refresh metadata when NAM Model Manager updates data.json
+  std::string mLibraryDataJsonPath;
+  std::filesystem::file_time_type mLibraryDataJsonWriteTime{};
 };

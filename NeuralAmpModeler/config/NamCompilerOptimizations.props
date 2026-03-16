@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- MSVC: enable /arch:AVX2 for x64 builds -->
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64' and '$(PlatformToolset)'!='ClangCL'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- clang-cl: optimization flags for Release-Clang-x64-v3|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release-Clang-x64-v3' and '$(Platform)'=='x64' and '$(PlatformToolset)'=='ClangCL'">
+    <ClCompile>
+      <AdditionalOptions>
+        /clang:-O3
+        /clang:-march=x86-64-v3
+        /clang:-fno-math-errno
+        /clang:-fno-trapping-math
+        %(AdditionalOptions)
+      </AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+</Project>
