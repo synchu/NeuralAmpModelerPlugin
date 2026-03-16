@@ -13,6 +13,8 @@
   </PropertyGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(IPLUG2_ROOT)\..\common-win.props" />
+    <Import Project="$(MSBuildThisFileDirectory)NamCompilerOptimizations.props"
+            Condition="Exists('$(MSBuildThisFileDirectory)NamCompilerOptimizations.props')" />
   </ImportGroup>
   <PropertyGroup>
     <TargetName>$(BINARY_NAME)</TargetName>

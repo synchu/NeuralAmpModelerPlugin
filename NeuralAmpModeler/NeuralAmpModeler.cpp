@@ -1,5 +1,6 @@
 #include <algorithm> // std::clamp, std::min
 #include <cmath> // pow
+#include <cfenv>
 #include <filesystem>
 #include <iostream>
 #include <utility>
@@ -353,12 +354,17 @@ void NeuralAmpModeler::OnUIClose()
 
 void NeuralAmpModeler::OpenLibraryBrowserWindow()
 {
-  // Check if the NAM library data file exists before opening the browser
-  const std::string jsonPath = GetNAMLibraryDataJsonPath();
-  if (jsonPath.empty() || !std::filesystem::exists(jsonPath))
+  // If already open, don't create another.
+  if (mLibraryBrowserWindow && mLibraryBrowserWindow->IsOpen())
+    return;
+
+  // Refresh metadata (fast if unchanged; reloads only if data.json changed).
+  if (!InitializeLibraryManager() || !mLibraryRootNode)
   {
+    const std::string jsonPath = GetNAMLibraryDataJsonPath();
+
     std::stringstream ss;
-    ss << "The NAM Library data file could not be found.\n\n";
+    ss << "The NAM Library data file could not be loaded.\n\n";
     if (!jsonPath.empty())
       ss << "Expected location:\n    " << jsonPath << "\n\n";
     ss << "To use the Library Browser, please install the NAM Model Manager "
@@ -367,46 +373,33 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
     return;
   }
 
-  // Create library browser window if not exists
-  if (!mLibraryBrowserWindow)
-  {
-    mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(
-      &mLibraryManager,
-      mLibraryRootNode
-    );
-    
-    // Set callback for when user selects a model
-    mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
-      if (!node || !node->IsModel())
-        return;
-        
-      WDL_String modelPath(node->path.c_str());
-      
-      // Load the model using existing _StageModel function
-      const std::string msg = _StageModel(modelPath);
-      
-      if (msg.size())
-      {
-        std::stringstream ss;
-        ss << "Failed to load NAM model. Message:\n\n" << msg;
-        if (GetUI())
-          _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
-      }
-      else
-      {
-        // The _StageModel function already sends the kMsgTagLoadedModel message
-        // which will update the file browser control automatically via OnMsgFromDelegate
-        std::cout << "Loaded from library: " << node->path << std::endl;
-      }
-    });
-  }
-  
-  // Open the window if not already open
-  if (!mLibraryBrowserWindow->IsOpen())
-  {
-    void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
-    mLibraryBrowserWindow->Open(pParentWindow);
-  }
+  // Recreate so the window captures the latest root node.
+  mLibraryBrowserWindow.reset();
+  mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(&mLibraryManager, mLibraryRootNode);
+
+  mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
+    if (!node || !node->IsModel())
+      return;
+
+    WDL_String modelPath(node->path.c_str());
+
+    const std::string msg = _StageModel(modelPath);
+
+    if (msg.size())
+    {
+      std::stringstream ss;
+      ss << "Failed to load NAM model. Message:\n\n" << msg;
+      if (GetUI())
+        _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+    }
+    else
+    {
+      std::cout << "Loaded from library: " << node->path << std::endl;
+    }
+  });
+
+  void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
+  mLibraryBrowserWindow->Open(pParentWindow);
 }
 
 void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
@@ -453,6 +446,7 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
   {
     _FallbackDSP(triggerOutput, mOutputPointers, numChannelsInternal, numFrames);
   }
+
   // Apply the noise gate after the NAM
   sample** gateGainOutput =
     noiseGateActive ? mNoiseGateGain.Process(mOutputPointers, numChannelsInternal, numFrames) : mOutputPointers;
@@ -467,23 +461,16 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
 
   // And the HPF for DC offset (Issue 271)
   const double highPassCutoffFreq = kDCBlockerFrequency;
-  // const double lowPassCutoffFreq = 20000.0;
   const recursive_linear_filter::HighPassParams highPassParams(sampleRate, highPassCutoffFreq);
-  // const recursive_linear_filter::LowPassParams lowPassParams(sampleRate, lowPassCutoffFreq);
   mHighPass.SetParams(highPassParams);
-  // mLowPass.SetParams(lowPassParams);
   sample** hpfPointers = mHighPass.Process(irPointers, numChannelsInternal, numFrames);
-  // sample** lpfPointers = mLowPass.Process(hpfPointers, numChannelsInternal, numFrames);
 
   // restore previous floating point state
   std::feupdateenv(&fe_state);
 
-  // Let's get outta here
-  // This is where we exit mono for whatever the output requires.
+  // Exit mono for whatever the output requires.
   _ProcessOutput(hpfPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
-  // _ProcessOutput(lpfPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
-  // * Output of input leveling (inputs -> mInputPointers),
-  // * Output of output leveling (mOutputPointers -> outputs)
+
   _UpdateMeters(mInputPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
 }
 
@@ -494,12 +481,11 @@ void NeuralAmpModeler::OnReset()
 
   // Tail is because the HPF DC blocker has a decay.
   // 10 cycles should be enough to pass the VST3 tests checking tail behavior.
-  // I'm ignoring the model & IR, but it's not the end of the world.
   const int tailCycles = 10;
   SetTailSize(tailCycles * (int)(sampleRate / kDCBlockerFrequency));
   mInputSender.Reset(sampleRate);
   mOutputSender.Reset(sampleRate);
-  // If there is a model or IR loaded, they need to be checked for resampling.
+
   _ResetModelAndIR(sampleRate, GetBlockSize());
   mToneStack->Reset(sampleRate, maxBlockSize);
   _UpdateLatency();
@@ -522,8 +508,6 @@ void NeuralAmpModeler::OnIdle()
   {
     if (auto* pGraphics = GetUI())
     {
-      // FIXME -- need to disable only the "normalized" model
-      // pGraphics->GetControlWithTag(kCtrlTagOutputMode)->SetDisabled(false);
       static_cast<NAMSettingsPageControl*>(pGraphics->GetControlWithTag(kCtrlTagSettingsBox))->ClearModelInfo();
       mModelCleared = false;
     }
@@ -533,48 +517,58 @@ void NeuralAmpModeler::OnIdle()
 bool NeuralAmpModeler::InitializeLibraryManager()
 {
   std::string jsonPath = GetNAMLibraryDataJsonPath();
-  
+
   char debugMsg[512];
-  
+
   if (jsonPath.empty())
   {
     OutputDebugStringA("NAM Library: Failed to determine data.json path\n");
     return false;
   }
-  
-  // Log the path being checked
-  snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Trying to load from: %s\n", jsonPath.c_str());
-  OutputDebugStringA(debugMsg);
-  
-  // Check if file exists
-  std::ifstream checkFile(jsonPath);
-  if (!checkFile.good())
+
+  if (!std::filesystem::exists(jsonPath))
   {
-    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist or cannot be opened: %s\n", jsonPath.c_str());
+    std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist: %s\n", jsonPath.c_str());
     OutputDebugStringA(debugMsg);
     return false;
   }
-  checkFile.close();
 
-  if (mLibraryManager.LoadMetadata(jsonPath))
+  std::error_code ec;
+  const auto writeTime = std::filesystem::last_write_time(jsonPath, ec);
+  if (ec)
+  {
+    std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: last_write_time failed: %s\n", jsonPath.c_str());
+    OutputDebugStringA(debugMsg);
+    return false;
+  }
+
+  // If already loaded and unchanged, skip reload.
+  if (mLibraryManager.GetRootNode() &&
+      mLibraryDataJsonPath == jsonPath &&
+      mLibraryDataJsonWriteTime == writeTime)
   {
     mLibraryRootNode = mLibraryManager.GetRootNode();
-    if (mLibraryRootNode)
-    {
-      snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n", 
-               mLibraryRootNode->children.size());
-      OutputDebugStringA(debugMsg);
-      return true;
-    }
-    else
-    {
-      OutputDebugStringA("NAM Library: LoadMetadata succeeded but root node is null\n");
-      return false;
-    }
+    return (mLibraryRootNode != nullptr);
   }
-  
-  OutputDebugStringA("NAM Library: LoadMetadata failed\n");
-  return false;
+
+  std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loading/reloading from: %s\n", jsonPath.c_str());
+  OutputDebugStringA(debugMsg);
+
+  // Load into a temporary manager so failures don't clobber a working cache.
+  NAMLibraryManager candidate;
+  if (!candidate.LoadMetadata(jsonPath))
+  {
+    OutputDebugStringA("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
+    mLibraryRootNode = mLibraryManager.GetRootNode();
+    return (mLibraryRootNode != nullptr);
+  }
+
+  mLibraryManager = candidate;
+  mLibraryRootNode = mLibraryManager.GetRootNode();
+  mLibraryDataJsonPath = jsonPath;
+  mLibraryDataJsonWriteTime = writeTime;
+
+  return (mLibraryRootNode != nullptr);
 }
 
 std::string NeuralAmpModeler::GetNAMLibraryDataJsonPath() const
