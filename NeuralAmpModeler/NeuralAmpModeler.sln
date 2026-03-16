@@ -43,8 +43,8 @@ Global
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Debug|x64.Build.0 = Debug|x64
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|Win32.ActiveCfg = Release|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|Win32.Build.0 = Release|Win32
-		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|x64.ActiveCfg = Release-Clang-x64-v3|x64
-		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|x64.Build.0 = Release-Clang-x64-v3|x64
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|x64.ActiveCfg = Release|x64
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release|x64.Build.0 = Release|x64
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|Win32.ActiveCfg = Release-Clang-x64-v3|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|Win32.Build.0 = Release-Clang-x64-v3|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|x64.ActiveCfg = Release-Clang-x64-v3|x64

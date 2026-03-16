@@ -4,6 +4,7 @@
 #include <sstream> // std::stringstream
 #include <unordered_map> // std::unordered_map
 #include "IControls.h"
+#include "NeuralAmpModelerCore/NAMLibraryBrowserPanel.h"  // ADD THIS LINE
 
 #define PLUG() static_cast<PLUG_CLASS_NAME*>(GetDelegate())
 #define NAM_KNOB_HEIGHT 120.0f
@@ -180,6 +181,14 @@ public:
   {
   }
 
+  void DrawBackground(IGraphics& g, const IRECT& r) override
+  {
+  }
+
+  void DrawWidget(IGraphics& g) override
+  {
+  }
+
   void SetLabelAndTooltip(const char* str)
   {
     SetLabelStr(str);
@@ -213,18 +222,21 @@ class NAMFileBrowserControl : public IDirBrowseControlBase
 {
 public:
   NAMFileBrowserControl(const IRECT& bounds, int clearMsgTag, const char* labelStr, const char* fileExtension,
-                        IFileDialogCompletionHandlerFunc ch, const IVStyle& style, const ISVG& loadSVG,
-                        const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG, const IBitmap& bitmap)
+                    IFileDialogCompletionHandlerFunc ch, const IVStyle& style, const ISVG& loadSVG,
+                    const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG, 
+                    const ISVG& librarySVG,
+                    const IBitmap& bitmap)
   : IDirBrowseControlBase(bounds, fileExtension, false, false)
   , mClearMsgTag(clearMsgTag)
   , mDefaultLabelStr(labelStr)
   , mCompletionHandlerFunc(ch)
-  , mStyle(style.WithColor(kFG, COLOR_TRANSPARENT).WithDrawFrame(false))
+  , mStyle(style.WithDrawFrame(false)) // Don't modify colors here
   , mBitmap(bitmap)
   , mLoadSVG(loadSVG)
   , mClearSVG(clearSVG)
   , mLeftSVG(leftSVG)
   , mRightSVG(rightSVG)
+  , mLibrarySVG(librarySVG)
   {
     mIgnoreMouse = true;
   }
@@ -331,6 +343,7 @@ public:
     const auto clearButtonBounds = padded.ReduceFromRight(buttonWidth);
     const auto leftButtonBounds = padded.ReduceFromLeft(buttonWidth);
     const auto rightButtonBounds = padded.ReduceFromLeft(buttonWidth);
+    const auto libraryButtonBounds = padded.ReduceFromLeft(buttonWidth);
     const auto fileNameButtonBounds = padded;
 
     AddChildControl(new NAMSquareButtonControl(loadFileButtonBounds, DefaultClickActionFunc, mLoadSVG))
@@ -339,6 +352,60 @@ public:
       ->SetAnimationEndActionFunction(prevFileFunc);
     AddChildControl(new NAMSquareButtonControl(rightButtonBounds, DefaultClickActionFunc, mRightSVG))
       ->SetAnimationEndActionFunction(nextFileFunc);
+    
+    // Only add library browser button for model browser (not IR browser)
+    if (strcmp(mExtension.Get(), "nam") == 0)
+    {
+      AddChildControl(new NAMSquareButtonControl(libraryButtonBounds, [this](IControl* pCaller) {
+        auto* pPlugin = PLUG();
+        
+        // Use new separate window approach
+        pPlugin->OpenLibraryBrowserWindow();
+        
+        /* OLD APPROACH: Modal panel overlay (kept for reference)
+        auto rootNode = pPlugin->GetLibraryRootNode();
+        
+        if (!rootNode)
+        {
+          pCaller->GetUI()->ShowMessageBox(
+            "NAM library not loaded.\n\nMake sure you have nam-model-manager installed.",
+            "Library Not Found", kMB_OK);
+          return;
+        }
+        
+        // Make the library browser fill most of the plugin window
+        const IRECT& pluginBounds = pCaller->GetUI()->GetBounds();
+        const float modalPadding = 40.0f;
+        IRECT modalBounds = pluginBounds.GetPadded(-modalPadding);
+        
+        auto* pBrowserPanel = new NAMLibraryBrowserPanel(
+          modalBounds,
+          &pPlugin->GetLibraryManager(),
+          rootNode,
+          mStyle
+        );
+        
+        pBrowserPanel->SetOnModelSelected([this, pCaller](const std::shared_ptr<NAMLibraryTreeNode>& model) {
+          if (model && model->IsModel())
+          {
+            WDL_String modelPath(model->path.c_str());
+            mFileNameControl->SetLabelAndTooltipEllipsizing(WDL_String(model->name.c_str()));
+            mCompletionHandlerFunc(modelPath, WDL_String());
+            
+            // Close the browser panel after selection
+            pCaller->GetUI()->ForAllControlsFunc([](IControl* pControl) {
+              if (auto* panel = dynamic_cast<NAMLibraryBrowserPanel*>(pControl)) {
+                pControl->GetUI()->RemoveControl(pControl);
+              }
+            });
+          }
+        });
+        
+        pCaller->GetUI()->AttachControl(pBrowserPanel);
+        */
+      }, mLibrarySVG))->SetTooltip("Browse NAM Library");
+    }
+    
     AddChildControl(mFileNameControl = new NAMFileNameControl(fileNameButtonBounds, mDefaultLabelStr.Get(), mStyle))
       ->SetAnimationEndActionFunction(chooseFileFunc);
     AddChildControl(new NAMSquareButtonControl(clearButtonBounds, DefaultClickActionFunc, mClearSVG))
@@ -398,13 +465,18 @@ private:
     return;
   }
 
+  // MOVED ALL MEMBER VARIABLES HERE - BEFORE THEY'RE USED
+  int mClearMsgTag;
   WDL_String mDefaultLabelStr;
   IFileDialogCompletionHandlerFunc mCompletionHandlerFunc;
-  NAMFileNameControl* mFileNameControl = nullptr;
   IVStyle mStyle;
-  IBitmap mBitmap;
-  ISVG mLoadSVG, mClearSVG, mLeftSVG, mRightSVG;
-  int mClearMsgTag;
+  NAMFileNameControl* mFileNameControl = nullptr;
+  IBitmap mBitmap;      
+  ISVG mLoadSVG;         
+  ISVG mClearSVG;        
+  ISVG mLeftSVG;         
+  ISVG mRightSVG;       
+  ISVG mLibrarySVG;      
 };
 
 class NAMMeterControl : public IVPeakAvgMeterControl<>, public IBitmapBase

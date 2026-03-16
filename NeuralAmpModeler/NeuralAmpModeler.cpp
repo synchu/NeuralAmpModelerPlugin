@@ -3,10 +3,20 @@
 #include <filesystem>
 #include <iostream>
 #include <utility>
+#include <cstdlib>
+#ifdef __APPLE__
+#include <pwd.h>
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <pwd.h>
+#include <unistd.h>
+#endif
 
 #include "Colors.h"
 #include "NeuralAmpModelerCore/NAM/activations.h"
 #include "NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "NeuralAmpModelerCore/NAMLibraryBrowserWindow.h" // Add this include
 // clang-format off
 // These includes need to happen in this order or else the latter won't know
 // a bunch of stuff.
@@ -14,6 +24,8 @@
 #include "IPlug_include_in_plug_src.h"
 // clang-format on
 #include "architecture.hpp"
+
+#include "NeuralAmpModelerCore/NAMLibraryManager.h"
 
 #include "NeuralAmpModelerControls.h"
 
@@ -125,6 +137,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto modelIconSVG = pGraphics->LoadSVG(MODEL_ICON_FN);
     const auto irIconOnSVG = pGraphics->LoadSVG(IR_ICON_ON_FN);
     const auto irIconOffSVG = pGraphics->LoadSVG(IR_ICON_OFF_FN);
+    const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  // ADD THIS LINE
 
     const auto backgroundBitmap = pGraphics->LoadBitmap(BACKGROUND_FN);
     const auto fileBackgroundBitmap = pGraphics->LoadBitmap(FILEBACKGROUND_FN);
@@ -265,12 +278,12 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 #endif
     pGraphics->AttachControl(new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(),
                                                        "nam", loadModelCompletionHandler, style, fileSVG, crossSVG,
-                                                       leftArrowSVG, rightArrowSVG, fileBackgroundBitmap),
+                                                       leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),  // CHANGED to libraryIconSVG
                              kCtrlTagModelFileBrowser);
     pGraphics->AttachControl(new ISVGSwitchControl(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
     pGraphics->AttachControl(
       new NAMFileBrowserControl(irArea, kMsgTagClearIR, defaultIRString.c_str(), "wav", loadIRCompletionHandler, style,
-                                fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileBackgroundBitmap),
+                                fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG, fileBackgroundBitmap),  // Use fileSVG as placeholder for IR browser
       kCtrlTagIRFileBrowser);
     pGraphics->AttachControl(
       new NAMSwitchControl(ngToggleArea, kNoiseGateActive, "Noise Gate", style, switchHandleBitmap));
@@ -319,7 +332,81 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 
 NeuralAmpModeler::~NeuralAmpModeler()
 {
+  // Clean up library browser window
+  if (mLibraryBrowserWindow)
+  {
+    mLibraryBrowserWindow->Close();
+    mLibraryBrowserWindow.reset();
+  }
+  
   _DeallocateIOPointers();
+}
+
+void NeuralAmpModeler::OnUIClose()
+{
+  // Close library browser window when plugin UI closes
+  if (mLibraryBrowserWindow)
+  {
+    mLibraryBrowserWindow->Close();
+  }
+}
+
+void NeuralAmpModeler::OpenLibraryBrowserWindow()
+{
+  // Check if the NAM library data file exists before opening the browser
+  const std::string jsonPath = GetNAMLibraryDataJsonPath();
+  if (jsonPath.empty() || !std::filesystem::exists(jsonPath))
+  {
+    std::stringstream ss;
+    ss << "The NAM Library data file could not be found.\n\n";
+    if (!jsonPath.empty())
+      ss << "Expected location:\n    " << jsonPath << "\n\n";
+    ss << "To use the Library Browser, please install the NAM Model Manager "
+          "and ensure it has created its library data at the location above.";
+    _ShowMessageBox(GetUI(), ss.str().c_str(), "NAM Library Not Found", kMB_OK);
+    return;
+  }
+
+  // Create library browser window if not exists
+  if (!mLibraryBrowserWindow)
+  {
+    mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(
+      &mLibraryManager,
+      mLibraryRootNode
+    );
+    
+    // Set callback for when user selects a model
+    mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
+      if (!node || !node->IsModel())
+        return;
+        
+      WDL_String modelPath(node->path.c_str());
+      
+      // Load the model using existing _StageModel function
+      const std::string msg = _StageModel(modelPath);
+      
+      if (msg.size())
+      {
+        std::stringstream ss;
+        ss << "Failed to load NAM model. Message:\n\n" << msg;
+        if (GetUI())
+          _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+      }
+      else
+      {
+        // The _StageModel function already sends the kMsgTagLoadedModel message
+        // which will update the file browser control automatically via OnMsgFromDelegate
+        std::cout << "Loaded from library: " << node->path << std::endl;
+      }
+    });
+  }
+  
+  // Open the window if not already open
+  if (!mLibraryBrowserWindow->IsOpen())
+  {
+    void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
+    mLibraryBrowserWindow->Open(pParentWindow);
+  }
 }
 
 void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
@@ -443,132 +530,124 @@ void NeuralAmpModeler::OnIdle()
   }
 }
 
-bool NeuralAmpModeler::SerializeState(IByteChunk& chunk) const
+bool NeuralAmpModeler::InitializeLibraryManager()
 {
-  // If this isn't here when unserializing, then we know we're dealing with something before v0.8.0.
-  WDL_String header("###NeuralAmpModeler###"); // Don't change this!
-  chunk.PutStr(header.Get());
-  // Plugin version, so we can load legacy serialized states in the future!
-  WDL_String version(PLUG_VERSION_STR);
-  chunk.PutStr(version.Get());
-  // Model directory (don't serialize the model itself; we'll just load it again
-  // when we unserialize)
-  chunk.PutStr(mNAMPath.Get());
-  chunk.PutStr(mIRPath.Get());
-  return SerializeParams(chunk);
+  std::string jsonPath = GetNAMLibraryDataJsonPath();
+  
+  char debugMsg[512];
+  
+  if (jsonPath.empty())
+  {
+    OutputDebugStringA("NAM Library: Failed to determine data.json path\n");
+    return false;
+  }
+  
+  // Log the path being checked
+  snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Trying to load from: %s\n", jsonPath.c_str());
+  OutputDebugStringA(debugMsg);
+  
+  // Check if file exists
+  std::ifstream checkFile(jsonPath);
+  if (!checkFile.good())
+  {
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist or cannot be opened: %s\n", jsonPath.c_str());
+    OutputDebugStringA(debugMsg);
+    return false;
+  }
+  checkFile.close();
+
+  if (mLibraryManager.LoadMetadata(jsonPath))
+  {
+    mLibraryRootNode = mLibraryManager.GetRootNode();
+    if (mLibraryRootNode)
+    {
+      snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n", 
+               mLibraryRootNode->children.size());
+      OutputDebugStringA(debugMsg);
+      return true;
+    }
+    else
+    {
+      OutputDebugStringA("NAM Library: LoadMetadata succeeded but root node is null\n");
+      return false;
+    }
+  }
+  
+  OutputDebugStringA("NAM Library: LoadMetadata failed\n");
+  return false;
 }
 
-int NeuralAmpModeler::UnserializeState(const IByteChunk& chunk, int startPos)
+std::string NeuralAmpModeler::GetNAMLibraryDataJsonPath() const
 {
-  // Look for the expected header. If it's there, then we'll know what to do.
-  WDL_String header;
-  int pos = startPos;
-  pos = chunk.GetStr(header, pos);
+#ifdef _WIN32
+  return GetNAMLibraryPathWindows();
+#elif defined(__APPLE__)
+  return GetNAMLibraryPathMac();
+#else
+  return GetNAMLibraryPathLinux();
+#endif
+}
 
-  const char* kExpectedHeader = "###NeuralAmpModeler###";
-  if (strcmp(header.Get(), kExpectedHeader) == 0)
+std::string NeuralAmpModeler::GetNAMLibraryPathWindows() const
+{
+  const char* appData = std::getenv("APPDATA");
+  if (!appData) return "";
+  
+  std::string path = appData;
+  path += "\\nam-model-manager\\data.json";
+  return path;
+}
+
+std::string NeuralAmpModeler::GetNAMLibraryPathMac() const
+{
+  const char* home = std::getenv("HOME");
+  
+  if (!home)
   {
-    return _UnserializeStateWithKnownVersion(chunk, pos);
+#ifdef __APPLE__
+    struct passwd* pw = getpwuid(getuid());
+    if (pw) home = pw->pw_dir;
+    else return "";
+#else
+    return "";
+#endif
+  }
+
+  std::string path = home;
+  path += "/Library/Application Support/nam-model-manager/data.json";
+  return path;
+}
+
+std::string NeuralAmpModeler::GetNAMLibraryPathLinux() const
+{
+  const char* home = std::getenv("HOME");
+  
+  if (!home)
+  {
+#ifndef _WIN32
+    struct passwd* pw = getpwuid(getuid());
+    if (pw) home = pw->pw_dir;
+    else return "";
+#else
+    return "";
+#endif
+  }
+
+  const char* xdgConfig = std::getenv("XDG_CONFIG_HOME");
+  std::string path;
+  
+  if (xdgConfig && *xdgConfig)
+  {
+    path = xdgConfig;
   }
   else
   {
-    return _UnserializeStateWithUnknownVersion(chunk, startPos);
+    path = home;
+    path += "/.config";
   }
-}
-
-void NeuralAmpModeler::OnUIOpen()
-{
-  Plugin::OnUIOpen();
-
-  if (mNAMPath.GetLength())
-  {
-    SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel, mNAMPath.GetLength(), mNAMPath.Get());
-    // If it's not loaded yet, then mark as failed.
-    // If it's yet to be loaded, then the completion handler will set us straight once it runs.
-    if (mModel == nullptr && mStagedModel == nullptr)
-      SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadFailed);
-  }
-
-  if (mIRPath.GetLength())
-  {
-    SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadedIR, mIRPath.GetLength(), mIRPath.Get());
-    if (mIR == nullptr && mStagedIR == nullptr)
-      SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadFailed);
-  }
-
-  if (mModel != nullptr)
-  {
-    _UpdateControlsFromModel();
-  }
-}
-
-void NeuralAmpModeler::OnParamChange(int paramIdx)
-{
-  switch (paramIdx)
-  {
-    // Changes to the input gain
-    case kCalibrateInput:
-    case kInputCalibrationLevel:
-    case kInputLevel: _SetInputGain(); break;
-    // Changes to the output gain
-    case kOutputLevel:
-    case kOutputMode: _SetOutputGain(); break;
-    // Tone stack:
-    case kToneBass: mToneStack->SetParam("bass", GetParam(paramIdx)->Value()); break;
-    case kToneMid: mToneStack->SetParam("middle", GetParam(paramIdx)->Value()); break;
-    case kToneTreble: mToneStack->SetParam("treble", GetParam(paramIdx)->Value()); break;
-    default: break;
-  }
-}
-
-void NeuralAmpModeler::OnParamChangeUI(int paramIdx, EParamSource source)
-{
-  if (auto pGraphics = GetUI())
-  {
-    bool active = GetParam(paramIdx)->Bool();
-
-    switch (paramIdx)
-    {
-      case kNoiseGateActive: pGraphics->GetControlWithParamIdx(kNoiseGateThreshold)->SetDisabled(!active); break;
-      case kEQActive:
-        pGraphics->ForControlInGroup("EQ_KNOBS", [active](IControl* pControl) { pControl->SetDisabled(!active); });
-        break;
-      case kIRToggle: pGraphics->GetControlWithTag(kCtrlTagIRFileBrowser)->SetDisabled(!active); break;
-      default: break;
-    }
-  }
-}
-
-bool NeuralAmpModeler::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
-{
-  switch (msgTag)
-  {
-    case kMsgTagClearModel: mShouldRemoveModel = true; return true;
-    case kMsgTagClearIR: mShouldRemoveIR = true; return true;
-    case kMsgTagHighlightColor:
-    {
-      mHighLightColor.Set((const char*)pData);
-
-      if (GetUI())
-      {
-        GetUI()->ForStandardControlsFunc([&](IControl* pControl) {
-          if (auto* pVectorBase = pControl->As<IVectorBase>())
-          {
-            IColor color = IColor::FromColorCodeStr(mHighLightColor.Get());
-
-            pVectorBase->SetColor(kX1, color);
-            pVectorBase->SetColor(kPR, color.WithOpacity(0.3f));
-            pVectorBase->SetColor(kFR, color.WithOpacity(0.4f));
-            pVectorBase->SetColor(kX3, color.WithContrast(0.1f));
-          }
-          pControl->GetUI()->SetAllControlsDirty();
-        });
-      }
-
-      return true;
-    }
-    default: return false;
-  }
+  
+  path += "/nam-model-manager/data.json";
+  return path;
 }
 
 // Private methods ============================================================
@@ -943,10 +1022,129 @@ void NeuralAmpModeler::_UpdateLatency()
 void NeuralAmpModeler::_UpdateMeters(sample** inputPointer, sample** outputPointer, const size_t nFrames,
                                      const size_t nChansIn, const size_t nChansOut)
 {
-  // Right now, we didn't specify MAXNC when we initialized these, so it's 1.
   const int nChansHack = 1;
   mInputSender.ProcessBlock(inputPointer, (int)nFrames, kCtrlTagInputMeter, nChansHack);
   mOutputSender.ProcessBlock(outputPointer, (int)nFrames, kCtrlTagOutputMeter, nChansHack);
+}
+
+bool NeuralAmpModeler::SerializeState(IByteChunk& chunk) const
+{
+  WDL_String header("###NeuralAmpModeler###");
+  chunk.PutStr(header.Get());
+  WDL_String version(PLUG_VERSION_STR);
+  chunk.PutStr(version.Get());
+  chunk.PutStr(mNAMPath.Get());
+  chunk.PutStr(mIRPath.Get());
+  return SerializeParams(chunk);
+}
+
+int NeuralAmpModeler::UnserializeState(const IByteChunk& chunk, int startPos)
+{
+  WDL_String header;
+  int pos = startPos;
+  pos = chunk.GetStr(header, pos);
+
+  const char* kExpectedHeader = "###NeuralAmpModeler###";
+  if (strcmp(header.Get(), kExpectedHeader) == 0)
+  {
+    return _UnserializeStateWithKnownVersion(chunk, pos);
+  }
+  else
+  {
+    return _UnserializeStateWithUnknownVersion(chunk, startPos);
+  }
+}
+
+void NeuralAmpModeler::OnUIOpen()
+{
+  Plugin::OnUIOpen();
+
+  InitializeLibraryManager();
+
+  if (mNAMPath.GetLength())
+  {
+    SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel, mNAMPath.GetLength(), mNAMPath.Get());
+    if (mModel == nullptr && mStagedModel == nullptr)
+      SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadFailed);
+  }
+
+  if (mIRPath.GetLength())
+  {
+    SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadedIR, mIRPath.GetLength(), mIRPath.Get());
+    if (mIR == nullptr && mStagedIR == nullptr)
+      SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadFailed);
+  }
+
+  if (mModel != nullptr)
+  {
+    _UpdateControlsFromModel();
+  }
+}
+
+void NeuralAmpModeler::OnParamChange(int paramIdx)
+{
+  switch (paramIdx)
+  {
+    case kCalibrateInput:
+    case kInputCalibrationLevel:
+    case kInputLevel: _SetInputGain(); break;
+    case kOutputLevel:
+    case kOutputMode: _SetOutputGain(); break;
+    case kToneBass: mToneStack->SetParam("bass", GetParam(paramIdx)->Value()); break;
+    case kToneMid: mToneStack->SetParam("middle", GetParam(paramIdx)->Value()); break;
+    case kToneTreble: mToneStack->SetParam("treble", GetParam(paramIdx)->Value()); break;
+    default: break;
+  }
+}
+
+void NeuralAmpModeler::OnParamChangeUI(int paramIdx, EParamSource source)
+{
+  if (auto pGraphics = GetUI())
+  {
+    bool active = GetParam(paramIdx)->Bool();
+
+    switch (paramIdx)
+    {
+      case kNoiseGateActive: pGraphics->GetControlWithParamIdx(kNoiseGateThreshold)->SetDisabled(!active); break;
+      case kEQActive:
+        pGraphics->ForControlInGroup("EQ_KNOBS", [active](IControl* pControl) { pControl->SetDisabled(!active); });
+        break;
+      case kIRToggle: pGraphics->GetControlWithTag(kCtrlTagIRFileBrowser)->SetDisabled(!active); break;
+      default: break;
+    }
+  }
+}
+
+bool NeuralAmpModeler::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
+{
+  switch (msgTag)
+  {
+    case kMsgTagClearModel: mShouldRemoveModel = true; return true;
+    case kMsgTagClearIR: mShouldRemoveIR = true; return true;
+    case kMsgTagHighlightColor:
+    {
+      mHighLightColor.Set((const char*)pData);
+
+      if (GetUI())
+      {
+        GetUI()->ForStandardControlsFunc([&](IControl* pControl) {
+          if (auto* pVectorBase = pControl->As<IVectorBase>())
+          {
+            IColor color = IColor::FromColorCodeStr(mHighLightColor.Get());
+
+            pVectorBase->SetColor(kX1, color);
+            pVectorBase->SetColor(kPR, color.WithOpacity(0.3f));
+            pVectorBase->SetColor(kFR, color.WithOpacity(0.4f));
+            pVectorBase->SetColor(kX3, color.WithContrast(0.1f));
+          }
+          pControl->GetUI()->SetAllControlsDirty();
+        });
+      }
+
+      return true;
+    }
+    default: return false;
+  }
 }
 
 // HACK

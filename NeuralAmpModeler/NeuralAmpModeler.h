@@ -9,6 +9,8 @@
 
 #include "Colors.h"
 #include "ToneStack.h"
+#include "NeuralAmpModelerCore/NAMLibraryManager.h"
+#include "NeuralAmpModelerCore/NAMLibraryBrowserWindow.h"  // Add this
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"
@@ -195,11 +197,18 @@ public:
   bool SerializeState(iplug::IByteChunk& chunk) const override;
   int UnserializeState(const iplug::IByteChunk& chunk, int startPos) override;
   void OnUIOpen() override;
+  void OnUIClose() override;  // Add this
   bool OnHostRequestingSupportedViewConfiguration(int width, int height) override { return true; }
 
   void OnParamChange(int paramIdx) override;
   void OnParamChangeUI(int paramIdx, iplug::EParamSource source) override;
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
+
+  // Library browser support
+  bool InitializeLibraryManager();
+  std::shared_ptr<NAMLibraryTreeNode> GetLibraryRootNode() const { return mLibraryRootNode; }
+  NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
+  void OpenLibraryBrowserWindow();  // Add this
 
 private:
   // Allocates mInputPointers and mOutputPointers
@@ -264,6 +273,12 @@ private:
   void _UpdateMeters(iplug::sample** inputPointer, iplug::sample** outputPointer, const size_t nFrames,
                      const size_t nChansIn, const size_t nChansOut);
 
+  // Library path resolution helpers
+  std::string GetNAMLibraryDataJsonPath() const;
+  std::string GetNAMLibraryPathWindows() const;
+  std::string GetNAMLibraryPathMac() const;
+  std::string GetNAMLibraryPathLinux() const;
+
   // Member data
 
   // Input arrays to NAM
@@ -312,4 +327,9 @@ private:
   std::unordered_map<std::string, double> mNAMParams = {{"Input", 0.0}, {"Output", 0.0}};
 
   NAMSender mInputSender, mOutputSender;
+  
+  // Library browser
+  NAMLibraryManager mLibraryManager;
+  std::shared_ptr<NAMLibraryTreeNode> mLibraryRootNode;
+  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;  // Add this
 };

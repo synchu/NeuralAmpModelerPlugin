@@ -1,0 +1,15 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Back file (darker) -->
+  <rect x="5" y="8" width="13" height="15" rx="1.5" fill="#666666" opacity="0.6"/>
+  
+  <!-- Middle file -->
+  <rect x="6.5" y="5.5" width="13" height="15" rx="1.5" fill="#888888" opacity="0.8"/>
+  
+  <!-- Front file (brightest) -->
+  <rect x="8" y="3" width="13" height="15" rx="1.5" fill="#BBBBBB" stroke="#FFFFFF" stroke-width="0.5"/>
+  
+  <!-- Horizontal lines on front file to suggest text/content -->
+  <line x1="10" y1="7" x2="19" y2="7" stroke="#666666" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="10" y1="10" x2="19" y2="10" stroke="#666666" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="10" y1="13" x2="16" y2="13" stroke="#666666" stroke-width="0.8" stroke-linecap="round"/>
+</svg>
