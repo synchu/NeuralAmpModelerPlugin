@@ -11,8 +11,8 @@
 
 #include "Colors.h"
 #include "ToneStack.h"
-#include "NeuralAmpModelerCore/NAMLibraryManager.h"
-#include "NeuralAmpModelerCore/NAMLibraryBrowserWindow.h"  // Add this
+#include "NAMLibraryManager.h"
+#include "NAMLibraryBrowserWindow.h"
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"

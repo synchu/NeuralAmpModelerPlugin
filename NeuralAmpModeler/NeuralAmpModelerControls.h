@@ -4,7 +4,7 @@
 #include <sstream> // std::stringstream
 #include <unordered_map> // std::unordered_map
 #include "IControls.h"
-#include "NeuralAmpModelerCore/NAMLibraryBrowserPanel.h"  // ADD THIS LINE
+#include "NAMLibraryBrowserPanel.h"
 
 #define PLUG() static_cast<PLUG_CLASS_NAME*>(GetDelegate())
 #define NAM_KNOB_HEIGHT 120.0f
