@@ -195,26 +195,31 @@ public:
     SetTooltip(str);
   }
 
-  void SetLabelAndTooltipEllipsizing(const WDL_String& fileName)
+  void SetLabelAndTooltipEllipsizing(const WDL_String& fileName, size_t maxLength)
   {
-    auto EllipsizeFilePath = [](const char* filePath, size_t prefixLength, size_t suffixLength, size_t maxLength) {
-      const std::string ellipses = "...";
-      assert(maxLength <= (prefixLength + suffixLength + ellipses.size()));
-      std::string str{filePath};
+    auto EllipsizeMiddle = [](const char* s, size_t maxLen) -> std::string {
+      if (!s)
+        return {};
 
-      if (str.length() <= maxLength)
-      {
+      std::string str{s};
+      if (str.size() <= maxLen)
         return str;
-      }
-      else
-      {
-        return str.substr(0, prefixLength) + ellipses + str.substr(str.length() - suffixLength);
-      }
+
+      const std::string ellipses = "...";
+      if (maxLen <= ellipses.size())
+        return str.substr(0, maxLen);
+
+      const size_t keep = maxLen - ellipses.size();
+      const size_t prefix = keep / 2;
+      const size_t suffix = keep - prefix;
+
+      return str.substr(0, prefix) + ellipses + str.substr(str.size() - suffix);
     };
 
-    auto ellipsizedFileName = EllipsizeFilePath(fileName.get_filepart(), 22, 22, 45);
-    SetLabelStr(ellipsizedFileName.c_str());
-    SetTooltip(fileName.get_filepart());
+    const char* baseName = fileName.get_filepart();
+    auto ellipsized = EllipsizeMiddle(baseName, maxLength);
+    SetLabelStr(ellipsized.c_str());
+    SetTooltip(baseName);
   }
 };
 
@@ -420,7 +425,10 @@ public:
     {
       WDL_String fileName, path;
       GetSelectedFile(fileName);
-      mFileNameControl->SetLabelAndTooltipEllipsizing(fileName);
+
+      const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 32 : 45;
+      mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
+
       mCompletionHandlerFunc(fileName, path);
     }
   }
@@ -430,7 +438,6 @@ public:
     switch (msgTag)
     {
       case kMsgTagLoadFailed:
-        // Honestly, not sure why I made a big stink of it before. Why not just say it failed and move on? :)
         {
           std::string label(std::string("(FAILED) ") + std::string(mFileNameControl->GetLabelStr()));
           mFileNameControl->SetLabelAndTooltip(label.c_str());
@@ -448,7 +455,9 @@ public:
         AddPath(directory.Get(), "");
         SetupMenu();
         SetSelectedFile(fileName.Get());
-        mFileNameControl->SetLabelAndTooltipEllipsizing(fileName);
+
+        const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 32 : 45;
+        mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
         break;
       }
       default: break;
