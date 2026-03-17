@@ -212,6 +212,9 @@ public:
   NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
   void OpenLibraryBrowserWindow();  // Add this
 
+  // Drag-and-drop file handling (moved from IControl.h hack)
+  void HandleFileDrop(const char* str);
+
 private:
   // Allocates mInputPointers and mOutputPointers
   void _AllocateIOPointers(const size_t nChans);

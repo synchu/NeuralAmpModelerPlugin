@@ -191,52 +191,11 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     // Misc Areas
     const auto settingsButtonArea = CornerButtonArea(b);
 
-    // handle file drop with quick hack at IControl.h
-    auto handleFileDropFunc = [&](const char* str) {
-      WDL_String ss;
-      ss.Append(str);
-      if (!strlen(str))
-      {
-        return;
-      }
-      //_ShowMessageBox(GetUI(), ss.Get(), "FileDropped", kMB_OK);
-      if (!std::filesystem::exists(str) || !std::filesystem::file_size(str))
-        throw std::runtime_error("The file doesn't exist or is of zero size!\n");
-
-      std::filesystem::path filename;
-      filename.append(str);
-
-      if (filename.extension() == ".nam")
-      {
-        _StageModel(ss);
-        /* skip precautions
-        std::ifstream i(str);
-        nlohmann::json j;
-        i >> j;
-        std::string architecture = j["architecture"];
-        nlohmann::json config = j["config"];
-
-        WDL_String fileName, path;
-        fileName.Append(str);
-        if ((!config.is_null()) && (architecture.length()))
-        {
-          _StageModel(fileName);
-        }*/
-      }
-      if (filename.extension() == ".wav")
-      {
-        _StageIR(ss);
-      }
-    };
-
-
     // Model loader button
     auto loadModelCompletionHandler = [&](const WDL_String& fileName, const WDL_String& path) {
       if (fileName.GetLength())
       {
-        // Sets mNAMPath and mStagedNAM
         const std::string msg = _StageModel(fileName);
-        // TODO error messages like the IR loader.
         if (msg.size())
         {
           std::stringstream ss;
@@ -258,16 +217,15 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
           std::stringstream message;
           message << "Failed to load IR file " << fileName.Get() << ":\n";
           message << dsp::wav::GetMsgForLoadReturnCode(retCode);
-
           _ShowMessageBox(GetUI(), message.str().c_str(), "Failed to load IR!", kMB_OK);
         }
       }
     };
 
     pGraphics->AttachBackground(BACKGROUND_FN);
-    pGraphics->AttachControl(new IBitmapControl(b, linesBitmap));
-    pGraphics->AttachControl(new IVLabelControl(titleArea, "NEURAL AMP MODELER", titleStyle));
-    pGraphics->AttachControl(new ISVGControl(modelIconArea, modelIconSVG));
+    pGraphics->AttachControl(new WithFileDrop<IBitmapControl>(b, linesBitmap));
+    pGraphics->AttachControl(new WithFileDrop<IVLabelControl>(titleArea, "NEURAL AMP MODELER", titleStyle));
+    pGraphics->AttachControl(new WithFileDrop<ISVGControl>(modelIconArea, modelIconSVG));
 
 #ifdef NAM_PICK_DIRECTORY
     const std::string defaultNamFileString = "Select model directory...";
@@ -280,7 +238,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
                                                        "nam", loadModelCompletionHandler, style, fileSVG, crossSVG,
                                                        leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),  // CHANGED to libraryIconSVG
                              kCtrlTagModelFileBrowser);
-    pGraphics->AttachControl(new ISVGSwitchControl(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
+    pGraphics->AttachControl(new WithFileDrop<ISVGSwitchControl>(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
     pGraphics->AttachControl(
       new NAMFileBrowserControl(irArea, kMsgTagClearIR, defaultIRString.c_str(), "wav", loadIRCompletionHandler, style,
                                 fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG, fileBackgroundBitmap),  // Use fileSVG as placeholder for IR browser
@@ -322,11 +280,6 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       pControl->SetMouseEventsWhenDisabled(true);
       pControl->SetMouseOverWhenDisabled(true);
     });
-
-     // add support for FileDrag & Drop - quick HACK implemented at IControl.h - to support the below
-    pGraphics->ForAllControlsFunc([&](IControl* pControl) { pControl->OnDropFunc = handleFileDropFunc; });
-    // pGraphics->GetControlWithTag(kCtrlTagOutNorm)->SetMouseEventsWhenDisabled(false);
-    // pGraphics->GetControlWithTag(kCtrlTagCalibrateInput)->SetMouseEventsWhenDisabled(false);
   };
 }
 
@@ -392,8 +345,7 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
     {
       std::stringstream ss;
       ss << "Failed to load NAM model. Message:\n\n" << msg;
-      if (GetUI())
-        _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+      _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
     }
     else
     {
@@ -1168,3 +1120,27 @@ bool NeuralAmpModeler::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
 
 // HACK
 #include "Unserialization.cpp"
+
+void NeuralAmpModeler::HandleFileDrop(const char* str)
+{
+  if (!str || !strlen(str))
+    return;
+
+  if (!std::filesystem::exists(str) || !std::filesystem::file_size(str))
+    throw std::runtime_error("The file doesn't exist or is of zero size!\n");
+
+  std::filesystem::path filename;
+  filename.append(str);
+
+  WDL_String ss;
+  ss.Append(str);
+
+  if (filename.extension() == ".nam")
+  {
+    _StageModel(ss);
+  }
+  if (filename.extension() == ".wav")
+  {
+    _StageIR(ss);
+  }
+}

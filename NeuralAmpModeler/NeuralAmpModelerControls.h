@@ -13,6 +13,20 @@
 using namespace iplug;
 using namespace igraphics;
 
+// Template mixin: injects OnDrop into any IControl-derived class
+// so that file drag-and-drop routes to the plugin's HandleFileDrop().
+// Replaces the IControl.h hack (OnDropFunc member).
+template <typename T>
+class WithFileDrop : public T
+{
+public:
+  using T::T; // inherit all constructors
+  void OnDrop(const char* str) override
+  {
+    static_cast<PLUG_CLASS_NAME*>(this->GetDelegate())->HandleFileDrop(str);
+  }
+};
+
 // Where the corner button on the plugin (settings, close settings) goes
 // :param rect: Rect for the whole plugin's UI
 IRECT CornerButtonArea(const IRECT& rect)
@@ -21,11 +35,11 @@ IRECT CornerButtonArea(const IRECT& rect)
   return mainArea.GetFromTRHC(50, 50).GetCentredInside(20, 20);
 };
 
-class NAMSquareButtonControl : public ISVGButtonControl
+class NAMSquareButtonControl : public WithFileDrop<ISVGButtonControl>
 {
 public:
   NAMSquareButtonControl(const IRECT& bounds, IActionFunction af, const ISVG& svg)
-  : ISVGButtonControl(bounds, af, svg, svg)
+  : WithFileDrop<ISVGButtonControl>(bounds, af, svg, svg)
   {
   }
 
@@ -55,11 +69,11 @@ public:
   }
 };
 
-class NAMKnobControl : public IVKnobControl, public IBitmapBase
+class NAMKnobControl : public WithFileDrop<IVKnobControl>, public IBitmapBase
 {
 public:
   NAMKnobControl(const IRECT& bounds, int paramIdx, const char* label, const IVStyle& style, IBitmap bitmap)
-  : IVKnobControl(bounds, paramIdx, label, style, true)
+  : WithFileDrop<IVKnobControl>(bounds, paramIdx, label, style, true)
   , IBitmapBase(bitmap)
   {
     mInnerPointerFrac = 0.55;
@@ -87,11 +101,11 @@ public:
   }
 };
 
-class NAMSwitchControl : public IVSlideSwitchControl, public IBitmapBase
+class NAMSwitchControl : public WithFileDrop<IVSlideSwitchControl>, public IBitmapBase
 {
 public:
   NAMSwitchControl(const IRECT& bounds, int paramIdx, const char* label, const IVStyle& style, IBitmap bitmap)
-  : IVSlideSwitchControl(bounds, paramIdx, label,
+  : WithFileDrop<IVSlideSwitchControl>(bounds, paramIdx, label,
                          style.WithRoundness(0.666f)
                            .WithShowValue(false)
                            .WithEmboss(true)
@@ -173,11 +187,11 @@ public:
   }
 };
 
-class NAMFileNameControl : public IVButtonControl
+class NAMFileNameControl : public WithFileDrop<IVButtonControl>
 {
 public:
   NAMFileNameControl(const IRECT& bounds, const char* label, const IVStyle& style)
-  : IVButtonControl(bounds, DefaultClickActionFunc, label, style)
+  : WithFileDrop<IVButtonControl>(bounds, DefaultClickActionFunc, label, style)
   {
   }
 
@@ -223,7 +237,7 @@ public:
   }
 };
 
-class NAMFileBrowserControl : public IDirBrowseControlBase
+class NAMFileBrowserControl : public WithFileDrop<IDirBrowseControlBase>
 {
 public:
   NAMFileBrowserControl(const IRECT& bounds, int clearMsgTag, const char* labelStr, const char* fileExtension,
@@ -231,7 +245,7 @@ public:
                     const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG, 
                     const ISVG& librarySVG,
                     const IBitmap& bitmap)
-  : IDirBrowseControlBase(bounds, fileExtension, false, false)
+  : WithFileDrop<IDirBrowseControlBase>(bounds, fileExtension, false, false)
   , mClearMsgTag(clearMsgTag)
   , mDefaultLabelStr(labelStr)
   , mCompletionHandlerFunc(ch)
@@ -488,14 +502,14 @@ private:
   ISVG mLibrarySVG;      
 };
 
-class NAMMeterControl : public IVPeakAvgMeterControl<>, public IBitmapBase
+class NAMMeterControl : public WithFileDrop<IVPeakAvgMeterControl<>>, public IBitmapBase
 {
   static constexpr float KMeterMin = -70.0f;
   static constexpr float KMeterMax = -0.01f;
 
 public:
   NAMMeterControl(const IRECT& bounds, const IBitmap& bitmap, const IVStyle& style)
-  : IVPeakAvgMeterControl<>(bounds, "", style.WithShowValue(false).WithDrawFrame(false).WithWidgetFrac(0.8),
+  : WithFileDrop<IVPeakAvgMeterControl<>>(bounds, "", style.WithShowValue(false).WithDrawFrame(false).WithWidgetFrac(0.8),
                             EDirection::Vertical, {}, 0, KMeterMin, KMeterMax, {})
   , IBitmapBase(bitmap)
   {
@@ -529,11 +543,11 @@ public:
 };
 
 // Container where we can refer to children by names instead of indices
-class IContainerBaseWithNamedChildren : public IContainerBase
+class IContainerBaseWithNamedChildren : public WithFileDrop<IContainerBase>
 {
 public:
   IContainerBaseWithNamedChildren(const IRECT& bounds)
-  : IContainerBase(bounds){};
+  : WithFileDrop<IContainerBase>(bounds){};
   ~IContainerBaseWithNamedChildren() = default;
 
 protected:
@@ -636,11 +650,11 @@ private:
   bool mHasInfo = false;
 };
 
-class OutputModeControl : public IVRadioButtonControl
+class OutputModeControl : public WithFileDrop<IVRadioButtonControl>
 {
 public:
   OutputModeControl(const IRECT& bounds, int paramIdx, const IVStyle& style, float buttonSize)
-  : IVRadioButtonControl(
+  : WithFileDrop<IVRadioButtonControl>(
     bounds, paramIdx, {}, "Output Mode", style, EVShape::Ellipse, EDirection::Vertical, buttonSize){};
 
   void SetNormalizedDisable(const bool disable)
@@ -836,12 +850,12 @@ private:
     const std::string title = "Title";
   } mControlNames;
 
-  class InputLevelControl : public IEditableTextControl
+  class InputLevelControl : public WithFileDrop<IEditableTextControl>
   {
   public:
     InputLevelControl(const IRECT& bounds, int paramIdx, const IBitmap& bitmap, const IText& text = DEFAULT_TEXT,
                       const IColor& BGColor = DEFAULT_BGCOLOR)
-    : IEditableTextControl(bounds, "", text, BGColor)
+    : WithFileDrop<IEditableTextControl>(bounds, "", text, BGColor)
     , mBitmap(bitmap)
     {
       SetParamIdx(paramIdx);
