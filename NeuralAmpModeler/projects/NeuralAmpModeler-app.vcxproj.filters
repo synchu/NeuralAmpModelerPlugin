@@ -114,10 +114,10 @@
       <Filter>dsp</Filter>
     </ClCompile>
     <ClCompile Include="..\ToneStack.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAMLibraryManager.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAMLibraryTreeView.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAMLibraryBrowserPanel.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAMLibraryBrowserWindow.cpp" />
+    <ClCompile Include="..\NAMLibraryManager.cpp" />
+    <ClCompile Include="..\NAMLibraryTreeView.cpp" />
+    <ClCompile Include="..\NAMLibraryBrowserPanel.cpp" />
+    <ClCompile Include="..\NAMLibraryBrowserWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\NeuralAmpModeler.h" />
@@ -368,11 +368,11 @@
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h">
       <Filter>NAM</Filter>
     </ClInclude>
-    <ClInclude Include="..\NeuralAmpModelerCore\NAMLibraryTreeNode.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAMLibraryManager.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAMLibraryTreeView.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAMLibraryBrowserPanel.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAMLibraryBrowserWindow.h" />
+    <ClInclude Include="..\NAMLibraryTreeNode.h" />
+    <ClInclude Include="..\NAMLibraryManager.h" />
+    <ClInclude Include="..\NAMLibraryTreeView.h" />
+    <ClInclude Include="..\NAMLibraryBrowserPanel.h" />
+    <ClInclude Include="..\NAMLibraryBrowserWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">

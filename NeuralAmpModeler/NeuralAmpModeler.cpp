@@ -16,7 +16,7 @@
 #include "Colors.h"
 #include "NeuralAmpModelerCore/NAM/activations.h"
 #include "NeuralAmpModelerCore/NAM/get_dsp.h"
-#include "NeuralAmpModelerCore/NAMLibraryBrowserWindow.h" // Add this include
+#include "NAMLibraryBrowserWindow.h"
 // clang-format off
 // These includes need to happen in this order or else the latter won't know
 // a bunch of stuff.
@@ -25,7 +25,7 @@
 // clang-format on
 #include "architecture.hpp"
 
-#include "NeuralAmpModelerCore/NAMLibraryManager.h"
+#include "NAMLibraryManager.h"
 
 #include "NeuralAmpModelerControls.h"
 
