@@ -44,47 +44,7 @@ jobs:
         ./download-prebuilt-libs.sh
       shell: bash
 
-    # ---------- macOS ----------
-    - name: Build macOS
-      if: matrix.os == 'macos-latest'
-      run: |
-        cd ${{ env.PROJECT_NAME }}/scripts
-        ./makedist-mac.sh full zip
-      shell: bash
-
-    # ---------- Windows (Clang AVX) ----------
-    - name: Add msbuild to PATH (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Build Windows (Clang AVX)
-      if: matrix.os == 'windows-latest'
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        msbuild NeuralAmpModeler.sln `
-          /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
-          /p:Configuration=Release-Clang-x64-v3 `
-          /p:Platform=x64 `
-          /m /nologo /verbosity:minimal
-      shell: pwsh
-
-    - name: Stage and rename Windows artifacts
-      if: matrix.os == 'windows-latest'
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        New-Item -ItemType Directory -Force -Path "build-win\out"
-        Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
-        Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.exe"
-      shell: pwsh
-
-    # ---------- Upload ----------
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.artifact_path }}
+    # Add library browser sources to Xcode project BEFORE building macOS
     - name: Add library browser sources to Xcode project
       if: matrix.os == 'macos-latest'
       run: |
@@ -139,3 +99,45 @@ jobs:
         puts 'Xcode project saved.'
         RUBY
       shell: bash
+
+    # ---------- macOS ----------
+    - name: Build macOS
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd ${{ env.PROJECT_NAME }}/scripts
+        ./makedist-mac.sh full zip
+      shell: bash
+
+    # ---------- Windows (Clang AVX) ----------
+    - name: Add msbuild to PATH (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build Windows (Clang AVX)
+      if: matrix.os == 'windows-latest'
+      working-directory: ${{ env.PROJECT_NAME }}
+      run: |
+        msbuild NeuralAmpModeler.sln `
+          /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
+          /p:Configuration=Release-Clang-x64-v3 `
+          /p:Platform=x64 `
+          /m /nologo /verbosity:minimal
+      shell: pwsh
+
+    - name: Stage and rename Windows artifacts
+      if: matrix.os == 'windows-latest'
+      working-directory: ${{ env.PROJECT_NAME }}
+      run: |
+        New-Item -ItemType Directory -Force -Path "build-win\out"
+        Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
+                  "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
+        Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
+                  "build-win\out\NeuralAmpModelerAVX_Clang.exe"
+      shell: pwsh
+
+    # ---------- Upload ----------
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_path }}
