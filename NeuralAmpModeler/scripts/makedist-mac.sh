@@ -17,6 +17,9 @@ IPLUG2_ROOT=../iPlug2
 XCCONFIG=$IPLUG2_ROOT/../common-mac.xcconfig
 SCRIPTS=$IPLUG2_ROOT/Scripts
 
+# Project base name (used for xcodeproj/xcconfig filenames, which don't change)
+PROJECT_BASE=NeuralAmpModeler
+
 # CODESIGN disabled by default. 
 CODESIGN=0
 
@@ -147,7 +150,7 @@ fi
 #---------------------------------------------------------------------------------------------------------
 # build xcode project. Change target to build individual formats, or add to All target in the xcode project
 
-xcodebuild -project ./projects/$PLUGIN_NAME-macOS.xcodeproj -xcconfig ./config/$PLUGIN_NAME-mac.xcconfig DEMO_VERSION=$DEMO -target "All" -UseModernBuildSystem=NO -configuration Release | tee build-mac.log | xcpretty #&& exit ${PIPESTATUS[0]}
+xcodebuild -project ./projects/$PROJECT_BASE-macOS.xcodeproj -xcconfig ./config/$PROJECT_BASE-mac.xcconfig DEMO_VERSION=$DEMO -target "All" -UseModernBuildSystem=NO -configuration Release | tee build-mac.log | xcpretty #&& exit ${PIPESTATUS[0]}
 
 if [ "${PIPESTATUS[0]}" -ne "0" ]; then
   echo "ERROR: build failed, aborting"
