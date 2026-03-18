@@ -207,9 +207,9 @@ jobs:
         working-directory: ${{ env.PROJECT_NAME }}
         run: |
           New-Item -ItemType Directory -Force -Path "build-win\out"
-          Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
+          Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModelerAVX.vst3" `
                     "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
-          Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
+          Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModelerAVX.exe" `
                     "build-win\out\NeuralAmpModelerAVX_Clang.exe"
         shell: pwsh
 
