@@ -94,6 +94,7 @@ jobs:
           %w[
             ../NAMLibraryManager.cpp
             ../NAMLibraryBrowserWindow.cpp
+            ../NAMLibraryBrowserWindow.mm
             ../NAMLibraryBrowserPanel.cpp
             ../NAMLibraryTreeView.cpp
           ].each do |rel|
