@@ -45,6 +45,58 @@ jobs:
       shell: bash
 
     # ---------- macOS ----------
+    - name: Add library browser sources to Xcode project
+      if: matrix.os == 'macos-latest'
+      run: |
+        gem install xcodeproj
+        ruby - <<'RUBY'
+        require 'xcodeproj'
+
+        project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+        project = Xcodeproj::Project.open(project_path)
+
+        # Locate NeuralAmpModeler.cpp to discover its group and targets
+        nam_cpp = project.files.find { |f| f.display_name == 'NeuralAmpModeler.cpp' }
+        abort('Cannot find NeuralAmpModeler.cpp in Xcode project') unless nam_cpp
+
+        source_group = nam_cpp.parent
+
+        # Collect every target that already compiles NeuralAmpModeler.cpp
+        targets = project.targets.select do |t|
+          t.source_build_phase &&
+            t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
+        end
+
+        puts "Group : #{source_group.display_name}"
+        puts "Targets: #{targets.map(&:name).join(', ')}"
+
+        # Source files that need adding (paths relative to the .xcodeproj)
+        %w[
+          ../NAMLibraryManager.cpp
+          ../NAMLibraryBrowserWindow.cpp
+          ../NAMLibraryBrowserPanel.cpp
+          ../NAMLibraryTreeView.cpp
+        ].each do |rel|
+          name = File.basename(rel)
+          if project.files.any? { |f| f.display_name == name }
+            puts "  #{name} already present – skipping"
+            next
+          end
+
+          ref = source_group.new_file(rel)
+          ref.name = name
+
+          targets.each do |t|
+            t.source_build_phase.add_file_reference(ref)
+            puts "  Added #{name} → #{t.name}"
+          end
+        end
+
+        project.save
+        puts 'Xcode project saved.'
+        RUBY
+      shell: bash
+
     - name: Build macOS
       if: matrix.os == 'macos-latest'
       run: |
