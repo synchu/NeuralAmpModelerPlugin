@@ -1,3 +1,90 @@
+name: Build Native
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [dsp-opts]
+  schedule:
+    - cron: '0 8 * * 2'
+
+env:
+  PROJECT_NAME: NeuralAmpModeler
+
+jobs:
+  build:
+    name: Build-native-plugins
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            artifact_name: NeuralAmpModeler-mac
+            artifact_path: NeuralAmpModeler/build-mac/out
+          - os: windows-latest
+            artifact_name: NeuralAmpModelerAVX_Clang
+            artifact_path: NeuralAmpModeler/build-win/out
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Get VST3 SDK
+      run: |
+        cd iPlug2/Dependencies/IPlug
+        ./download-iplug-sdks.sh
+      shell: bash
+
+    - name: Get Prebuilt Libs
+      run: |
+        cd iPlug2/Dependencies
+        ./download-prebuilt-libs.sh
+      shell: bash
+
+    # ---------- macOS ----------
+    - name: Build macOS
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd ${{ env.PROJECT_NAME }}/scripts
+        ./makedist-mac.sh full zip
+      shell: bash
+
+    # ---------- Windows (Clang AVX) ----------
+    - name: Add msbuild to PATH (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build Windows (Clang AVX)
+      if: matrix.os == 'windows-latest'
+      working-directory: ${{ env.PROJECT_NAME }}
+      run: |
+        msbuild NeuralAmpModeler.sln `
+          /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
+          /p:Configuration=Release-Clang-x64-v3 `
+          /p:Platform=x64 `
+          /m /nologo /verbosity:minimal
+      shell: pwsh
+
+    - name: Stage and rename Windows artifacts
+      if: matrix.os == 'windows-latest'
+      working-directory: ${{ env.PROJECT_NAME }}
+      run: |
+        New-Item -ItemType Directory -Force -Path "build-win\out"
+        Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
+                  "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
+        Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
+                  "build-win\out\NeuralAmpModelerAVX_Clang.exe"
+      shell: pwsh
+
+    # ---------- Upload ----------
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_path }}
     - name: Add library browser sources to Xcode project
       if: matrix.os == 'macos-latest'
       run: |
@@ -14,7 +101,7 @@
 
         source_group = nam_cpp.parent
 
-        # Only consider native targets (skip PBXAggregateTarget which lacks source_build_phase)
+        # Only consider native targets (skip PBXAggregateTarget which has no source_build_phase)
         native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
 
         # Collect every native target that already compiles NeuralAmpModeler.cpp
