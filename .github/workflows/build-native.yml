@@ -27,200 +27,178 @@ jobs:
             artifact_path: NeuralAmpModeler/build-win/out
 
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Select Xcode 16.4
-      if: startsWith(matrix.os, 'macos')
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '16.4'
+      - name: Select Xcode 16.4
+        if: startsWith(matrix.os, 'macos')
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
 
-    - name: Show Xcode version
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        xcode-select -p
-        xcodebuild -version
-      shell: bash
+      - name: Show Xcode version
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          xcode-select -p
+          xcodebuild -version
+        shell: bash
 
-    - name: Get VST3 SDK
-      run: |
-        cd iPlug2/Dependencies/IPlug
-        ./download-iplug-sdks.sh
-      shell: bash
+      - name: Get VST3 SDK
+        run: |
+          cd iPlug2/Dependencies/IPlug
+          ./download-iplug-sdks.sh
+        shell: bash
 
-    - name: Get Prebuilt Libs
-      run: |
-        cd iPlug2/Dependencies
-        ./download-prebuilt-libs.sh
-      shell: bash
+      - name: Get Prebuilt Libs
+        run: |
+          cd iPlug2/Dependencies
+          ./download-prebuilt-libs.sh
+        shell: bash
 
-    - name: Add library browser sources to Xcode project
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        gem install xcodeproj
-        ruby - <<'RUBY'
-        require 'xcodeproj'
+      - name: Add library browser sources to Xcode project
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          gem install xcodeproj
+          ruby - <<'RUBY'
+          require 'xcodeproj'
 
-        project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
-        project = Xcodeproj::Project.open(project_path)
+          project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
 
-        nam_cpp = project.files.find { |f| f.display_name == 'NeuralAmpModeler.cpp' }
-        abort('Cannot find NeuralAmpModeler.cpp in Xcode project') unless nam_cpp
+          nam_cpp = project.files.find { |f| f.display_name == 'NeuralAmpModeler.cpp' }
+          abort('Cannot find NeuralAmpModeler.cpp in Xcode project') unless nam_cpp
 
-        source_group = nam_cpp.parent
-        native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
+          source_group = nam_cpp.parent
+          native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
 
-        targets = native_targets.select do |t|
-          t.source_build_phase &&
-            t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
-        end
-
-        puts "Group : #{source_group.display_name}"
-        puts "Targets: #{targets.map(&:name).join(', ')}"
-
-        %w[
-          ../NAMLibraryManager.cpp
-          ../NAMLibraryBrowserWindow.cpp
-          ../NAMLibraryBrowserPanel.cpp
-          ../NAMLibraryTreeView.cpp
-        ].each do |rel|
-          name = File.basename(rel)
-          if project.files.any? { |f| f.display_name == name }
-            puts "  #{name} already present - skipping"
-            next
+          targets = native_targets.select do |t|
+            t.source_build_phase &&
+              t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
           end
 
-          ref = source_group.new_file(rel)
-          ref.name = name
+          puts "Group : #{source_group.display_name}"
+          puts "Targets: #{targets.map(&:name).join(', ')}"
 
-          targets.each do |t|
-            t.source_build_phase.add_file_reference(ref)
-            puts "  Added #{name} -> #{t.name}"
-          end
-        end
+          %w[
+            ../NAMLibraryManager.cpp
+            ../NAMLibraryBrowserWindow.cpp
+            ../NAMLibraryBrowserPanel.cpp
+            ../NAMLibraryTreeView.cpp
+          ].each do |rel|
+            name = File.basename(rel)
+            if project.files.any? { |f| f.display_name == name }
+              puts "  #{name} already present - skipping"
+              next
+            end
 
-        project.save
-        puts 'Xcode project saved.'
-        RUBY
-      shell: bash
+            ref = source_group.new_file(rel)
+            ref.name = name
 
-    - name: Patch Xcode project for AU + unsigned APP CI build
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        ruby - <<'RUBY'
-        require 'xcodeproj'
-
-        project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
-        project = Xcodeproj::Project.open(project_path)
-
-        # 1) AU: remove obsolete Rez build phase and move its files to Resources
-        au = project.targets.find { |t| t.name == 'AU' }
-        abort('AU target not found') unless au
-
-        rez_phase = au.build_phases.find { |bp| bp.isa == 'PBXRezBuildPhase' }
-        if rez_phase
-          puts "Found Rez phase on AU target"
-
-          rez_phase.files.each do |build_file|
-            ref = build_file.file_ref
-            next unless ref
-
-            already_in_resources = au.resources_build_phase.files.any? { |f| f.file_ref == ref }
-            unless already_in_resources
-              au.resources_build_phase.add_file_reference(ref)
-              puts "  Moved #{ref.display_name} to Copy Bundle Resources"
+            targets.each do |t|
+              t.source_build_phase.add_file_reference(ref)
+              puts "  Added #{name} -> #{t.name}"
             end
           end
 
-          au.build_phases.delete(rez_phase)
-          rez_phase.remove_from_project
-          puts "Removed obsolete Rez build phase from AU target"
-        else
-          puts "No Rez phase found on AU target"
-        end
+          project.save
+          puts 'Xcode project saved.'
+          RUBY
+        shell: bash
 
-        # 2) APP: disable entitlements/signing for CI unsigned build
-        app = project.targets.find { |t| t.name == 'APP' }
-        abort('APP target not found') unless app
+      - name: Patch Xcode project for AU + unsigned APP CI build
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          ruby - <<'RUBY'
+          require 'xcodeproj'
 
-        app.build_configurations.each do |cfg|
-          bs = cfg.build_settings
-          bs['CODE_SIGN_ENTITLEMENTS'] = ''
-          bs['CODE_SIGNING_ALLOWED'] = 'NO'
-          bs['CODE_SIGNING_REQUIRED'] = 'NO'
-          bs['CODE_SIGN_IDENTITY'] = ''
-          bs['DEVELOPMENT_TEAM'] = ''
-          bs['PROVISIONING_PROFILE_SPECIFIER'] = ''
-          bs['CODE_SIGN_STYLE'] = 'Manual'
-          puts "Patched APP config #{cfg.name}"
-        end
+          project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
 
-        project.save
-        puts 'Patched Xcode project for CI.'
-        RUBY
-      shell: bash
+          au = project.targets.find { |t| t.name == 'AU' }
+          abort('AU target not found') unless au
 
-    - name: Patch makedist-mac.sh for explicit unsigned xcodebuild
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        python3 - <<'PY'
-        from pathlib import Path
+          rez_phase = au.build_phases.find { |bp| bp.isa == 'PBXRezBuildPhase' }
+          if rez_phase
+            puts "Found Rez phase on AU target"
 
-        p = Path("NeuralAmpModeler/scripts/makedist-mac.sh")
-        s = p.read_text()
+            rez_phase.files.each do |build_file|
+              ref = build_file.file_ref
+              next unless ref
 
-        old = '-configuration Release | tee build-mac.log | xcpretty'
-        new = '-configuration Release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" | tee build-mac.log | xcpretty'
+              already_in_resources = au.resources_build_phase.files.any? { |f| f.file_ref == ref }
+              unless already_in_resources
+                au.resources_build_phase.add_file_reference(ref)
+                puts "  Moved #{ref.display_name} to Copy Bundle Resources"
+              end
+            end
 
-        if old not in s:
-            raise SystemExit("Expected xcodebuild pattern not found in makedist-mac.sh")
+            au.build_phases.delete(rez_phase)
+            rez_phase.remove_from_project
+            puts "Removed obsolete Rez build phase from AU target"
+          else
+            puts "No Rez phase found on AU target"
+          end
 
-        p.write_text(s.replace(old, new, 1))
-        print("Patched makedist-mac.sh")
-        PY
-      shell: bash
+          app = project.targets.find { |t| t.name == 'APP' }
+          abort('APP target not found') unless app
 
-    # ---------- macOS ----------
-    - name: Build macOS
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        cd ${{ env.PROJECT_NAME }}/scripts
-        ./makedist-mac.sh full zip
-      shell: bash
+          app.build_configurations.each do |cfg|
+            bs = cfg.build_settings
+            bs['CODE_SIGN_ENTITLEMENTS'] = ''
+            bs['CODE_SIGNING_ALLOWED'] = 'NO'
+            bs['CODE_SIGNING_REQUIRED'] = 'NO'
+            bs['CODE_SIGN_IDENTITY'] = ''
+            bs['DEVELOPMENT_TEAM'] = ''
+            bs['PROVISIONING_PROFILE_SPECIFIER'] = ''
+            bs['CODE_SIGN_STYLE'] = 'Manual'
+            puts "Patched APP config #{cfg.name}"
+          end
 
-    # ---------- Windows (Clang AVX) ----------
-    - name: Add msbuild to PATH (Windows)
-      if: startsWith(matrix.os, 'windows')
-      uses: microsoft/setup-msbuild@v2
+          project.save
+          puts 'Patched Xcode project for CI.'
+          RUBY
+        shell: bash
 
-    - name: Build Windows (Clang AVX)
-      if: startsWith(matrix.os, 'windows')
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        msbuild NeuralAmpModeler.sln `
-          /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
-          /p:Configuration=Release-Clang-x64-v3 `
-          /p:Platform=x64 `
-          /m /nologo /verbosity:minimal
-      shell: pwsh
+      # ---------- macOS ----------
+      - name: Build macOS
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          cd ${{ env.PROJECT_NAME }}/scripts
+          ./makedist-mac.sh full zip
+        shell: bash
 
-    - name: Stage and rename Windows artifacts
-      if: startsWith(matrix.os, 'windows')
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        New-Item -ItemType Directory -Force -Path "build-win\out"
-        Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
-        Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.exe"
-      shell: pwsh
+      # ---------- Windows (Clang AVX) ----------
+      - name: Add msbuild to PATH (Windows)
+        if: startsWith(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
 
-    # ---------- Upload ----------
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.artifact_path }}
+      - name: Build Windows (Clang AVX)
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ${{ env.PROJECT_NAME }}
+        run: |
+          msbuild NeuralAmpModeler.sln `
+            /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
+            /p:Configuration=Release-Clang-x64-v3 `
+            /p:Platform=x64 `
+            /m /nologo /verbosity:minimal
+        shell: pwsh
+
+      - name: Stage and rename Windows artifacts
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ${{ env.PROJECT_NAME }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "build-win\out"
+          Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
+                    "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
+          Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
+                    "build-win\out\NeuralAmpModelerAVX_Clang.exe"
+        shell: pwsh
+
+      # ---------- Upload ----------
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
