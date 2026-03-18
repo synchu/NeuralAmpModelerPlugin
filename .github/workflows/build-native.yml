@@ -57,7 +57,6 @@ jobs:
         ./download-prebuilt-libs.sh
       shell: bash
 
-    # Add library browser sources to Xcode project BEFORE building macOS
     - name: Add library browser sources to Xcode project
       if: startsWith(matrix.os, 'macos')
       run: |
@@ -68,16 +67,12 @@ jobs:
         project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
         project = Xcodeproj::Project.open(project_path)
 
-        # Locate NeuralAmpModeler.cpp to discover its group and targets
         nam_cpp = project.files.find { |f| f.display_name == 'NeuralAmpModeler.cpp' }
         abort('Cannot find NeuralAmpModeler.cpp in Xcode project') unless nam_cpp
 
         source_group = nam_cpp.parent
-
-        # Only consider native targets (skip PBXAggregateTarget which has no source_build_phase)
         native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
 
-        # Collect every native target that already compiles NeuralAmpModeler.cpp
         targets = native_targets.select do |t|
           t.source_build_phase &&
             t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
@@ -86,7 +81,6 @@ jobs:
         puts "Group : #{source_group.display_name}"
         puts "Targets: #{targets.map(&:name).join(', ')}"
 
-        # Source files that need adding (paths relative to the .xcodeproj)
         %w[
           ../NAMLibraryManager.cpp
           ../NAMLibraryBrowserWindow.cpp
@@ -113,6 +107,82 @@ jobs:
         RUBY
       shell: bash
 
+    - name: Patch Xcode project for AU + unsigned APP CI build
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        ruby - <<'RUBY'
+        require 'xcodeproj'
+
+        project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+        project = Xcodeproj::Project.open(project_path)
+
+        # 1) AU: remove obsolete Rez build phase and move its files to Resources
+        au = project.targets.find { |t| t.name == 'AU' }
+        abort('AU target not found') unless au
+
+        rez_phase = au.build_phases.find { |bp| bp.isa == 'PBXRezBuildPhase' }
+        if rez_phase
+          puts "Found Rez phase on AU target"
+
+          rez_phase.files.each do |build_file|
+            ref = build_file.file_ref
+            next unless ref
+
+            already_in_resources = au.resources_build_phase.files.any? { |f| f.file_ref == ref }
+            unless already_in_resources
+              au.resources_build_phase.add_file_reference(ref)
+              puts "  Moved #{ref.display_name} to Copy Bundle Resources"
+            end
+          end
+
+          au.build_phases.delete(rez_phase)
+          rez_phase.remove_from_project
+          puts "Removed obsolete Rez build phase from AU target"
+        else
+          puts "No Rez phase found on AU target"
+        end
+
+        # 2) APP: disable entitlements/signing for CI unsigned build
+        app = project.targets.find { |t| t.name == 'APP' }
+        abort('APP target not found') unless app
+
+        app.build_configurations.each do |cfg|
+          bs = cfg.build_settings
+          bs['CODE_SIGN_ENTITLEMENTS'] = ''
+          bs['CODE_SIGNING_ALLOWED'] = 'NO'
+          bs['CODE_SIGNING_REQUIRED'] = 'NO'
+          bs['CODE_SIGN_IDENTITY'] = ''
+          bs['DEVELOPMENT_TEAM'] = ''
+          bs['PROVISIONING_PROFILE_SPECIFIER'] = ''
+          bs['CODE_SIGN_STYLE'] = 'Manual'
+          puts "Patched APP config #{cfg.name}"
+        end
+
+        project.save
+        puts 'Patched Xcode project for CI.'
+        RUBY
+      shell: bash
+
+    - name: Patch makedist-mac.sh for explicit unsigned xcodebuild
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+
+        p = Path("NeuralAmpModeler/scripts/makedist-mac.sh")
+        s = p.read_text()
+
+        old = '-configuration Release | tee build-mac.log | xcpretty'
+        new = '-configuration Release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" | tee build-mac.log | xcpretty'
+
+        if old not in s:
+            raise SystemExit("Expected xcodebuild pattern not found in makedist-mac.sh")
+
+        p.write_text(s.replace(old, new, 1))
+        print("Patched makedist-mac.sh")
+        PY
+      shell: bash
+
     # ---------- macOS ----------
     - name: Build macOS
       if: startsWith(matrix.os, 'macos')
@@ -123,11 +193,11 @@ jobs:
 
     # ---------- Windows (Clang AVX) ----------
     - name: Add msbuild to PATH (Windows)
-      if: matrix.os == 'windows-latest'
+      if: startsWith(matrix.os, 'windows')
       uses: microsoft/setup-msbuild@v2
 
     - name: Build Windows (Clang AVX)
-      if: matrix.os == 'windows-latest'
+      if: startsWith(matrix.os, 'windows')
       working-directory: ${{ env.PROJECT_NAME }}
       run: |
         msbuild NeuralAmpModeler.sln `
@@ -138,7 +208,7 @@ jobs:
       shell: pwsh
 
     - name: Stage and rename Windows artifacts
-      if: matrix.os == 'windows-latest'
+      if: startsWith(matrix.os, 'windows')
       working-directory: ${{ env.PROJECT_NAME }}
       run: |
         New-Item -ItemType Directory -Force -Path "build-win\out"
