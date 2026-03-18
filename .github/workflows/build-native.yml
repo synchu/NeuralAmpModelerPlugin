@@ -16,21 +16,31 @@ jobs:
     name: Build-native-plugins
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-15, windows-latest]
         include:
           - os: macos-15
             artifact_name: NeuralAmpModeler-mac
             artifact_path: NeuralAmpModeler/build-mac/out
+            log_name: macos-build-log
+            log_path: artifacts/macos-build.log
           - os: windows-latest
             artifact_name: NeuralAmpModelerAVX_Clang
             artifact_path: NeuralAmpModeler/build-win/out
+            log_name: windows-build-log
+            log_path: artifacts/windows-build.log
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Create artifact directory
+        run: |
+          mkdir -p artifacts
+        shell: bash
 
       - name: Select Xcode 16.4
         if: startsWith(matrix.os, 'macos')
@@ -165,8 +175,9 @@ jobs:
       - name: Build macOS
         if: startsWith(matrix.os, 'macos')
         run: |
+          set -o pipefail
           cd ${{ env.PROJECT_NAME }}/scripts
-          ./makedist-mac.sh full zip
+          ./makedist-mac.sh full zip 2>&1 | tee "${GITHUB_WORKSPACE}/${{ matrix.log_path }}"
         shell: bash
 
       # ---------- Windows (Clang AVX) ----------
@@ -178,11 +189,16 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         working-directory: ${{ env.PROJECT_NAME }}
         run: |
+          $logFile = Join-Path $env:GITHUB_WORKSPACE "${{ matrix.log_path }}"
+          New-Item -ItemType Directory -Force -Path (Split-Path $logFile) | Out-Null
+
           msbuild NeuralAmpModeler.sln `
             /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
             /p:Configuration=Release-Clang-x64-v3 `
             /p:Platform=x64 `
-            /m /nologo /verbosity:minimal
+            /m /nologo /verbosity:minimal 2>&1 | Tee-Object -FilePath $logFile
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         shell: pwsh
 
       - name: Stage and rename Windows artifacts
@@ -196,9 +212,21 @@ jobs:
                     "build-win\out\NeuralAmpModelerAVX_Clang.exe"
         shell: pwsh
 
-      # ---------- Upload ----------
+      # ---------- Upload logs ----------
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.log_name }}
+          path: ${{ matrix.log_path }}
+          if-no-files-found: warn
+          retention-days: 14
+
+      # ---------- Upload binaries ----------
       - name: Upload artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
