@@ -5,6 +5,7 @@
 #include <vector>
 #include <functional>
 #include <unordered_map>
+
 #include "NAMLibraryManager.h"
 #include "NAMLibraryTreeNode.h"
 
@@ -64,13 +65,15 @@ private:
   bool mIsAutoExpanding = false;
 #endif
 
-  // In-memory expansion state (cross-platform)
+  // Cross-platform in-memory folder expansion state helpers
   bool GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const;
   void SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
   void SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
 
   void LoadSettings();
   void SaveSettings();
+
+  static std::string GetSettingsFilePath();
 
   NAMLibraryManager* mpLibraryManager = nullptr;
   std::shared_ptr<NAMLibraryTreeNode> mRootNode;
@@ -91,6 +94,7 @@ private:
   HWND mHwndCancelButton = nullptr;
   HWND mHwndFontIncButton = nullptr;
   HWND mHwndFontDecButton = nullptr;
+
   HFONT mHFont = nullptr;
   HBRUSH mDarkBgBrush = nullptr;
   HBRUSH mEditBgBrush = nullptr;
@@ -100,14 +104,17 @@ private:
   UINT_PTR mSearchTimerId = 0;
   std::string mPendingSearchQuery;
   std::string mSelectedTag;
+
   static constexpr UINT_PTR SEARCH_TIMER_ID = 1;
   static constexpr UINT SEARCH_DELAY_MS = 300;
+
   bool mIsPopulatingTags = false;
+
 #elif defined(OS_MAC)
   void* mpWindowController = nullptr;
 #endif
 
-  // node->id -> expanded (folders only), cross-platform
+  // Cross-platform process-lifetime UI state
   std::unordered_map<std::string, bool> mExpandedState;
 
   int mFontSize = 30;
@@ -115,10 +122,10 @@ private:
   const int mMaxFontSize = 48;
 
   bool mIsOpen = false;
+
   int mMinWidth = 600;
   int mMinHeight = 400;
 
-  static std::string GetSettingsFilePath();
   int mWindowX = 0;
   int mWindowY = 0;
   int mWindowW = 800;
