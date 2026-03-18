@@ -1,50 +1,3 @@
-name: Build Native
-
-on:
-  workflow_dispatch:
-  pull_request:
-  push:
-    branches: [dsp-opts]
-  schedule:
-    - cron: '0 8 * * 2'
-
-env:
-  PROJECT_NAME: NeuralAmpModeler
-
-jobs:
-  build:
-    name: Build-native-plugins
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-        include:
-          - os: macos-latest
-            artifact_name: NeuralAmpModeler-mac
-            artifact_path: NeuralAmpModeler/build-mac/out
-          - os: windows-latest
-            artifact_name: NeuralAmpModelerAVX_Clang
-            artifact_path: NeuralAmpModeler/build-win/out
-
-    steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Get VST3 SDK
-      run: |
-        cd iPlug2/Dependencies/IPlug
-        ./download-iplug-sdks.sh
-      shell: bash
-
-    - name: Get Prebuilt Libs
-      run: |
-        cd iPlug2/Dependencies
-        ./download-prebuilt-libs.sh
-      shell: bash
-
-    # ---------- macOS ----------
     - name: Add library browser sources to Xcode project
       if: matrix.os == 'macos-latest'
       run: |
@@ -61,8 +14,11 @@ jobs:
 
         source_group = nam_cpp.parent
 
-        # Collect every target that already compiles NeuralAmpModeler.cpp
-        targets = project.targets.select do |t|
+        # Only consider native targets (skip PBXAggregateTarget which lacks source_build_phase)
+        native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
+
+        # Collect every native target that already compiles NeuralAmpModeler.cpp
+        targets = native_targets.select do |t|
           t.source_build_phase &&
             t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
         end
@@ -79,7 +35,7 @@ jobs:
         ].each do |rel|
           name = File.basename(rel)
           if project.files.any? { |f| f.display_name == name }
-            puts "  #{name} already present – skipping"
+            puts "  #{name} already present - skipping"
             next
           end
 
@@ -88,7 +44,7 @@ jobs:
 
           targets.each do |t|
             t.source_build_phase.add_file_reference(ref)
-            puts "  Added #{name} → #{t.name}"
+            puts "  Added #{name} -> #{t.name}"
           end
         end
 
@@ -96,51 +52,3 @@ jobs:
         puts 'Xcode project saved.'
         RUBY
       shell: bash
-
-    - name: Build macOS
-      if: matrix.os == 'macos-latest'
-      run: |
-        cd ${{ env.PROJECT_NAME }}/scripts
-        ./makedist-mac.sh full zip
-      shell: bash
-
-    - name: Upload macOS build log on failure
-      if: matrix.os == 'macos-latest' && failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: mac-build-log
-        path: ${{ env.PROJECT_NAME }}/build-mac.log
-
-    # ---------- Windows (Clang AVX) ----------
-    - name: Add msbuild to PATH (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Build Windows (Clang AVX)
-      if: matrix.os == 'windows-latest'
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        msbuild NeuralAmpModeler.sln `
-          /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
-          /p:Configuration=Release-Clang-x64-v3 `
-          /p:Platform=x64 `
-          /m /nologo /verbosity:minimal
-      shell: pwsh
-
-    - name: Stage and rename Windows artifacts
-      if: matrix.os == 'windows-latest'
-      working-directory: ${{ env.PROJECT_NAME }}
-      run: |
-        New-Item -ItemType Directory -Force -Path "build-win\out"
-        Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
-        Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
-                  "build-win\out\NeuralAmpModelerAVX_Clang.exe"
-      shell: pwsh
-
-    # ---------- Upload ----------
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.artifact_path }}
