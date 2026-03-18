@@ -1,377 +1,204 @@
-#!/bin/bash
-
-# this script requires xcpretty https://github.com/xcpretty/xcpretty
-
-BASEDIR=$(dirname "$0")
-
-cd "$BASEDIR/.." || exit 1
-
-if [ -d build-mac ]; then
-  sudo rm -f -R build-mac
-fi
-
-#---------------------------------------------------------------------------------------------------------
-# variables
-
-IPLUG2_ROOT=../iPlug2
-XCCONFIG=$IPLUG2_ROOT/../common-mac.xcconfig
-SCRIPTS=$IPLUG2_ROOT/Scripts
-
-# Project base name (used for xcodeproj/xcconfig filenames, which don't change)
-PROJECT_BASE=NeuralAmpModeler
-
-# CODESIGN disabled by default.
-CODESIGN=0
-
-# macOS codesigning/notarization
-NOTARIZE_BUNDLE_ID=com.StevenAtkinson.NeuralAmpModeler
-NOTARIZE_BUNDLE_ID_DEMO=com.StevenAtkinson.NeuralAmpModeler.DEMO
-APP_SPECIFIC_ID=TODO
-APP_SPECIFIC_PWD=TODO
-
-# AAX/PACE wraptool codesigning
-ILOK_ID=TODO
-ILOK_PWD=TODO
-WRAP_GUID=TODO
-
-DEMO=0
-if [ "$1" == "demo" ]; then
-  DEMO=1
-fi
-
-BUILD_INSTALLER=1
-if [ "$2" == "zip" ]; then
-  BUILD_INSTALLER=0
-fi
-
-VERSION=$(grep PLUG_VERSION_HEX config.h)
-VERSION=${VERSION//\#define PLUG_VERSION_HEX /}
-VERSION=${VERSION//\'/}
-MAJOR_VERSION=$((($VERSION & 0xFFFF0000) >> 16))
-MINOR_VERSION=$((($VERSION & 0x0000FF00) >> 8))
-BUG_FIX=$(($VERSION & 0x000000FF))
-
-FULL_VERSION=$MAJOR_VERSION"."$MINOR_VERSION"."$BUG_FIX
-
-PLUGIN_NAME=$(grep BUNDLE_NAME config.h)
-PLUGIN_NAME=${PLUGIN_NAME//\#define BUNDLE_NAME /}
-PLUGIN_NAME=${PLUGIN_NAME//\"/}
-
-ARCHIVE_NAME=$PLUGIN_NAME-v$FULL_VERSION-mac
-
-if [ $DEMO == 1 ]; then
-  ARCHIVE_NAME=$ARCHIVE_NAME-demo
-fi
-
-# TODO: use get_archive_name script
-# if [ $DEMO == 1 ]; then
-#   ARCHIVE_NAME=`python3 ${SCRIPTS}/get_archive_name.py ${PLUGIN_NAME} mac demo`
-# else
-#   ARCHIVE_NAME=`python3 ${SCRIPTS}/get_archive_name.py ${PLUGIN_NAME} mac full`
-# fi
-
-VST2=$(grep VST2_PATH "$XCCONFIG")
-VST2=$HOME${VST2//\VST2_PATH = \$(HOME)}/$PLUGIN_NAME.vst
-
-VST3=$(grep VST3_PATH "$XCCONFIG")
-VST3=$HOME${VST3//\VST3_PATH = \$(HOME)}/$PLUGIN_NAME.vst3
-
-AU=$(grep AU_PATH "$XCCONFIG")
-AU=$HOME${AU//\AU_PATH = \$(HOME)}/$PLUGIN_NAME.component
-
-APP=$(grep APP_PATH "$XCCONFIG")
-APP=$HOME${APP//\APP_PATH = \$(HOME)}/$PLUGIN_NAME.app
-
-# Dev build folder
-AAX=$(grep AAX_PATH "$XCCONFIG")
-AAX=${AAX//\AAX_PATH = /}/$PLUGIN_NAME.aaxplugin
-AAX_FINAL="/Library/Application Support/Avid/Audio/Plug-Ins/$PLUGIN_NAME.aaxplugin"
-
-PKG="build-mac/installer/$PLUGIN_NAME Installer.pkg"
-PKG_US="build-mac/installer/$PLUGIN_NAME Installer.unsigned.pkg"
-
-CERT_ID=$(grep CERTIFICATE_ID "$XCCONFIG")
-CERT_ID=${CERT_ID//\CERTIFICATE_ID = /}
-DEV_ID_APP_STR="Developer ID Application: ${CERT_ID}"
-DEV_ID_INST_STR="Developer ID Installer: ${CERT_ID}"
-
-echo "$VST2"
-echo "$VST3"
-echo "$AU"
-echo "$APP"
-echo "$AAX"
-
-if [ $DEMO == 1 ]; then
-  echo "making $PLUGIN_NAME version $FULL_VERSION DEMO mac distribution..."
-# cp "resources/img/AboutBox_Demo.png" "resources/img/AboutBox.png"
-else
-  echo "making $PLUGIN_NAME version $FULL_VERSION mac distribution..."
-# cp "resources/img/AboutBox_Registered.png" "resources/img/AboutBox.png"
-fi
-
-sleep 2
-
-echo "touching source to force recompile"
-echo ""
-touch ./*.cpp
-
-#---------------------------------------------------------------------------------------------------------
-# remove existing binaries
-
-echo "remove existing binaries"
-echo ""
-
-if [ -d "$APP" ]; then
-  sudo rm -f -R "$APP"
-fi
-
-if [ -d "$AU" ]; then
-  sudo rm -f -R "$AU"
-fi
-
-if [ -d "$VST2" ]; then
-  sudo rm -f -R "$VST2"
-fi
-
-if [ -d "$VST3" ]; then
-  sudo rm -f -R "$VST3"
-fi
-
-if [ -d "$AAX" ]; then
-  sudo rm -f -R "$AAX"
-fi
-
-if [ -d "$AAX_FINAL" ]; then
-  sudo rm -f -R "$AAX_FINAL"
-fi
-
-#---------------------------------------------------------------------------------------------------------
-# build xcode project. Change target to build individual formats, or add to All target in the xcode project
-
-set -o pipefail
-xcodebuild -project "./projects/$PLUGIN_NAME-macOS.xcodeproj" \
-  -xcconfig "./config/$PLUGIN_NAME-mac.xcconfig" \
-  DEMO_VERSION="$DEMO" \
-  -target "All" \
-  -UseModernBuildSystem=NO \
-  -configuration Release \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY="" \
-  DEVELOPMENT_TEAM="" \
-  | tee build-mac.log
-
-BUILD_STATUS=$?
-
-if [ "$BUILD_STATUS" -ne 0 ]; then
-  echo "ERROR: build failed, aborting"
-  echo ""
-  grep -A 20 -B 5 " error:" build-mac.log || tail -n 250 build-mac.log
-  exit 1
-else
-  rm build-mac.log
-fi
-
-#---------------------------------------------------------------------------------------------------------
-# set bundle icons - http://www.hamsoftengineering.com/codeSharing/SetFileIcon/SetFileIcon.html
-
-echo "setting icons"
-echo ""
-
-if [ -d "$AU" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$AU"
-fi
-
-if [ -d "$VST2" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$VST2"
-fi
-
-if [ -d "$VST3" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$VST3"
-fi
-
-if [ -d "$AAX" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$AAX"
-fi
-
-#---------------------------------------------------------------------------------------------------------
-# strip symbols from binaries
-
-echo "stripping binaries"
-echo ""
-
-if [ -d "$APP" ]; then
-  strip -x "$APP/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ -d "$AU" ]; then
-  strip -x "$AU/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ -d "$VST2" ]; then
-  strip -x "$VST2/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ -d "$VST3" ]; then
-  strip -x "$VST3/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ -d "$AAX" ]; then
-  strip -x "$AAX/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ $CODESIGN == 1 ]; then
-  #---------------------------------------------------------------------------------------------------------
-  # code sign AAX binary with wraptool
-
-  # echo "copying AAX ${PLUGIN_NAME} from 3PDev to main AAX folder"
-  # sudo cp -p -R "${AAX}" "${AAX_FINAL}"
-  # mkdir "${AAX_FINAL}/Contents/Factory Presets/"
-
-  # echo "code sign AAX binary"
-  # /Applications/PACEAntiPiracy/Eden/Fusion/Current/bin/wraptool sign --verbose --account $ILOK_ID --password $ILOK_PWD --wcguid $WRAP_GUID --signid "${DEV_ID_APP_STR}" --in "${AAX_FINAL}" --out "${AAX_FINAL}"
-
-  #---------------------------------------------------------------------------------------------------------
-
-  #---------------------------------------------------------------------------------------------------------
-  echo "code-sign binaries"
-  echo ""
-
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$APP" --deep --strict --options=runtime
-  xattr -cr "$AU"
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$AU" --deep --strict
-  # xattr -cr "$VST2"
-  # codesign --force -s "${DEV_ID_APP_STR}" -v "$VST2" --deep --strict
-  xattr -cr "$VST3"
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$VST3" --deep --strict
-  #---------------------------------------------------------------------------------------------------------
-fi
-
-if [ $BUILD_INSTALLER == 1 ]; then
-  #---------------------------------------------------------------------------------------------------------
-  # installer
-
-  sudo rm -R -f build-mac/$PLUGIN_NAME-*.dmg
-
-  echo "building installer"
-  echo ""
-
-  ./scripts/makeinstaller-mac.sh "$FULL_VERSION"
-
-  if [ $CODESIGN == 1 ]; then
-    echo "code-sign installer for Gatekeeper on macOS 10.8+"
-    echo ""
-    mv "$PKG" "$PKG_US"
-    productsign --sign "${DEV_ID_INST_STR}" "$PKG_US" "$PKG"
-    rm -R -f "$PKG_US"
-  fi
-
-  # set installer icon
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$PKG"
-
-  #---------------------------------------------------------------------------------------------------------
-  # make dmg, can use dmgcanvas http://www.araelium.com/dmgcanvas/ to make a nice dmg, fallback to hdiutil
-  echo "building dmg"
-  echo ""
-
-  if [ -d "installer/$PLUGIN_NAME.dmgCanvas" ]; then
-    dmgcanvas "installer/$PLUGIN_NAME.dmgCanvas" "build-mac/$ARCHIVE_NAME.dmg"
-  else
-    cp installer/changelog.txt build-mac/installer/
-    cp installer/known-issues.txt build-mac/installer/
-    cp "manual/$PLUGIN_NAME manual.pdf" build-mac/installer/
-    hdiutil create "build-mac/$ARCHIVE_NAME.dmg" -format UDZO -srcfolder build-mac/installer/ -ov -anyowners -volname "$PLUGIN_NAME"
-  fi
-
-  sudo rm -R -f build-mac/installer/
-
-  if [ $CODESIGN == 1 ]; then
-    #---------------------------------------------------------------------------------------------------------
-    # notarize dmg
-    echo "notarizing"
-    echo ""
-    # you need to create an app-specific id/password https://support.apple.com/en-us/HT204397
-    # arg 1 Set to the dmg path
-    # arg 2 Set to a bundle ID (doesn't have to match your )
-    # arg 3 Set to the app specific Apple ID username/email
-    # arg 4 Set to the app specific Apple password
-    PWD=$(pwd)
-
-    if [ $DEMO == 1 ]; then
-      "./$SCRIPTS/notarise.sh" "${PWD}/build-mac" "${PWD}/build-mac/${ARCHIVE_NAME}.dmg" "$NOTARIZE_BUNDLE_ID" "$APP_SPECIFIC_ID" "$APP_SPECIFIC_PWD"
-    else
-      "./$SCRIPTS/notarise.sh" "${PWD}/build-mac" "${PWD}/build-mac/${ARCHIVE_NAME}.dmg" "$NOTARIZE_BUNDLE_ID_DEMO" "$APP_SPECIFIC_ID" "$APP_SPECIFIC_PWD"
-    fi
-
-    if [ $? -ne 0 ]; then
-      echo "ERROR: notarize script failed, aborting"
-      exit 1
-    fi
-  fi
-else
-  #---------------------------------------------------------------------------------------------------------
-  # zip
-
-  if [ -d build-mac/zip ]; then
-    rm -R build-mac/zip
-  fi
-
-  mkdir -p build-mac/zip
-
-  if [ -d "$APP" ]; then
-    cp -R "$APP" "build-mac/zip/$PLUGIN_NAME.app"
-  fi
-
-  if [ -d "$AU" ]; then
-    cp -R "$AU" "build-mac/zip/$PLUGIN_NAME.component"
-  fi
-
-  if [ -d "$VST2" ]; then
-    cp -R "$VST2" "build-mac/zip/$PLUGIN_NAME.vst"
-  fi
-
-  if [ -d "$VST3" ]; then
-    cp -R "$VST3" "build-mac/zip/$PLUGIN_NAME.vst3"
-  fi
-
-  if [ -d "$AAX_FINAL" ]; then
-    cp -R "$AAX_FINAL" "build-mac/zip/$PLUGIN_NAME.aaxplugin"
-  fi
-
-  echo "zipping binaries..."
-  echo ""
-  ditto -c -k build-mac/zip "build-mac/$ARCHIVE_NAME.zip"
-  rm -R build-mac/zip
-fi
-
-#---------------------------------------------------------------------------------------------------------
-# dSYMs
-
-sudo rm -R -f build-mac/*-dSYMs.zip
-
-echo "packaging dSYMs"
-echo ""
-zip -r "./build-mac/$ARCHIVE_NAME-dSYMs.zip" ./build-mac/*.dSYM
-
-#---------------------------------------------------------------------------------------------------------
-# prepare out folder for CI
-
-echo "preparing output folder"
-echo ""
-mkdir -p ./build-mac/out
-if [ -f "./build-mac/$ARCHIVE_NAME.dmg" ]; then
-  mv "./build-mac/$ARCHIVE_NAME.dmg" ./build-mac/out
-fi
-mv ./build-mac/*.zip ./build-mac/out
-
-#---------------------------------------------------------------------------------------------------------
-
-# if [ $DEMO == 1 ]
-# then
-#   git checkout installer/NeuralAmpModeler.iss
-#   git checkout installer/NeuralAmpModeler.pkgproj
-#   git checkout resources/img/AboutBox.png
-# fi
-
-echo "done!"
-echo ""
+name: Build Native
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [dsp-opts]
+  schedule:
+    - cron: '0 8 * * 2'
+
+env:
+  PROJECT_NAME: NeuralAmpModeler
+
+jobs:
+  build:
+    name: Build-native-plugins
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, windows-latest]
+        include:
+          - os: macos-15
+            artifact_name: NeuralAmpModeler-mac
+            artifact_path: NeuralAmpModeler/build-mac/out
+          - os: windows-latest
+            artifact_name: NeuralAmpModelerAVX_Clang
+            artifact_path: NeuralAmpModeler/build-win/out
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode 16.4
+        if: startsWith(matrix.os, 'macos')
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Show Xcode version
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          xcode-select -p
+          xcodebuild -version
+        shell: bash
+
+      - name: Get VST3 SDK
+        run: |
+          cd iPlug2/Dependencies/IPlug
+          ./download-iplug-sdks.sh
+        shell: bash
+
+      - name: Get Prebuilt Libs
+        run: |
+          cd iPlug2/Dependencies
+          ./download-prebuilt-libs.sh
+        shell: bash
+
+      - name: Add library browser sources to Xcode project
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          gem install xcodeproj
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+
+          nam_cpp = project.files.find { |f| f.display_name == 'NeuralAmpModeler.cpp' }
+          abort('Cannot find NeuralAmpModeler.cpp in Xcode project') unless nam_cpp
+
+          source_group = nam_cpp.parent
+          native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
+
+          targets = native_targets.select do |t|
+            t.source_build_phase &&
+              t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
+          end
+
+          puts "Group : #{source_group.display_name}"
+          puts "Targets: #{targets.map(&:name).join(', ')}"
+
+          %w[
+            ../NAMLibraryManager.cpp
+            ../NAMLibraryBrowserWindow.cpp
+            ../NAMLibraryBrowserPanel.cpp
+            ../NAMLibraryTreeView.cpp
+          ].each do |rel|
+            name = File.basename(rel)
+            if project.files.any? { |f| f.display_name == name }
+              puts "  #{name} already present - skipping"
+              next
+            end
+
+            ref = source_group.new_file(rel)
+            ref.name = name
+
+            targets.each do |t|
+              t.source_build_phase.add_file_reference(ref)
+              puts "  Added #{name} -> #{t.name}"
+            end
+          end
+
+          project.save
+          puts 'Xcode project saved.'
+          RUBY
+        shell: bash
+
+      - name: Patch Xcode project for AU + unsigned APP CI build
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = 'NeuralAmpModeler/projects/NeuralAmpModeler-macOS.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+
+          au = project.targets.find { |t| t.name == 'AU' }
+          abort('AU target not found') unless au
+
+          rez_phase = au.build_phases.find { |bp| bp.isa == 'PBXRezBuildPhase' }
+          if rez_phase
+            puts "Found Rez phase on AU target"
+
+            rez_phase.files.each do |build_file|
+              ref = build_file.file_ref
+              next unless ref
+
+              already_in_resources = au.resources_build_phase.files.any? { |f| f.file_ref == ref }
+              unless already_in_resources
+                au.resources_build_phase.add_file_reference(ref)
+                puts "  Moved #{ref.display_name} to Copy Bundle Resources"
+              end
+            end
+
+            au.build_phases.delete(rez_phase)
+            rez_phase.remove_from_project
+            puts "Removed obsolete Rez build phase from AU target"
+          else
+            puts "No Rez phase found on AU target"
+          end
+
+          app = project.targets.find { |t| t.name == 'APP' }
+          abort('APP target not found') unless app
+
+          app.build_configurations.each do |cfg|
+            bs = cfg.build_settings
+            bs['CODE_SIGN_ENTITLEMENTS'] = ''
+            bs['CODE_SIGNING_ALLOWED'] = 'NO'
+            bs['CODE_SIGNING_REQUIRED'] = 'NO'
+            bs['CODE_SIGN_IDENTITY'] = ''
+            bs['DEVELOPMENT_TEAM'] = ''
+            bs['PROVISIONING_PROFILE_SPECIFIER'] = ''
+            bs['CODE_SIGN_STYLE'] = 'Manual'
+            puts "Patched APP config #{cfg.name}"
+          end
+
+          project.save
+          puts 'Patched Xcode project for CI.'
+          RUBY
+        shell: bash
+
+      # ---------- macOS ----------
+      - name: Build macOS
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          cd ${{ env.PROJECT_NAME }}/scripts
+          ./makedist-mac.sh full zip
+        shell: bash
+
+      # ---------- Windows (Clang AVX) ----------
+      - name: Add msbuild to PATH (Windows)
+        if: startsWith(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Windows (Clang AVX)
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ${{ env.PROJECT_NAME }}
+        run: |
+          msbuild NeuralAmpModeler.sln `
+            /t:NeuralAmpModeler-app`;NeuralAmpModeler-vst3 `
+            /p:Configuration=Release-Clang-x64-v3 `
+            /p:Platform=x64 `
+            /m /nologo /verbosity:minimal
+        shell: pwsh
+
+      - name: Stage and rename Windows artifacts
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ${{ env.PROJECT_NAME }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "build-win\out"
+          Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModeler.vst3" `
+                    "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
+          Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModeler.exe" `
+                    "build-win\out\NeuralAmpModelerAVX_Clang.exe"
+        shell: pwsh
+
+      # ---------- Upload ----------
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
