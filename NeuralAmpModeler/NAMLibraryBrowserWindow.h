@@ -103,8 +103,7 @@ private:
   std::unordered_map<HTREEITEM, std::shared_ptr<NAMLibraryTreeNode>> mTreeItemMap;
 
   UINT_PTR mSearchTimerId = 0;
-  std::string mPendingSearchQuery;
-  std::string mSelectedTag;
+ 
 
   static constexpr UINT_PTR SEARCH_TIMER_ID = 1;
   static constexpr UINT SEARCH_DELAY_MS = 300;
@@ -114,6 +113,9 @@ private:
 #elif defined(OS_MAC)
   void* mpWindowController = nullptr;
 #endif
+
+  std::string mPendingSearchQuery;
+  std::string mSelectedTag;
 
   // Cross-platform process-lifetime UI state
   std::unordered_map<std::string, bool> mExpandedState;

@@ -32,6 +32,19 @@ namespace
     const auto strEnd = str.find_last_not_of(" \t\n\r");
     return str.substr(strBegin, strEnd - strBegin + 1);
   }
+
+  struct NAMLibraryBrowserSessionState
+  {
+    std::string lastSearchQuery;
+    std::string lastSelectedTag;
+    std::unordered_map<std::string, bool> expandedState;
+  };
+
+  NAMLibraryBrowserSessionState& GetBrowserSessionState()
+  {
+    static NAMLibraryBrowserSessionState s;
+    return s;
+  }
 }
 
 @interface NAMNodeWrapper : NSObject
@@ -139,6 +152,7 @@ namespace
 
 using VoidFn = std::function<void()>;
 using FilterFn = std::function<void(const std::string&, const std::string&)>;
+using ExpandChangedFn = std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&, bool)>;
 
 @interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate>
 @property (nonatomic, strong) NAMOutlineDataSource* dataSource;
@@ -152,11 +166,14 @@ using FilterFn = std::function<void(const std::string&, const std::string&)>;
 @property (nonatomic) VoidFn onFontInc;
 @property (nonatomic) VoidFn onFontDec;
 @property (nonatomic) VoidFn onWindowClose;
+@property (nonatomic) ExpandChangedFn onExpandedStateChanged;
 - (instancetype)initWithFontSize:(int)fontSize;
 - (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root;
 - (std::shared_ptr<NAMLibraryTreeNode>)selectedNode;
 - (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag;
 - (void)setSearchTextFromUtf8:(const std::string&)query;
+- (std::string)currentQuery;
+- (std::string)currentTag;
 @end
 
 @implementation NAMLibraryWindowController
@@ -221,7 +238,7 @@ using FilterFn = std::function<void(const std::string&, const std::string&)>;
 
   self.dataSource = [NAMOutlineDataSource new];
   self.outlineView.dataSource = self.dataSource;
-  self.outlineView.delegate = self.dataSource;
+  self.outlineView.delegate = self;
 
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(selectionChanged:)
@@ -408,6 +425,34 @@ using FilterFn = std::function<void(const std::string&, const std::string&)>;
     self.onWindowClose();
 }
 
+- (void)outlineViewItemDidExpand:(NSNotification*)notification
+{
+  if (!self.onExpandedStateChanged)
+    return;
+
+  id item = notification.userInfo[@"NSObject"];
+  if (!item)
+    return;
+
+  auto node = ((NAMNodeWrapper*) item).node;
+  if (node)
+    self.onExpandedStateChanged(node, true);
+}
+
+- (void)outlineViewItemDidCollapse:(NSNotification*)notification
+{
+  if (!self.onExpandedStateChanged)
+    return;
+
+  id item = notification.userInfo[@"NSObject"];
+  if (!item)
+    return;
+
+  auto node = ((NAMNodeWrapper*) item).node;
+  if (node)
+    self.onExpandedStateChanged(node, false);
+}
+
 - (void)dealloc
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -518,6 +563,11 @@ void NAMLibraryBrowserWindow::LoadSettings()
     {
     }
   }
+
+  auto& s = GetBrowserSessionState();
+  mPendingSearchQuery = s.lastSearchQuery;
+  mSelectedTag = s.lastSelectedTag;
+  mExpandedState = s.expandedState;
 }
 
 void NAMLibraryBrowserWindow::SaveSettings()
@@ -561,8 +611,9 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
     if (mHasSavedBounds)
     {
-      CGFloat screenH = [NSScreen mainScreen].frame.size.height;
-      NSRect frame = NSMakeRect(mWindowX, screenH - mWindowY - mWindowH, mWindowW, mWindowH);
+      NSScreen* targetScreen = [NSScreen mainScreen];
+      CGFloat screenTop = NSMaxY(targetScreen.frame);
+      NSRect frame = NSMakeRect(mWindowX, screenTop - mWindowY - mWindowH, mWindowW, mWindowH);
 
       BOOL onScreen = NO;
       for (NSScreen* scr in [NSScreen screens])
@@ -590,7 +641,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       }
     }
 
-    [ctrl setSearchTextFromUtf8:""];
+    [ctrl setSearchTextFromUtf8:mPendingSearchQuery];
 
 #if __has_feature(objc_arc)
     __weak NAMLibraryWindowController* weak = ctrl;
@@ -642,115 +693,159 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
         Close();
     };
 
+    ctrl.onExpandedStateChanged = [this](const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded) {
+      SetFolderExpandedInState(node, expanded);
+    };
+
     ctrl.onFilterChanged = [this, weak](const std::string& query, const std::string& selectedTag) {
+      mPendingSearchQuery = query;
+      mSelectedTag = selectedTag;
+
+      NAMLibraryWindowController* c = weak;
+      if (!c)
+        return;
+
+      const std::string queryTrimmed = Trim(query);
+      const std::string selectedTagTrimmed = Trim(selectedTag);
+
       if (!mpLibraryManager)
       {
         mSearchRoot = nullptr;
+        [c setDisplayRoot:mRootNode];
+        return;
       }
-      else
-      {
-        const std::string queryTrimmed = Trim(query);
-        const std::string selectedTagTrimmed = Trim(selectedTag);
 
-        if (queryTrimmed.empty() && selectedTagTrimmed.empty())
+      if (queryTrimmed.empty() && selectedTagTrimmed.empty())
+      {
+        mSearchRoot = nullptr;
+
+        std::set<std::string> allTagSet;
+        const auto& allModels = mpLibraryManager->GetAllModels();
+        for (const auto& model : allModels)
         {
-          mSearchRoot = nullptr;
+          if (!model)
+            continue;
+
+          for (const auto& tag : model->tags)
+          {
+            std::string trimmed = Trim(tag);
+            if (!trimmed.empty())
+              allTagSet.insert(trimmed);
+          }
+        }
+
+        std::vector<std::string> allTags(allTagSet.begin(), allTagSet.end());
+        [c setAvailableTags:allTags selectedTag:mSelectedTag];
+        [c setDisplayRoot:mRootNode];
+        return;
+      }
+
+      std::vector<std::shared_ptr<NAMLibraryTreeNode>> results =
+        queryTrimmed.empty() ? mpLibraryManager->GetAllModels() : mpLibraryManager->SearchModels(queryTrimmed);
+
+      if (!selectedTagTrimmed.empty())
+      {
+        const std::string selectedLower = ToLowerAscii(selectedTagTrimmed);
+
+        results.erase(
+          std::remove_if(results.begin(), results.end(),
+            [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
+              if (!model)
+                return true;
+
+              for (const auto& tag : model->tags)
+              {
+                if (ToLowerAscii(Trim(tag)) == selectedLower)
+                  return false;
+              }
+
+              return true;
+            }),
+          results.end());
+      }
+
+      std::set<std::string> filteredTagSet;
+      for (const auto& model : results)
+      {
+        if (!model)
+          continue;
+
+        for (const auto& tag : model->tags)
+        {
+          std::string trimmed = Trim(tag);
+          if (!trimmed.empty())
+            filteredTagSet.insert(trimmed);
+        }
+      }
+
+      std::vector<std::string> filteredTags(filteredTagSet.begin(), filteredTagSet.end());
+
+      mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
+      mSearchRoot->name = "Filtered Results (" + std::to_string(results.size()) + " models)";
+      mSearchRoot->id = "search_root";
+      mSearchRoot->depth = 0;
+      mSearchRoot->expanded = true;
+
+      std::unordered_map<std::string, std::shared_ptr<NAMLibraryTreeNode>> nodeMap;
+      std::unordered_map<std::string, std::unordered_set<std::string>> childrenAdded;
+
+      auto addUniqueChild = [&](const std::shared_ptr<NAMLibraryTreeNode>& parentCopy,
+                                const std::shared_ptr<NAMLibraryTreeNode>& childCopy) {
+        if (!parentCopy || !childCopy)
+          return;
+
+        auto& set = childrenAdded[parentCopy->id];
+        if (set.insert(childCopy->id).second)
+          parentCopy->children.push_back(childCopy);
+      };
+
+      std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)> BuildAncestorChain;
+      BuildAncestorChain = [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
+        if (!node)
+          return nullptr;
+
+        if (auto it = nodeMap.find(node->id); it != nodeMap.end())
+          return it->second;
+
+        auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
+        nodeCopy->children.clear();
+        nodeCopy->expanded = true;
+        nodeMap.emplace(node->id, nodeCopy);
+
+        if (node->parent)
+        {
+          auto parentCopy = BuildAncestorChain(node->parent);
+          nodeCopy->parent = parentCopy;
+
+          if (parentCopy)
+          {
+            nodeCopy->depth = parentCopy->depth + 1;
+            addUniqueChild(parentCopy, nodeCopy);
+          }
+          else
+          {
+            nodeCopy->parent = mSearchRoot;
+            nodeCopy->depth = 1;
+            addUniqueChild(mSearchRoot, nodeCopy);
+          }
         }
         else
         {
-          std::vector<std::shared_ptr<NAMLibraryTreeNode>> results =
-            queryTrimmed.empty() ? mpLibraryManager->GetAllModels() : mpLibraryManager->SearchModels(queryTrimmed);
-
-          if (!selectedTagTrimmed.empty())
-          {
-            const std::string selectedLower = ToLowerAscii(selectedTagTrimmed);
-
-            results.erase(
-              std::remove_if(results.begin(), results.end(),
-                [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-                  if (!model)
-                    return true;
-
-                  for (const auto& tag : model->tags)
-                  {
-                    if (ToLowerAscii(Trim(tag)) == selectedLower)
-                      return false;
-                  }
-
-                  return true;
-                }),
-              results.end());
-          }
-
-          mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
-          mSearchRoot->name = "Filtered Results (" + std::to_string(results.size()) + " models)";
-          mSearchRoot->id = "search_root";
-          mSearchRoot->depth = 0;
-          mSearchRoot->expanded = true;
-
-          std::unordered_map<std::string, std::shared_ptr<NAMLibraryTreeNode>> nodeMap;
-          std::unordered_map<std::string, std::unordered_set<std::string>> childrenAdded;
-
-          auto addUniqueChild = [&](const std::shared_ptr<NAMLibraryTreeNode>& parentCopy,
-                                    const std::shared_ptr<NAMLibraryTreeNode>& childCopy) {
-            if (!parentCopy || !childCopy)
-              return;
-
-            auto& set = childrenAdded[parentCopy->id];
-            if (set.insert(childCopy->id).second)
-              parentCopy->children.push_back(childCopy);
-          };
-
-          std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)> BuildAncestorChain;
-          BuildAncestorChain = [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
-            if (!node)
-              return nullptr;
-
-            if (auto it = nodeMap.find(node->id); it != nodeMap.end())
-              return it->second;
-
-            auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
-            nodeCopy->children.clear();
-            nodeCopy->expanded = true;
-            nodeMap.emplace(node->id, nodeCopy);
-
-            if (node->parent)
-            {
-              auto parentCopy = BuildAncestorChain(node->parent);
-              nodeCopy->parent = parentCopy;
-
-              if (parentCopy)
-              {
-                nodeCopy->depth = parentCopy->depth + 1;
-                addUniqueChild(parentCopy, nodeCopy);
-              }
-              else
-              {
-                nodeCopy->parent = mSearchRoot;
-                nodeCopy->depth = 1;
-                addUniqueChild(mSearchRoot, nodeCopy);
-              }
-            }
-            else
-            {
-              nodeCopy->parent = mSearchRoot;
-              nodeCopy->depth = 1;
-              addUniqueChild(mSearchRoot, nodeCopy);
-            }
-
-            return nodeCopy;
-          };
-
-          for (const auto& model : results)
-            BuildAncestorChain(model);
-
-          SetExpandedStateRecursive(mSearchRoot, true);
+          nodeCopy->parent = mSearchRoot;
+          nodeCopy->depth = 1;
+          addUniqueChild(mSearchRoot, nodeCopy);
         }
-      }
 
-      NAMLibraryWindowController* c = weak;
-      if (c)
-        [c setDisplayRoot:mSearchRoot ? mSearchRoot : mRootNode];
+        return nodeCopy;
+      };
+
+      for (const auto& model : results)
+        BuildAncestorChain(model);
+
+      SetExpandedStateRecursive(mSearchRoot, true);
+
+      [c setAvailableTags:filteredTags selectedTag:selectedTagTrimmed];
+      [c setDisplayRoot:mSearchRoot ? mSearchRoot : mRootNode];
     };
 
     std::set<std::string> tagSet;
@@ -772,8 +867,12 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     std::vector<std::string> sortedTags(tagSet.begin(), tagSet.end());
-    [ctrl setAvailableTags:sortedTags selectedTag:""];
-    [ctrl setDisplayRoot:mRootNode];
+    [ctrl setAvailableTags:sortedTags selectedTag:mSelectedTag];
+
+    if (!mPendingSearchQuery.empty() || !mSelectedTag.empty())
+      ctrl.onFilterChanged(mPendingSearchQuery, mSelectedTag);
+    else
+      [ctrl setDisplayRoot:mRootNode];
 
     [ctrl showWindow:nil];
     [ctrl.window makeKeyAndOrderFront:nil];
@@ -786,6 +885,23 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 #endif
 
     mIsOpen = true;
+  }
+}
+
+void NAMLibraryBrowserWindow::BringToFront()
+{
+  if (!mpWindowController)
+    return;
+
+  @autoreleasepool
+  {
+    NAMLibraryWindowController* ctrl = (__bridge NAMLibraryWindowController*) mpWindowController;
+    if (!ctrl)
+      return;
+
+    [ctrl showWindow:nil];
+    [ctrl.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
   }
 }
 
@@ -805,9 +921,20 @@ void NAMLibraryBrowserWindow::Close()
 
     if (ctrl)
     {
+      mPendingSearchQuery = [ctrl currentQuery];
+      mSelectedTag = [ctrl currentTag];
+
+      auto& s = GetBrowserSessionState();
+      s.lastSearchQuery = mPendingSearchQuery;
+      s.lastSelectedTag = mSelectedTag;
+      s.expandedState = mExpandedState;
+
       NSRect frame = ctrl.window.frame;
+      NSScreen* screen = ctrl.window.screen ?: [NSScreen mainScreen];
+      CGFloat screenTop = NSMaxY(screen.frame);
+
       mWindowX = (int) frame.origin.x;
-      mWindowY = (int) ([NSScreen mainScreen].frame.size.height - frame.origin.y - frame.size.height);
+      mWindowY = (int) (screenTop - frame.origin.y - frame.size.height);
       mWindowW = (int) frame.size.width;
       mWindowH = (int) frame.size.height;
       mHasSavedBounds = true;
