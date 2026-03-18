@@ -52,6 +52,13 @@ jobs:
         ./makedist-mac.sh full zip
       shell: bash
 
+    - name: Upload macOS build log on failure
+      if: matrix.os == 'macos-latest' && failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mac-build-log
+        path: ${{ env.PROJECT_NAME }}/build-mac.log
+
     # ---------- Windows (Clang AVX) ----------
     - name: Add msbuild to PATH (Windows)
       if: matrix.os == 'windows-latest'
