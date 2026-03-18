@@ -65,18 +65,7 @@ std::string WideToUtf8(const wchar_t* text)
   return result;
 }
 
-struct NAMLibraryBrowserSessionState
-{
-  std::string lastSearchQuery;
-  std::string lastSelectedTag;
-  std::unordered_map<std::string, bool> expandedState;
-};
 
-NAMLibraryBrowserSessionState& GetBrowserSessionState()
-{
-  static NAMLibraryBrowserSessionState s;
-  return s;
-}
 } // namespace
 
   // Control IDs
@@ -98,10 +87,10 @@ NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
 {
   LoadSettings();
 
-  auto& s = GetBrowserSessionState();
+  /* auto& s = GetBrowserSessionState();
   mPendingSearchQuery = s.lastSearchQuery;
   mSelectedTag = s.lastSelectedTag;
-  mExpandedState = s.expandedState;
+  mExpandedState = s.expandedState;*/
 }
 
 NAMLibraryBrowserWindow::~NAMLibraryBrowserWindow()
@@ -252,6 +241,22 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
   }
 }
 
+void NAMLibraryBrowserWindow::SetInitialUIState(const std::string& searchQuery, const std::string& selectedTag,
+                                                const std::unordered_map<std::string, bool>& expandedState)
+{
+  mPendingSearchQuery = searchQuery;
+  mSelectedTag = selectedTag;
+  mExpandedState = expandedState;
+}
+
+void NAMLibraryBrowserWindow::GetCurrentUIState(std::string& searchQuery, std::string& selectedTag,
+                                                std::unordered_map<std::string, bool>& expandedState) const
+{
+  searchQuery = mPendingSearchQuery;
+  selectedTag = mSelectedTag;
+  expandedState = mExpandedState;
+}
+
 std::string NAMLibraryBrowserWindow::GetSettingsFilePath()
 {
   namespace fs = std::filesystem;
@@ -368,10 +373,10 @@ void NAMLibraryBrowserWindow::Close()
   }
 
   {
-    auto& s = GetBrowserSessionState();
-    s.lastSearchQuery = mPendingSearchQuery;
-    s.lastSelectedTag = mSelectedTag;
-    s.expandedState = mExpandedState;
+    if (mOnWindowClosed)
+    {
+      mOnWindowClosed();
+    }
   }
 
   if (mHwndDlg)

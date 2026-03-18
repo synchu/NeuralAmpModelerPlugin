@@ -10,4 +10,4 @@
 - Always use `cpp` as the code fence language when providing code blocks for this repo (even for Objective-C++ sections) because other language tags like `objective-c++` confuse VS when applying suggestions.
 
 ## UI State Management
-- Persist `NAMLibraryBrowserWindow` search text, tag selection, and related UI state in memory only (not settings file) to avoid conflicts when multiple VST3 instances are running.
+- Persist `NAMLibraryBrowserWindow` state per plugin instance in `NeuralAmpModeler`: store search query, selected tag, and expanded state in memory only (not settings file) to avoid conflicts when multiple VST3 instances are running. Restore this state when reopening the browser to avoid cross-instance sharing. Prefer per-instance in-memory state (search query, selected tag, expanded state) — do not use a static/global session state shared across plugin instances.

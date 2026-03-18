@@ -33,10 +33,21 @@ public:
   bool IsOpen() const { return mIsOpen; }
   void BringToFront();
 
+  void SetInitialUIState(const std::string& searchQuery, const std::string& selectedTag,
+                         const std::unordered_map<std::string, bool>& expandedState);
+
+  void GetCurrentUIState(std::string& searchQuery, std::string& selectedTag,
+                         std::unordered_map<std::string, bool>& expandedState) const;
+
+  
+
   void SetOnModelSelected(std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&)> callback)
   {
     mOnModelSelected = callback;
   }
+
+  void SetOnWindowClosed(std::function<void()> callback) { mOnWindowClosed = callback; }
+  std::function<void()> mOnWindowClosed;
 
 private:
 #if defined(OS_WIN)

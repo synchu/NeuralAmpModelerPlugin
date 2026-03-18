@@ -33,18 +33,9 @@ namespace
     return str.substr(strBegin, strEnd - strBegin + 1);
   }
 
-  struct NAMLibraryBrowserSessionState
-  {
-    std::string lastSearchQuery;
-    std::string lastSelectedTag;
-    std::unordered_map<std::string, bool> expandedState;
-  };
+ 
 
-  NAMLibraryBrowserSessionState& GetBrowserSessionState()
-  {
-    static NAMLibraryBrowserSessionState s;
-    return s;
-  }
+  
 }
 
 @interface NAMNodeWrapper : NSObject
@@ -564,10 +555,7 @@ void NAMLibraryBrowserWindow::LoadSettings()
     }
   }
 
-  auto& s = GetBrowserSessionState();
-  mPendingSearchQuery = s.lastSearchQuery;
-  mSelectedTag = s.lastSelectedTag;
-  mExpandedState = s.expandedState;
+  
 }
 
 void NAMLibraryBrowserWindow::SaveSettings()
@@ -905,6 +893,26 @@ void NAMLibraryBrowserWindow::BringToFront()
   }
 }
 
+void NAMLibraryBrowserWindow::SetInitialUIState(
+  const std::string& searchQuery,
+  const std::string& selectedTag,
+  const std::unordered_map<std::string, bool>& expandedState)
+{
+  mPendingSearchQuery = searchQuery;
+  mSelectedTag = selectedTag;
+  mExpandedState = expandedState;
+}
+
+void NAMLibraryBrowserWindow::GetCurrentUIState(
+  std::string& searchQuery,
+  std::string& selectedTag,
+  std::unordered_map<std::string, bool>& expandedState) const
+{
+  searchQuery = mPendingSearchQuery;
+  selectedTag = mSelectedTag;
+  expandedState = mExpandedState;
+}
+
 void NAMLibraryBrowserWindow::Close()
 {
   if (!mIsOpen)
@@ -924,10 +932,9 @@ void NAMLibraryBrowserWindow::Close()
       mPendingSearchQuery = [ctrl currentQuery];
       mSelectedTag = [ctrl currentTag];
 
-      auto& s = GetBrowserSessionState();
-      s.lastSearchQuery = mPendingSearchQuery;
-      s.lastSelectedTag = mSelectedTag;
-      s.expandedState = mExpandedState;
+     if (mOnWindowClosed){
+        mOnWindowClosed();
+     }
 
       NSRect frame = ctrl.window.frame;
       NSScreen* screen = ctrl.window.screen ?: [NSScreen mainScreen];

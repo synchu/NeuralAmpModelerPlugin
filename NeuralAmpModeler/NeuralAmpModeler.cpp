@@ -295,6 +295,8 @@ NeuralAmpModeler::~NeuralAmpModeler()
   // Clean up library browser window
   if (mLibraryBrowserWindow)
   {
+    mLibraryBrowserWindow->GetCurrentUIState(
+      mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
     mLibraryBrowserWindow->Close();
     mLibraryBrowserWindow.reset();
   }
@@ -307,6 +309,10 @@ void NeuralAmpModeler::OnUIClose()
   // Close library browser window when plugin UI closes
   if (mLibraryBrowserWindow)
   {
+    mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(&mLibraryManager, mLibraryRootNode);
+
+    mLibraryBrowserWindow->SetInitialUIState(
+      mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
     mLibraryBrowserWindow->Close();
   }
 
@@ -342,10 +348,17 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
 
   // Recreate the window object so it uses the latest root node.
   mLibraryBrowserWindow.reset();
-  mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(
-    &mLibraryManager,
-    mLibraryRootNode
-  );
+  mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(&mLibraryManager, mLibraryRootNode);
+
+  mLibraryBrowserWindow->SetInitialUIState(
+    mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
+  mLibraryBrowserWindow->SetOnWindowClosed([this]() {
+    if (mLibraryBrowserWindow)
+    {
+      mLibraryBrowserWindow->GetCurrentUIState(
+        mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
+    }
+  });
 
   mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
     if (!node || !node->IsModel())
