@@ -9,12 +9,16 @@
 #include "NAMLibraryTreeNode.h"
 
 #if defined(_WIN32) && !defined(OS_WIN)
-#define OS_WIN
+  #define OS_WIN
+#endif
+
+#if defined(__APPLE__) && !defined(OS_MAC)
+  #define OS_MAC
 #endif
 
 #if defined(OS_WIN)
-#include <windows.h>
-#include <CommCtrl.h>
+  #include <windows.h>
+  #include <CommCtrl.h>
 #endif
 
 class NAMLibraryBrowserWindow
@@ -36,14 +40,8 @@ private:
 #if defined(OS_WIN)
   void InitializeControls();
   void PopulateTreeView();
-
   void AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node, bool ancestorsExpanded);
   void AutoExpandDescendantsFromFlags(HTREEITEM hParentItem);
-
-  // In-memory expansion state (folders only; models/leaves ignore expanded).
-  bool GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const;
-  void SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
-  void SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
 
   void OnTreeViewSelectionChanged();
   void OnTreeViewDoubleClick();
@@ -64,10 +62,12 @@ private:
   INT_PTR HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
   bool mIsAutoExpanding = false;
-
-  // node->id -> expanded (folders only)
-  std::unordered_map<std::string, bool> mExpandedState;
 #endif
+
+  // In-memory expansion state (cross-platform)
+  bool GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const;
+  void SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
+  void SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
 
   void LoadSettings();
   void SaveSettings();
@@ -106,6 +106,9 @@ private:
 #elif defined(OS_MAC)
   void* mpWindowController = nullptr;
 #endif
+
+  // node->id -> expanded (folders only), cross-platform
+  std::unordered_map<std::string, bool> mExpandedState;
 
   int mFontSize = 30;
   const int mMinFontSize = 12;

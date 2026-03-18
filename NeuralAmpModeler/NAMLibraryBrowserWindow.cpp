@@ -7,97 +7,103 @@
 #include <unordered_set>
 #include <cctype>
 #include <cstdlib> // getenv
-#include <cstdio>  // snprintf
+#include <cstdio> // snprintf
+
+#if defined(_WIN32) && !defined(OS_WIN)
+  #define OS_WIN
+#endif
+
+#if defined(__APPLE__) && !defined(OS_MAC)
+  #define OS_MAC
+#endif
 
 namespace
 {
-  std::string ToLowerAscii(std::string value)
-  {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-      return static_cast<char>(std::tolower(c));
-    });
-    return value;
-  }
-
-
-  std::string Trim(const std::string& str)
-  {
-    const auto strBegin = str.find_first_not_of(" \t\n\r");
-    if (strBegin == std::string::npos)
-      return "";
-    const auto strEnd = str.find_last_not_of(" \t\n\r");
-    return str.substr(strBegin, strEnd - strBegin + 1);
-  }
+std::string ToLowerAscii(std::string value)
+{
+  std::transform(
+    value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return value;
 }
+
+std::string Trim(const std::string& str)
+{
+  const auto strBegin = str.find_first_not_of(" \t\n\r");
+  if (strBegin == std::string::npos)
+    return "";
+  const auto strEnd = str.find_last_not_of(" \t\n\r");
+  return str.substr(strBegin, strEnd - strBegin + 1);
+}
+} // namespace
 
 // FIX: Check for both OS_WIN and standard _WIN32 macro
 #if defined(OS_WIN) || defined(_WIN32)
-#ifndef OS_WIN
-#define OS_WIN
-#endif
+  #ifndef OS_WIN
+    #define OS_WIN
+  #endif
 
-#include <windowsx.h>
-#include <uxtheme.h>
-#pragma comment(lib, "uxtheme.lib")
+  #include <windowsx.h>
+  #include <uxtheme.h>
+  #pragma comment(lib, "uxtheme.lib")
 
 namespace
 {
-  std::wstring Utf8ToWide(const std::string& text)
-  {
-    if (text.empty())
-      return {};
+std::wstring Utf8ToWide(const std::string& text)
+{
+  if (text.empty())
+    return {};
 
-    const int wideLen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
-    if (wideLen <= 1)
-      return {};
+  const int wideLen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+  if (wideLen <= 1)
+    return {};
 
-    std::wstring result(static_cast<size_t>(wideLen), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, result.data(), wideLen);
-    result.pop_back();
-    return result;
-  }
-
-  std::string WideToUtf8(const wchar_t* text)
-  {
-    if (!text || text[0] == L'\0')
-      return {};
-
-    const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
-    if (utf8Len <= 1)
-      return {};
-
-    std::string result(static_cast<size_t>(utf8Len), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, text, -1, result.data(), utf8Len, nullptr, nullptr);
-    result.pop_back();
-    return result;
-  }
-
-  // In-memory (process lifetime) UI state. No settings file persistence.
-  struct NAMLibraryBrowserSessionState
-  {
-    std::string lastSearchQuery;
-    std::string lastSelectedTag;
-    std::unordered_map<std::string, bool> expandedState; // node->id -> expanded
-  };
-
-  NAMLibraryBrowserSessionState& GetBrowserSessionState()
-  {
-    static NAMLibraryBrowserSessionState s;
-    return s;
-  }
+  std::wstring result(static_cast<size_t>(wideLen), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, result.data(), wideLen);
+  result.pop_back();
+  return result;
 }
 
-// Control IDs
-#define IDC_TREEVIEW       1001
-#define IDC_SEARCH_EDIT    1002
-#define IDC_LOAD_BUTTON    1003
-#define IDC_CANCEL_BUTTON  1004
-#define IDC_SEARCH_LABEL   1005
-#define IDC_FONT_INC       1006
-#define IDC_FONT_DEC       1007
-#define IDC_TAG_LABEL      1008
-#define IDC_TAG_COMBO      1009
-#define IDC_TAG_RESET      1010  
+std::string WideToUtf8(const wchar_t* text)
+{
+  if (!text || text[0] == L'\0')
+    return {};
+
+  const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
+  if (utf8Len <= 1)
+    return {};
+
+  std::string result(static_cast<size_t>(utf8Len), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, text, -1, result.data(), utf8Len, nullptr, nullptr);
+  result.pop_back();
+  return result;
+}
+
+// In-memory (process lifetime) UI state. No settings file persistence.
+struct NAMLibraryBrowserSessionState
+{
+  std::string lastSearchQuery;
+  std::string lastSelectedTag;
+  std::unordered_map<std::string, bool> expandedState; // node->id -> expanded
+};
+
+NAMLibraryBrowserSessionState& GetBrowserSessionState()
+{
+  static NAMLibraryBrowserSessionState s;
+  return s;
+}
+} // namespace
+
+  // Control IDs
+  #define IDC_TREEVIEW 1001
+  #define IDC_SEARCH_EDIT 1002
+  #define IDC_LOAD_BUTTON 1003
+  #define IDC_CANCEL_BUTTON 1004
+  #define IDC_SEARCH_LABEL 1005
+  #define IDC_FONT_INC 1006
+  #define IDC_FONT_DEC 1007
+  #define IDC_TAG_LABEL 1008
+  #define IDC_TAG_COMBO 1009
+  #define IDC_TAG_RESET 1010
 
 NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
                                                  std::shared_ptr<NAMLibraryTreeNode> rootNode)
@@ -202,7 +208,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
   if (mHasSavedBounds)
   {
-    POINT centre = { mWindowX + w / 2, mWindowY + h / 2 };
+    POINT centre = {mWindowX + w / 2, mWindowY + h / 2};
     if (MonitorFromPoint(centre, MONITOR_DEFAULTTONULL) != nullptr)
     {
       x = mWindowX;
@@ -213,23 +219,15 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
   // For a top-level window (no WS_CHILD), this handle is treated as the *owner*.
   const HWND ownerHwnd = (mParentHwnd && IsWindow(mParentHwnd)) ? mParentHwnd : nullptr;
 
-  mHwndDlg = CreateWindowExW(
-    0,
-    L"NAMLibraryBrowserWindow",
-    L"NAM Library Browser",
-    WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-    x, y, w, h,
-    ownerHwnd, // owned by the main NeuralAmpModeler window
-    nullptr,
-    GetModuleHandle(nullptr),
-    this
-  );
+  mHwndDlg =
+    CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, w, h,
+                    ownerHwnd, // owned by the main NeuralAmpModeler window
+                    nullptr, GetModuleHandle(nullptr), this);
 
   if (mHwndDlg)
   {
     InitializeControls();
     PopulateTagComboBox();
-    // PopulateTreeView();
 
     // Restore saved search text
     if (mHwndSearchEdit && !mPendingSearchQuery.empty())
@@ -278,15 +276,15 @@ std::string NAMLibraryBrowserWindow::GetSettingsFilePath()
 
   std::string baseDir;
 
-#if defined(OS_WIN) || defined(_WIN32)
+  #if defined(OS_WIN) || defined(_WIN32)
   if (const char* appData = getenv("APPDATA"))
     baseDir = appData;
-#elif defined(OS_MAC)
+  #elif defined(OS_MAC)
   if (const char* home = getenv("HOME"))
     baseDir = std::string(home) + "/Library/Application Support";
-#else
-#error "Unsupported platform - need OS_WIN or OS_MAC defined"
-#endif
+  #else
+    #error "Unsupported platform - need OS_WIN or OS_MAC defined"
+  #endif
 
   if (baseDir.empty())
     return {};
@@ -338,7 +336,9 @@ void NAMLibraryBrowserWindow::LoadSettings()
           mWindowH = v;
       }
     }
-    catch (...) {}
+    catch (...)
+    {
+    }
   }
 }
 
@@ -362,8 +362,8 @@ void NAMLibraryBrowserWindow::Close()
   if (!mIsOpen)
     return;
 
+  #if defined(OS_WIN) || defined(_WIN32)
   // Snapshot current UI state into members so it survives DestroyWindow.
-#if defined(OS_WIN) || defined(_WIN32)
   if (mHwndSearchEdit)
   {
     const int len = GetWindowTextLengthW(mHwndSearchEdit);
@@ -417,7 +417,6 @@ void NAMLibraryBrowserWindow::Close()
       mHasSavedBounds = true; // instance-lifetime (not written)
     }
   }
-#endif
 
   SaveSettings(); // keep this for FontSize/WindowW/WindowH only
 
@@ -434,6 +433,34 @@ void NAMLibraryBrowserWindow::Close()
   }
 
   mTreeItemMap.clear();
+
+  #elif defined(OS_MAC)
+  @autoreleasepool
+  {
+    if (mpWindowController)
+    {
+      NAMLibraryWindowController* ctrl = (__bridge NAMLibraryWindowController*)mpWindowController;
+      if (ctrl.window)
+      {
+        NSRect frame = ctrl.window.frame;
+        mWindowX = (int)frame.origin.x;
+        mWindowY = (int)frame.origin.y;
+        mWindowW = (int)frame.size.width;
+        mWindowH = (int)frame.size.height;
+        mHasSavedBounds = true;
+
+        [ctrl.window orderOut:nil];
+        [ctrl close];
+      }
+
+      CFBridgingRelease(mpWindowController);
+      mpWindowController = nullptr;
+    }
+  }
+
+  SaveSettings();
+  #endif
+
   mIsOpen = false;
 }
 
@@ -455,77 +482,41 @@ void NAMLibraryBrowserWindow::InitializeControls()
 
   const int searchEditW = std::max(50, width - 520);
 
-  mHwndSearchLabel = CreateWindowW(
-    L"STATIC", L"Search:",
-    WS_CHILD | WS_VISIBLE | SS_LEFT,
-    10, 10, 70, 35,
-    mHwndDlg, (HMENU)IDC_SEARCH_LABEL,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndSearchLabel = CreateWindowW(L"STATIC", L"Search:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, 10, 70, 35, mHwndDlg,
+                                   (HMENU)IDC_SEARCH_LABEL, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndSearchLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndSearchEdit = CreateWindowExW(
-    WS_EX_CLIENTEDGE, L"EDIT", L"",
-    WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-    80, 10, searchEditW, 35,
-    mHwndDlg, (HMENU)IDC_SEARCH_EDIT,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndSearchEdit =
+    CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 80, 10, searchEditW, 35,
+                    mHwndDlg, (HMENU)IDC_SEARCH_EDIT, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndSearchEdit, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndTagLabel = CreateWindowW(
-    L"STATIC", L"Tag:",
-    WS_CHILD | WS_VISIBLE | SS_LEFT,
-    width - 430, 10, 40, 35,
-    mHwndDlg, (HMENU)IDC_TAG_LABEL,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndTagLabel = CreateWindowW(L"STATIC", L"Tag:", WS_CHILD | WS_VISIBLE | SS_LEFT, width - 430, 10, 40, 35, mHwndDlg,
+                                (HMENU)IDC_TAG_LABEL, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndTagLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndTagCombo = CreateWindowExW(
-    WS_EX_CLIENTEDGE, L"COMBOBOX", L"",
-    WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-    width - 385, 10, 220, 300,
-    mHwndDlg, (HMENU)IDC_TAG_COMBO,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndTagCombo =
+    CreateWindowExW(WS_EX_CLIENTEDGE, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+                    width - 385, 10, 220, 300, mHwndDlg, (HMENU)IDC_TAG_COMBO, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndTagCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  HWND hwndReset = CreateWindowW(
-    L"BUTTON", L"X",
-    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-    width - 160, 10, 35, 35,
-    mHwndDlg, (HMENU)IDC_TAG_RESET,
-    GetModuleHandle(nullptr), nullptr
-  );
+  HWND hwndReset = CreateWindowW(L"BUTTON", L"X", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 160, 10,
+                                 35, 35, mHwndDlg, (HMENU)IDC_TAG_RESET, GetModuleHandle(nullptr), nullptr);
   SendMessage(hwndReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndFontDecButton = CreateWindowW(
-    L"BUTTON", L"A-",
-    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-    width - 110, 10, 45, 35,
-    mHwndDlg, (HMENU)IDC_FONT_DEC,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndFontDecButton =
+    CreateWindowW(L"BUTTON", L"A-", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 110, 10, 45, 35,
+                  mHwndDlg, (HMENU)IDC_FONT_DEC, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndFontDecButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndFontIncButton = CreateWindowW(
-    L"BUTTON", L"A+",
-    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-    width - 60, 10, 45, 35,
-    mHwndDlg, (HMENU)IDC_FONT_INC,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndFontIncButton = CreateWindowW(L"BUTTON", L"A+", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 60,
+                                     10, 45, 35, mHwndDlg, (HMENU)IDC_FONT_INC, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndFontIncButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
   mHwndTreeView = CreateWindowExW(
     WS_EX_CLIENTEDGE, WC_TREEVIEWW, L"",
-    WS_CHILD | WS_VISIBLE | TVS_HASLINES |  // FIX: was TVS_HAS_LINES
-    TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_FULLROWSELECT,
-    10, 55, width - 20, height - 110,
-    mHwndDlg, (HMENU)IDC_TREEVIEW,
-    GetModuleHandle(nullptr), nullptr
-  );
+    WS_CHILD | WS_VISIBLE | TVS_HASLINES | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_FULLROWSELECT, 10,
+    55, width - 20, height - 110, mHwndDlg, (HMENU)IDC_TREEVIEW, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndTreeView, WM_SETFONT, (WPARAM)mHFont, TRUE);
   UpdateFontSize();
   SetWindowTheme(mHwndTreeView, L"Explorer", nullptr);
@@ -534,30 +525,24 @@ void NAMLibraryBrowserWindow::InitializeControls()
   TreeView_SetTextColor(mHwndTreeView, RGB(220, 220, 220));
   TreeView_SetLineColor(mHwndTreeView, RGB(80, 80, 80));
 
-  mHwndLoadButton = CreateWindowW(
-    L"BUTTON", L"Load Selected Model",
-    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-    width - 400, height - 50, 240, 40,
-    mHwndDlg, (HMENU)IDC_LOAD_BUTTON,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndLoadButton =
+    CreateWindowW(L"BUTTON", L"Load Selected Model", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 400,
+                  height - 50, 240, 40, mHwndDlg, (HMENU)IDC_LOAD_BUTTON, GetModuleHandle(nullptr), nullptr);
   EnableWindow(mHwndLoadButton, FALSE);
   SendMessage(mHwndLoadButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
-  mHwndCancelButton = CreateWindowW(
-    L"BUTTON", L"Cancel",
-    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-    width - 150, height - 50, 140, 40,
-    mHwndDlg, (HMENU)IDC_CANCEL_BUTTON,
-    GetModuleHandle(nullptr), nullptr
-  );
+  mHwndCancelButton =
+    CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 150, height - 50,
+                  140, 40, mHwndDlg, (HMENU)IDC_CANCEL_BUTTON, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndCancelButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
 }
 
 void NAMLibraryBrowserWindow::RecreateFont()
 {
-  if (mHFont) DeleteObject(mHFont);
-  mHFont = CreateFontW(mFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+  if (mHFont)
+    DeleteObject(mHFont);
+  mHFont = CreateFontW(mFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                       CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 }
 
 void NAMLibraryBrowserWindow::UpdateFontSize()
@@ -565,7 +550,6 @@ void NAMLibraryBrowserWindow::UpdateFontSize()
   if (!mHwndTreeView)
     return;
 
-  // Calculate item height based on font size (add ~30% padding), but clamp for readability at small sizes.
   const int minItemHeight = mFontSize + 4;
   const int scaledHeight = static_cast<int>(mFontSize * 1.3f);
   const int itemHeight = std::max(minItemHeight, scaledHeight);
@@ -573,31 +557,42 @@ void NAMLibraryBrowserWindow::UpdateFontSize()
   TreeView_SetItemHeight(mHwndTreeView, itemHeight);
 }
 
-// Helper to push font to all children
-void  NAMLibraryBrowserWindow::UpdateChildFonts()
+void NAMLibraryBrowserWindow::UpdateChildFonts()
 {
-  if (!mHwndDlg) return;
-  // Common controls
-  if (mHwndSearchLabel) SendMessage(mHwndSearchLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndSearchEdit) SendMessage(mHwndSearchEdit, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndTagLabel) SendMessage(mHwndTagLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndTagCombo) SendMessage(mHwndTagCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndFontDecButton) SendMessage(mHwndFontDecButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndFontIncButton) SendMessage(mHwndFontIncButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndTreeView) SendMessage(mHwndTreeView, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndLoadButton) SendMessage(mHwndLoadButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  if (mHwndCancelButton) SendMessage(mHwndCancelButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
-  // Get Reset button dynamically
+  if (!mHwndDlg)
+    return;
+
+  if (mHwndSearchLabel)
+    SendMessage(mHwndSearchLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndSearchEdit)
+    SendMessage(mHwndSearchEdit, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndTagLabel)
+    SendMessage(mHwndTagLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndTagCombo)
+    SendMessage(mHwndTagCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndFontDecButton)
+    SendMessage(mHwndFontDecButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndFontIncButton)
+    SendMessage(mHwndFontIncButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndTreeView)
+    SendMessage(mHwndTreeView, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndLoadButton)
+    SendMessage(mHwndLoadButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndCancelButton)
+    SendMessage(mHwndCancelButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
+
   HWND hReset = GetDlgItem(mHwndDlg, IDC_TAG_RESET);
-  if (hReset) SendMessage(hReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (hReset)
+    SendMessage(hReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
 }
 
 void NAMLibraryBrowserWindow::IncreaseFontSize()
 {
-  if (mFontSize < mMaxFontSize) {
+  if (mFontSize < mMaxFontSize)
+  {
     mFontSize += 2;
     RecreateFont();
-    UpdateChildFonts(); // FIX: Propagate Font
+    UpdateChildFonts();
     UpdateFontSize();
     InvalidateRect(mHwndDlg, nullptr, TRUE);
     SaveSettings();
@@ -606,17 +601,19 @@ void NAMLibraryBrowserWindow::IncreaseFontSize()
 
 void NAMLibraryBrowserWindow::DecreaseFontSize()
 {
-  if (mFontSize > mMinFontSize) {
+  if (mFontSize > mMinFontSize)
+  {
     mFontSize -= 2;
     RecreateFont();
-    UpdateChildFonts(); // FIX: Propagate Font
+    UpdateChildFonts();
     UpdateFontSize();
     InvalidateRect(mHwndDlg, nullptr, TRUE);
     SaveSettings();
   }
 }
 
-void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node, bool ancestorsExpanded)
+void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node,
+                                          bool ancestorsExpanded)
 {
   if (!node || !mHwndTreeView)
     return;
@@ -641,8 +638,7 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
       metaParts.push_back(std::move(gearInfo));
     }
 
-    auto addLevel = [&](const char* label, double value)
-    {
+    auto addLevel = [&](const char* label, double value) {
       if (value == 0.0)
         return;
 
@@ -680,9 +676,8 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
   tvis.item.pszText = const_cast<LPWSTR>(wname.c_str());
   tvis.item.lParam = reinterpret_cast<LPARAM>(node.get());
 
-  HTREEITEM hItem = reinterpret_cast<HTREEITEM>(
-    SendMessageW(mHwndTreeView, TVM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tvis))
-  );
+  HTREEITEM hItem =
+    reinterpret_cast<HTREEITEM>(SendMessageW(mHwndTreeView, TVM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tvis)));
   if (!hItem)
     return;
 
@@ -690,15 +685,11 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
 
   const bool isFolder = !node->children.empty();
   const bool wantExpanded = isFolder ? GetFolderExpandedFromState(node) : false;
-
-  // Effective expansion: ancestors must be expanded; leaf nodes don't care.
   const bool thisExpanded = ancestorsExpanded && (!isFolder || wantExpanded);
 
-  // Insert children first (so the TreeView item is actually expandable), using top-down semantics via thisExpanded.
   for (const auto& child : node->children)
     AddTreeNode(hItem, child, thisExpanded);
 
-  // Expand AFTER children exist, otherwise TreeView_Expand often has no effect.
   if (ancestorsExpanded && isFolder && wantExpanded)
     TreeView_Expand(mHwndTreeView, hItem, TVE_EXPAND);
 }
@@ -780,14 +771,13 @@ void NAMLibraryBrowserWindow::OnSearchTextChanged()
   {
     std::wstring buffer(static_cast<size_t>(len) + 1, L'\0');
     GetWindowTextW(mHwndSearchEdit, buffer.data(), len + 1);
-    buffer.resize(static_cast<size_t>(len)); // drop null terminator
+    buffer.resize(static_cast<size_t>(len));
     mPendingSearchQuery = WideToUtf8(buffer.c_str());
   }
 
   mSearchTimerId = SetTimer(mHwndDlg, SEARCH_TIMER_ID, SEARCH_DELAY_MS, nullptr);
 }
 
-// Replace PerformSearch()
 void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
 {
   if (!mpLibraryManager)
@@ -812,21 +802,20 @@ void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
   {
     const std::string selectedTagLower = ToLowerAscii(selectedTagTrimmed);
 
-    searchResults.erase(
-      std::remove_if(searchResults.begin(), searchResults.end(),
-        [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-          if (!model)
-            return true;
+    searchResults.erase(std::remove_if(searchResults.begin(), searchResults.end(),
+                                       [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
+                                         if (!model)
+                                           return true;
 
-          for (const auto& tag : model->tags)
-          {
-            if (ToLowerAscii(Trim(tag)) == selectedTagLower)
-              return false;
-          }
+                                         for (const auto& tag : model->tags)
+                                         {
+                                           if (ToLowerAscii(Trim(tag)) == selectedTagLower)
+                                             return false;
+                                         }
 
-          return true;
-        }),
-      searchResults.end());
+                                         return true;
+                                       }),
+                        searchResults.end());
   }
 
   mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
@@ -890,13 +879,8 @@ void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
   for (const auto& model : searchResults)
     BuildAncestorChain(model);
 
-  // Repopulate tags to show only those in filtered results
   PopulateTagComboBox(&searchResults);
-
-  // When filtering/searching: everything shown should be expanded.
-  // Persist this in-memory only (do not modify data.json).
   SetExpandedStateRecursive(mSearchRoot, true);
-
   PopulateTreeView();
 }
 
@@ -911,7 +895,6 @@ void NAMLibraryBrowserWindow::ResizeControls(int width, int height)
   if (mHwndTagCombo)
     SetWindowPos(mHwndTagCombo, nullptr, width - 385, 10, 220, 300, SWP_NOZORDER);
 
-  // Use GetDlgItem for the new button since we didn't add a member variable
   HWND hwndReset = GetDlgItem(mHwndDlg, IDC_TAG_RESET);
   if (hwndReset)
     SetWindowPos(hwndReset, nullptr, width - 160, 10, 35, 35, SWP_NOZORDER);
@@ -962,10 +945,9 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
       HDC hdcStatic = (HDC)wParam;
       SetTextColor(hdcStatic, RGB(220, 220, 220));
       SetBkColor(hdcStatic, RGB(30, 30, 30));
-      return (INT_PTR)mDarkBgBrush;  // Reuse brush
+      return (INT_PTR)mDarkBgBrush;
     }
 
-    // NEW: Handle dropdown list style
     case WM_CTLCOLORLISTBOX:
     {
       HDC hdcList = (HDC)wParam;
@@ -979,21 +961,18 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
       HDC hdcEdit = (HDC)wParam;
       SetTextColor(hdcEdit, RGB(220, 220, 220));
       SetBkColor(hdcEdit, RGB(40, 40, 40));
-      return (INT_PTR)mEditBgBrush;  // Reuse brush
+      return (INT_PTR)mEditBgBrush;
     }
 
-    // Custom button drawing for dark theme
     case WM_DRAWITEM:
     {
       LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
       if (pDIS->CtlType == ODT_BUTTON)
       {
-        // Get button text
         wchar_t buttonText[256] = {};
         GetWindowTextW(pDIS->hwndItem, buttonText, 256);
 
-        // Determine colors based on state
-        COLORREF bgColor = RGB(60, 60, 60);  // Default
+        COLORREF bgColor = RGB(60, 60, 60);
         COLORREF textColor = RGB(220, 220, 220);
 
         if (pDIS->itemState & ODS_DISABLED)
@@ -1003,20 +982,18 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
         }
         else if (pDIS->itemState & ODS_SELECTED)
         {
-          bgColor = RGB(0, 120, 215);  // Blue when pressed
+          bgColor = RGB(0, 120, 215);
           textColor = RGB(255, 255, 255);
         }
         else if (pDIS->itemState & ODS_FOCUS)
         {
-          bgColor = RGB(80, 80, 80);  // Lighter gray on focus
+          bgColor = RGB(80, 80, 80);
         }
 
-        // Fill background
         HBRUSH hBrush = CreateSolidBrush(bgColor);
         FillRect(pDIS->hDC, &pDIS->rcItem, hBrush);
         DeleteObject(hBrush);
 
-        // Draw border for depth
         HPEN hPen = CreatePen(PS_SOLID, 1, RGB(100, 100, 100));
         HPEN hOldPen = (HPEN)SelectObject(pDIS->hDC, hPen);
         MoveToEx(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.bottom - 1, nullptr);
@@ -1027,15 +1004,12 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
         SelectObject(pDIS->hDC, hOldPen);
         DeleteObject(hPen);
 
-        // Draw text with our custom font
         HFONT hOldFont = (HFONT)SelectObject(pDIS->hDC, mHFont);
         SetTextColor(pDIS->hDC, textColor);
         SetBkMode(pDIS->hDC, TRANSPARENT);
-        DrawTextW(pDIS->hDC, buttonText, -1, &pDIS->rcItem,
-                  DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        DrawTextW(pDIS->hDC, buttonText, -1, &pDIS->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         SelectObject(pDIS->hDC, hOldFont);
 
-        // Draw focus rectangle
         if (pDIS->itemState & ODS_FOCUS)
         {
           RECT focusRect = pDIS->rcItem;
@@ -1085,16 +1059,15 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
         DecreaseFontSize();
         return TRUE;
       }
-      // NEW: Handle reset button click
       else if (wmId == IDC_TAG_RESET)
       {
         if (mHwndTagCombo)
         {
-          ComboBox_SetCurSel(mHwndTagCombo, 0); // Select "All tags"
+          ComboBox_SetCurSel(mHwndTagCombo, 0);
           mSelectedTag.clear();
 
           wchar_t searchText[256] = {};
-          GetWindowTextW(mHwndSearchEdit, searchText, 256); // FIX: mHwndSearchEdit
+          GetWindowTextW(mHwndSearchEdit, searchText, 256);
           mPendingSearchQuery = WideToUtf8(searchText);
 
           PerformSearch(mPendingSearchQuery);
@@ -1127,8 +1100,7 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
 
           switch (pCustomDraw->nmcd.dwDrawStage)
           {
-            case CDDS_PREPAINT:
-              return CDRF_NOTIFYITEMDRAW;
+            case CDDS_PREPAINT: return CDRF_NOTIFYITEMDRAW;
 
             case CDDS_ITEMPREPAINT:
             {
@@ -1179,7 +1151,6 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
               SetFolderExpandedInState(it->second, expanded);
           }
 
-          // If user expands a folder, auto-expand descendants that are marked expanded (in-memory first, json fallback).
           if (pnmtv->action == TVE_EXPAND && !mIsAutoExpanding)
           {
             mIsAutoExpanding = true;
@@ -1210,15 +1181,14 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
       return 0;
     }
 
-    case WM_CLOSE:
-      Close();
-      return TRUE;
+    case WM_CLOSE: Close(); return TRUE;
   }
 
   return FALSE;
 }
 
-void NAMLibraryBrowserWindow::PopulateTagComboBox(const std::vector<std::shared_ptr<NAMLibraryTreeNode>>* pModelsForTags)
+void NAMLibraryBrowserWindow::PopulateTagComboBox(
+  const std::vector<std::shared_ptr<NAMLibraryTreeNode>>* pModelsForTags)
 {
   if (!mHwndTagCombo || !mpLibraryManager)
     return;
@@ -1226,7 +1196,11 @@ void NAMLibraryBrowserWindow::PopulateTagComboBox(const std::vector<std::shared_
   struct FlagGuard
   {
     bool& Flag;
-    explicit FlagGuard(bool& f) : Flag(f) { Flag = true; }
+    explicit FlagGuard(bool& f)
+    : Flag(f)
+    {
+      Flag = true;
+    }
     ~FlagGuard() { Flag = false; }
   } guard(mIsPopulatingTags);
 
@@ -1308,8 +1282,7 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
   if (!mHwndTreeView || !hParentItem)
     return;
 
-  for (HTREEITEM hChild = TreeView_GetChild(mHwndTreeView, hParentItem);
-       hChild != nullptr;
+  for (HTREEITEM hChild = TreeView_GetChild(mHwndTreeView, hParentItem); hChild != nullptr;
        hChild = TreeView_GetNextSibling(mHwndTreeView, hChild))
   {
     auto it = mTreeItemMap.find(hChild);
@@ -1320,27 +1293,25 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
     if (!node)
       continue;
 
-    // Only folders participate.
     if (node->children.empty())
       continue;
 
     if (GetFolderExpandedFromState(node))
     {
-      // Persist (so a json-true-but-no-state entry becomes state-true once it actually expands in the UI).
       SetFolderExpandedInState(node, true);
-
       TreeView_Expand(mHwndTreeView, hChild, TVE_EXPAND);
       AutoExpandDescendantsFromFlags(hChild);
     }
   }
 }
+
 #elif defined(OS_MAC)
 
-#import <Cocoa/Cocoa.h>
+  #import <Cocoa/Cocoa.h>
 
 // ---- ObjC wrapper around a C++ tree node -------------------
 @interface NAMNodeWrapper : NSObject
-@property (nonatomic) std::shared_ptr<NAMLibraryTreeNode> node;
+@property(nonatomic) std::shared_ptr<NAMLibraryTreeNode> node;
 + (instancetype)wrap:(std::shared_ptr<NAMLibraryTreeNode>)n;
 @end
 @implementation NAMNodeWrapper
@@ -1353,16 +1324,16 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
 @end
 
 // ---- NSOutlineView data source ------------------------------
-//@implementation NAMOutlineDataSource : NSObject <NSOutlineViewDataSource>
 @interface NAMOutlineDataSource : NSObject <NSOutlineViewDataSource, NSOutlineViewDelegate>
-@property (nonatomic) std::shared_ptr<NAMLibraryTreeNode> displayRoot;
+@property(nonatomic) std::shared_ptr<NAMLibraryTreeNode> displayRoot;
 @end
 
 @implementation NAMOutlineDataSource
 
 - (NSInteger)outlineView:(NSOutlineView*)ov numberOfChildrenOfItem:(id)item
 {
-  if (!self.displayRoot) return 0;
+  if (!self.displayRoot)
+    return 0;
   auto& parent = item ? ((NAMNodeWrapper*)item).node : self.displayRoot;
   return (NSInteger)parent->children.size();
 }
@@ -1399,21 +1370,21 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
 
 @end
 
-using VoidFn   = std::function<void()>;
+using VoidFn = std::function<void()>;
+using FilterFn = std::function<void(const std::string&, const std::string&)>;
 
-//@interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate>
 @interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate, NSOutlineViewDelegate>
-@property (nonatomic, strong) NAMOutlineDataSource* dataSource;
-@property (nonatomic, strong) NSOutlineView*        outlineView;
-@property (nonatomic, strong) NSButton*             loadButton;
-@property (nonatomic, strong) NSTextField*          searchField;
-@property (nonatomic, strong) NSPopUpButton*        tagPopup;
-@property (nonatomic) VoidFn   onLoad;
-@property (nonatomic) VoidFn   onCancel;
-@property (nonatomic) FilterFn onFilterChanged;
-@property (nonatomic) VoidFn   onFontInc;
-@property (nonatomic) VoidFn   onFontDec;
-@property (nonatomic) VoidFn   onWindowClose;
+@property(nonatomic, strong) NAMOutlineDataSource* dataSource;
+@property(nonatomic, strong) NSOutlineView* outlineView;
+@property(nonatomic, strong) NSButton* loadButton;
+@property(nonatomic, strong) NSTextField* searchField;
+@property(nonatomic, strong) NSPopUpButton* tagPopup;
+@property(nonatomic) VoidFn onLoad;
+@property(nonatomic) VoidFn onCancel;
+@property(nonatomic) FilterFn onFilterChanged;
+@property(nonatomic) VoidFn onFontInc;
+@property(nonatomic) VoidFn onFontDec;
+@property(nonatomic) VoidFn onWindowClose;
 - (instancetype)initWithFontSize:(int)fontSize;
 - (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root;
 - (std::shared_ptr<NAMLibraryTreeNode>)selectedNode;
@@ -1424,16 +1395,16 @@ using VoidFn   = std::function<void()>;
 
 - (instancetype)initWithFontSize:(int)fontSize
 {
-  NSPanel* panel = [[NSPanel alloc]
-    initWithContentRect:NSMakeRect(0, 0, 800, 600)
-              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                        NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
-                backing:NSBackingStoreBuffered
-                  defer:YES];
-  panel.title    = @"NAM Library Browser";
-  panel.minSize  = NSMakeSize(600, 400);
+  NSPanel* panel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 800, 600)
+                                              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
+                                                        | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+                                                backing:NSBackingStoreBuffered
+                                                  defer:YES];
+  panel.title = @"NAM Library Browser";
+  panel.minSize = NSMakeSize(600, 400);
   self = [super initWithWindow:panel];
-  if (!self) return nil;
+  if (!self)
+    return nil;
   panel.delegate = self;
 
   NSView* cv = panel.contentView;
@@ -1442,9 +1413,9 @@ using VoidFn   = std::function<void()>;
   self.searchField.placeholderString = @"Search models...";
   self.searchField.translatesAutoresizingMaskIntoConstraints = NO;
   [[NSNotificationCenter defaultCenter] addObserver:self
-    selector:@selector(searchChanged:)
-        name:NSControlTextDidChangeNotification
-      object:self.searchField];
+                                           selector:@selector(searchChanged:)
+                                               name:NSControlTextDidChangeNotification
+                                             object:self.searchField];
   [cv addSubview:self.searchField];
 
   self.tagPopup = [NSPopUpButton new];
@@ -1461,61 +1432,77 @@ using VoidFn   = std::function<void()>;
   [cv addSubview:fDec];
 
   NSScrollView* scroll = [NSScrollView new];
-  scroll.hasVerticalScroller  = YES;
-  scroll.autohidesScrollers   = YES;
+  scroll.hasVerticalScroller = YES;
+  scroll.autohidesScrollers = YES;
   scroll.translatesAutoresizingMaskIntoConstraints = NO;
 
   self.outlineView = [NSOutlineView new];
-  self.outlineView.rowHeight               = fontSize * 1.4f;
+  self.outlineView.rowHeight = fontSize * 1.4f;
   self.outlineView.allowsMultipleSelection = NO;
-  self.outlineView.headerView              = nil;
-  self.outlineView.target                  = self;
-  self.outlineView.doubleAction            = @selector(doubleClicked:);
+  self.outlineView.headerView = nil;
+  self.outlineView.target = self;
+  self.outlineView.doubleAction = @selector(doubleClicked:);
   NSTableColumn* col = [[NSTableColumn alloc] initWithIdentifier:@"name"];
   [self.outlineView addTableColumn:col];
   self.outlineView.outlineTableColumn = col;
   self.dataSource = [NAMOutlineDataSource new];
   self.outlineView.dataSource = self.dataSource;
   [[NSNotificationCenter defaultCenter] addObserver:self
-    selector:@selector(selectionChanged:)
-        name:NSOutlineViewSelectionDidChangeNotification
-      object:self.outlineView];
+                                           selector:@selector(selectionChanged:)
+                                               name:NSOutlineViewSelectionDidChangeNotification
+                                             object:self.outlineView];
   scroll.documentView = self.outlineView;
   [cv addSubview:scroll];
 
-  self.loadButton = [NSButton buttonWithTitle:@"Load Selected Model"
-                                       target:self action:@selector(loadClicked:)];
+  self.loadButton = [NSButton buttonWithTitle:@"Load Selected Model" target:self action:@selector(loadClicked:)];
   self.loadButton.translatesAutoresizingMaskIntoConstraints = NO;
   self.loadButton.enabled = NO;
   [cv addSubview:self.loadButton];
 
-  NSButton* cancel = [NSButton buttonWithTitle:@"Cancel"
-                                        target:self action:@selector(cancelClicked:)];
+  NSButton* cancel = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancelClicked:)];
   cancel.translatesAutoresizingMaskIntoConstraints = NO;
   [cv addSubview:cancel];
 
-  NSDictionary* v = @{@"s":self.searchField, @"t":self.tagPopup, @"scroll":scroll,
-                      @"load":self.loadButton, @"cancel":cancel,
-                      @"fInc":fInc, @"fDec":fDec};
+  NSDictionary* v = @{
+    @"s" : self.searchField,
+    @"t" : self.tagPopup,
+    @"scroll" : scroll,
+    @"load" : self.loadButton,
+    @"cancel" : cancel,
+    @"fInc" : fInc,
+    @"fDec" : fDec
+  };
 
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:|-10-[s]-6-[t(170)]-6-[fDec(40)]-4-[fInc(40)]-10-|" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:|-10-[scroll]-10-|" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:[cancel(120)]-10-[load(210)]-10-|" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[s(28)]-6-[scroll]-6-[load(30)]-10-|" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[t(28)]" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[fInc(28)]" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[fDec(28)]" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:[cancel(30)]-10-|" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[scroll]-10-|" options:0 metrics:nil views:v]];
+  [cv addConstraints:[NSLayoutConstraint
+                       constraintsWithVisualFormat:@"H:|-10-[s]-6-[t(170)]-6-[fDec(40)]-4-[fInc(40)]-10-|"
+                                           options:0
+                                           metrics:nil
+                                             views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-10-[scroll]-10-|"
+                                                             options:0
+                                                             metrics:nil
+                                                               views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[cancel(120)]-10-[load(210)]-10-|"
+                                                             options:0
+                                                             metrics:nil
+                                                               views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[s(28)]-6-[scroll]-6-[load(30)]-10-|"
+                                                             options:0
+                                                             metrics:nil
+                                                               views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[t(28)]" options:0 metrics:nil views:v]];
+  [cv
+    addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[fInc(28)]" options:0 metrics:nil views:v]];
+  [cv
+    addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[fDec(28)]" options:0 metrics:nil views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[cancel(30)]-10-|"
+                                                             options:0
+                                                             metrics:nil
+                                                               views:v]];
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[scroll]-10-|"
+                                                             options:0
+                                                             metrics:nil
+                                                               views:v]];
   return self;
 }
 
@@ -1531,7 +1518,8 @@ using VoidFn   = std::function<void()>;
 - (std::shared_ptr<NAMLibraryTreeNode>)selectedNode
 {
   NSInteger row = self.outlineView.selectedRow;
-  if (row < 0) return nullptr;
+  if (row < 0)
+    return nullptr;
   id item = [self.outlineView itemAtRow:row];
   return item ? ((NAMNodeWrapper*)item).node : nullptr;
 }
@@ -1599,15 +1587,36 @@ using VoidFn   = std::function<void()>;
     self.onLoad();
 }
 
-- (void)loadClicked:(id)sender   { (void)sender; if (self.onLoad)    self.onLoad();    }
-- (void)cancelClicked:(id)sender { (void)sender; if (self.onCancel)  self.onCancel();  }
-- (void)fontInc:(id)sender       { (void)sender; if (self.onFontInc) self.onFontInc(); }
-- (void)fontDec:(id)sender       { (void)sender; if (self.onFontDec) self.onFontDec(); }
+- (void)loadClicked:(id)sender
+{
+  (void)sender;
+  if (self.onLoad)
+    self.onLoad();
+}
+- (void)cancelClicked:(id)sender
+{
+  (void)sender;
+  if (self.onCancel)
+    self.onCancel();
+}
+- (void)fontInc:(id)sender
+{
+  (void)sender;
+  if (self.onFontInc)
+    self.onFontInc();
+}
+- (void)fontDec:(id)sender
+{
+  (void)sender;
+  if (self.onFontDec)
+    self.onFontDec();
+}
 
 - (void)windowWillClose:(NSNotification*)n
 {
   (void)n;
-  if (self.onWindowClose) self.onWindowClose();
+  if (self.onWindowClose)
+    self.onWindowClose();
 }
 
 - (void)dealloc
@@ -1638,8 +1647,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
   @autoreleasepool
   {
-    NAMLibraryWindowController* ctrl =
-      [[NAMLibraryWindowController alloc] initWithFontSize:mFontSize];
+    NAMLibraryWindowController* ctrl = [[NAMLibraryWindowController alloc] initWithFontSize:mFontSize];
 
     if (mHasSavedBounds)
     {
@@ -1662,9 +1670,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       if (NSWindow* parentWin = ((__bridge NSView*)pParentWindow).window)
       {
         NSRect pf = parentWin.frame;
-        [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
-                                         pf.origin.y, mWindowW, mWindowH)
-                      display:NO];
+        [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10, pf.origin.y, mWindowW, mWindowH) display:NO];
       }
     }
 
@@ -1729,21 +1735,20 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
           {
             const std::string selectedLower = ToLowerAscii(selectedTagTrimmed);
 
-            results.erase(
-              std::remove_if(results.begin(), results.end(),
-                [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-                  if (!model)
-                    return true;
+            results.erase(std::remove_if(results.begin(), results.end(),
+                                         [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
+                                           if (!model)
+                                             return true;
 
-                  for (const auto& tag : model->tags)
-                  {
-                    if (ToLowerAscii(Trim(tag)) == selectedLower)
-                      return false;
-                  }
+                                           for (const auto& tag : model->tags)
+                                           {
+                                             if (ToLowerAscii(Trim(tag)) == selectedLower)
+                                               return false;
+                                           }
 
-                  return true;
-                }),
-              results.end());
+                                           return true;
+                                         }),
+                          results.end());
           }
 
           mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
@@ -1765,8 +1770,10 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
               parentCopy->children.push_back(childCopy);
           };
 
-          std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)> BuildAncestorChain;
-          BuildAncestorChain = [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
+          std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)>
+            BuildAncestorChain;
+          BuildAncestorChain =
+            [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
             if (!node)
               return nullptr;
 
@@ -1838,45 +1845,6 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
   }
 }
 
-void NAMLibraryBrowserWindow::Close()
-{
-  if (!mIsOpen)
-    return;
-
-  // Update bounds from the actual window *in-memory*.
-  // Persist only size + font (X/Y remain instance-lifetime only).
-#if defined(OS_WIN) || defined(_WIN32)
-  if (mHwndDlg)
-  {
-    RECT rc{};
-    if (GetWindowRect(mHwndDlg, &rc))
-    {
-      mWindowX = rc.left;
-      mWindowY = rc.top;
-      mWindowW = rc.right - rc.left;
-      mWindowH = rc.bottom - rc.top;
-      mHasSavedBounds = true; // instance-lifetime (not written)
-    }
-  }
-#endif
-
-  SaveSettings();
-
-  if (mHwndDlg)
-  {
-    if (mSearchTimerId != 0)
-    {
-      KillTimer(mHwndDlg, SEARCH_TIMER_ID);
-      mSearchTimerId = 0;
-    }
-
-    DestroyWindow(mHwndDlg);
-    mHwndDlg = nullptr;
-  }
-
-  mTreeItemMap.clear();
-  mIsOpen = false;
-}
 #else
   #error "Unsupported platform - need OS_WIN or OS_MAC defined"
 #endif
@@ -1886,7 +1854,6 @@ bool NAMLibraryBrowserWindow::GetFolderExpandedFromState(const std::shared_ptr<N
   if (!node)
     return false;
 
-  // Only folders (nodes with children) participate.
   if (node->children.empty())
     return false;
 
@@ -1897,7 +1864,6 @@ bool NAMLibraryBrowserWindow::GetFolderExpandedFromState(const std::shared_ptr<N
       return it->second;
   }
 
-  // Fall back to data.json only when we have no in-memory override.
   return node->expanded;
 }
 
