@@ -444,6 +444,7 @@
     </None>
     <None Include="NamModelHarness.vcxproj" />
     <None Include="NamModelHarness.vcxproj.filters" />
+    <None Include="..\NAMLibraryBrowserWindow.mm" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\resources\NeuralAmpModeler.ico">

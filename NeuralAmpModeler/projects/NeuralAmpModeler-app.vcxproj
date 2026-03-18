@@ -523,6 +523,7 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="..\config\NeuralAmpModeler-mac.xcconfig" />
+    <None Include="..\NAMLibraryBrowserWindow.mm" />
     <None Include="NamModelHarness.vcxproj" />
     <None Include="NamModelHarness.vcxproj.filters" />
   </ItemGroup>

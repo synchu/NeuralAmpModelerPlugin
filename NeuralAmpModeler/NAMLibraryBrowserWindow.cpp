@@ -1,21 +1,20 @@
 #include "NAMLibraryBrowserWindow.h"
-#include <algorithm>
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <set>
-#include <unordered_set>
-#include <cctype>
-#include <cstdlib> // getenv
-#include <cstdio> // snprintf
 
-#if defined(_WIN32) && !defined(OS_WIN)
-  #define OS_WIN
-#endif
+#if defined(OS_WIN)
 
-#if defined(__APPLE__) && !defined(OS_MAC)
-  #define OS_MAC
-#endif
+  #include <algorithm>
+  #include <fstream>
+  #include <filesystem>
+  #include <sstream>
+  #include <set>
+  #include <unordered_set>
+  #include <cctype>
+  #include <cstdlib>
+  #include <cstdio>
+
+  #include <windowsx.h>
+  #include <uxtheme.h>
+  #pragma comment(lib, "uxtheme.lib")
 
 namespace
 {
@@ -31,23 +30,11 @@ std::string Trim(const std::string& str)
   const auto strBegin = str.find_first_not_of(" \t\n\r");
   if (strBegin == std::string::npos)
     return "";
+
   const auto strEnd = str.find_last_not_of(" \t\n\r");
   return str.substr(strBegin, strEnd - strBegin + 1);
 }
-} // namespace
 
-// FIX: Check for both OS_WIN and standard _WIN32 macro
-#if defined(OS_WIN) || defined(_WIN32)
-  #ifndef OS_WIN
-    #define OS_WIN
-  #endif
-
-  #include <windowsx.h>
-  #include <uxtheme.h>
-  #pragma comment(lib, "uxtheme.lib")
-
-namespace
-{
 std::wstring Utf8ToWide(const std::string& text)
 {
   if (text.empty())
@@ -78,12 +65,11 @@ std::string WideToUtf8(const wchar_t* text)
   return result;
 }
 
-// In-memory (process lifetime) UI state. No settings file persistence.
 struct NAMLibraryBrowserSessionState
 {
   std::string lastSearchQuery;
   std::string lastSelectedTag;
-  std::unordered_map<std::string, bool> expandedState; // node->id -> expanded
+  std::unordered_map<std::string, bool> expandedState;
 };
 
 NAMLibraryBrowserSessionState& GetBrowserSessionState()
@@ -110,9 +96,8 @@ NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
 : mpLibraryManager(pLibraryMgr)
 , mRootNode(rootNode)
 {
-  LoadSettings(); // still used for font + window size
+  LoadSettings();
 
-  // Restore in-memory UI state (process lifetime; safe with multiple plugin instances vs shared file).
   auto& s = GetBrowserSessionState();
   mPendingSearchQuery = s.lastSearchQuery;
   mSelectedTag = s.lastSelectedTag;
@@ -134,6 +119,7 @@ NAMLibraryBrowserWindow::~NAMLibraryBrowserWindow()
     DeleteObject(mDarkBgBrush);
     mDarkBgBrush = nullptr;
   }
+
   if (mEditBgBrush)
   {
     DeleteObject(mEditBgBrush);
@@ -148,13 +134,11 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
   mParentHwnd = (HWND)pParentWindow;
 
-  // Initialize common controls
   INITCOMMONCONTROLSEX icex;
   icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
   icex.dwICC = ICC_TREEVIEW_CLASSES;
   InitCommonControlsEx(&icex);
 
-  // Register custom window class for separate window
   WNDCLASSEXW wcex = {};
   wcex.cbSize = sizeof(WNDCLASSEX);
   wcex.style = CS_HREDRAW | CS_VREDRAW;
@@ -184,6 +168,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
   };
+
   wcex.hInstance = GetModuleHandle(nullptr);
   wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
   wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
@@ -196,7 +181,6 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     registered = true;
   }
 
-  // Calculate position next to parent
   RECT rcParent = {};
   if (mParentHwnd)
     GetWindowRect(mParentHwnd, &rcParent);
@@ -216,24 +200,19 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
   }
 
-  // For a top-level window (no WS_CHILD), this handle is treated as the *owner*.
   const HWND ownerHwnd = (mParentHwnd && IsWindow(mParentHwnd)) ? mParentHwnd : nullptr;
 
-  mHwndDlg =
-    CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW | WS_VISIBLE, x, y, w, h,
-                    ownerHwnd, // owned by the main NeuralAmpModeler window
-                    nullptr, GetModuleHandle(nullptr), this);
+  mHwndDlg = CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW | WS_VISIBLE, x,
+                             y, w, h, ownerHwnd, nullptr, GetModuleHandle(nullptr), this);
 
   if (mHwndDlg)
   {
     InitializeControls();
     PopulateTagComboBox();
 
-    // Restore saved search text
     if (mHwndSearchEdit && !mPendingSearchQuery.empty())
       SetWindowTextW(mHwndSearchEdit, Utf8ToWide(mPendingSearchQuery).c_str());
 
-    // Restore saved tag selection
     int selIndex = 0;
     if (mHwndTagCombo && !mSelectedTag.empty())
     {
@@ -258,7 +237,6 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       ComboBox_SetCurSel(mHwndTagCombo, 0);
     }
 
-    // Rebuild tree according to saved filter/search
     PerformSearch(mPendingSearchQuery);
 
     ShowWindow(mHwndDlg, SW_SHOW);
@@ -268,23 +246,13 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
   }
 }
 
-// ---- Cross-platform settings persistence ----
-
 std::string NAMLibraryBrowserWindow::GetSettingsFilePath()
 {
   namespace fs = std::filesystem;
 
   std::string baseDir;
-
-  #if defined(OS_WIN) || defined(_WIN32)
   if (const char* appData = getenv("APPDATA"))
     baseDir = appData;
-  #elif defined(OS_MAC)
-  if (const char* home = getenv("HOME"))
-    baseDir = std::string(home) + "/Library/Application Support";
-  #else
-    #error "Unsupported platform - need OS_WIN or OS_MAC defined"
-  #endif
 
   if (baseDir.empty())
     return {};
@@ -362,8 +330,6 @@ void NAMLibraryBrowserWindow::Close()
   if (!mIsOpen)
     return;
 
-  #if defined(OS_WIN) || defined(_WIN32)
-  // Snapshot current UI state into members so it survives DestroyWindow.
   if (mHwndSearchEdit)
   {
     const int len = GetWindowTextLengthW(mHwndSearchEdit);
@@ -385,7 +351,7 @@ void NAMLibraryBrowserWindow::Close()
     const int sel = ComboBox_GetCurSel(mHwndTagCombo);
     if (sel <= 0)
     {
-      mSelectedTag.clear(); // "All tags"
+      mSelectedTag.clear();
     }
     else
     {
@@ -395,7 +361,6 @@ void NAMLibraryBrowserWindow::Close()
     }
   }
 
-  // Persist Search/Tag/Expansion in memory only (do NOT write to settings file).
   {
     auto& s = GetBrowserSessionState();
     s.lastSearchQuery = mPendingSearchQuery;
@@ -403,8 +368,6 @@ void NAMLibraryBrowserWindow::Close()
     s.expandedState = mExpandedState;
   }
 
-  // Update bounds from the actual window *in-memory*.
-  // Persist only size + font (X/Y remain instance-lifetime only).
   if (mHwndDlg)
   {
     RECT rc{};
@@ -414,11 +377,11 @@ void NAMLibraryBrowserWindow::Close()
       mWindowY = rc.top;
       mWindowW = rc.right - rc.left;
       mWindowH = rc.bottom - rc.top;
-      mHasSavedBounds = true; // instance-lifetime (not written)
+      mHasSavedBounds = true;
     }
   }
 
-  SaveSettings(); // keep this for FontSize/WindowW/WindowH only
+  SaveSettings();
 
   if (mHwndDlg)
   {
@@ -433,34 +396,6 @@ void NAMLibraryBrowserWindow::Close()
   }
 
   mTreeItemMap.clear();
-
-  #elif defined(OS_MAC)
-  @autoreleasepool
-  {
-    if (mpWindowController)
-    {
-      NAMLibraryWindowController* ctrl = (__bridge NAMLibraryWindowController*)mpWindowController;
-      if (ctrl.window)
-      {
-        NSRect frame = ctrl.window.frame;
-        mWindowX = (int)frame.origin.x;
-        mWindowY = (int)frame.origin.y;
-        mWindowW = (int)frame.size.width;
-        mWindowH = (int)frame.size.height;
-        mHasSavedBounds = true;
-
-        [ctrl.window orderOut:nil];
-        [ctrl close];
-      }
-
-      CFBridgingRelease(mpWindowController);
-      mpWindowController = nullptr;
-    }
-  }
-
-  SaveSettings();
-  #endif
-
   mIsOpen = false;
 }
 
@@ -471,7 +406,6 @@ void NAMLibraryBrowserWindow::InitializeControls()
   const int width = clientRect.right;
   const int height = clientRect.bottom;
 
-  // Avoid leaking brushes when the window is reopened.
   if (!mDarkBgBrush)
     mDarkBgBrush = CreateSolidBrush(RGB(30, 30, 30));
   if (!mEditBgBrush)
@@ -541,6 +475,7 @@ void NAMLibraryBrowserWindow::RecreateFont()
 {
   if (mHFont)
     DeleteObject(mHFont);
+
   mHFont = CreateFontW(mFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                        CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 }
@@ -610,6 +545,44 @@ void NAMLibraryBrowserWindow::DecreaseFontSize()
     InvalidateRect(mHwndDlg, nullptr, TRUE);
     SaveSettings();
   }
+}
+
+bool NAMLibraryBrowserWindow::GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const
+{
+  if (!node)
+    return false;
+
+  if (node->children.empty())
+    return false;
+
+  if (!node->id.empty())
+  {
+    auto it = mExpandedState.find(node->id);
+    if (it != mExpandedState.end())
+      return it->second;
+  }
+
+  return node->expanded;
+}
+
+void NAMLibraryBrowserWindow::SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded)
+{
+  if (!node || node->children.empty() || node->id.empty())
+    return;
+
+  mExpandedState[node->id] = expanded;
+}
+
+void NAMLibraryBrowserWindow::SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded)
+{
+  if (!node)
+    return;
+
+  if (!node->children.empty())
+    SetFolderExpandedInState(node, expanded);
+
+  for (const auto& child : node->children)
+    SetExpandedStateRecursive(child, expanded);
 }
 
 void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node,
@@ -880,7 +853,9 @@ void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
     BuildAncestorChain(model);
 
   PopulateTagComboBox(&searchResults);
+
   SetExpandedStateRecursive(mSearchRoot, true);
+
   PopulateTreeView();
 }
 
@@ -1290,10 +1265,7 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
       continue;
 
     const auto& node = it->second;
-    if (!node)
-      continue;
-
-    if (node->children.empty())
+    if (!node || node->children.empty())
       continue;
 
     if (GetFolderExpandedFromState(node))
@@ -1305,590 +1277,8 @@ void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentIt
   }
 }
 
-#elif defined(OS_MAC)
-
-  #import <Cocoa/Cocoa.h>
-
-// ---- ObjC wrapper around a C++ tree node -------------------
-@interface NAMNodeWrapper : NSObject
-@property(nonatomic) std::shared_ptr<NAMLibraryTreeNode> node;
-+ (instancetype)wrap:(std::shared_ptr<NAMLibraryTreeNode>)n;
-@end
-@implementation NAMNodeWrapper
-+ (instancetype)wrap:(std::shared_ptr<NAMLibraryTreeNode>)n
-{
-  NAMNodeWrapper* w = [NAMNodeWrapper new];
-  w.node = n;
-  return w;
-}
-@end
-
-// ---- NSOutlineView data source ------------------------------
-@interface NAMOutlineDataSource : NSObject <NSOutlineViewDataSource, NSOutlineViewDelegate>
-@property(nonatomic) std::shared_ptr<NAMLibraryTreeNode> displayRoot;
-@end
-
-@implementation NAMOutlineDataSource
-
-- (NSInteger)outlineView:(NSOutlineView*)ov numberOfChildrenOfItem:(id)item
-{
-  if (!self.displayRoot)
-    return 0;
-  auto& parent = item ? ((NAMNodeWrapper*)item).node : self.displayRoot;
-  return (NSInteger)parent->children.size();
-}
-
-- (id)outlineView:(NSOutlineView*)ov child:(NSInteger)idx ofItem:(id)item
-{
-  auto& parent = item ? ((NAMNodeWrapper*)item).node : self.displayRoot;
-  if (idx < (NSInteger)parent->children.size())
-    return [NAMNodeWrapper wrap:parent->children[(size_t)idx]];
-  return nil;
-}
-
-- (BOOL)outlineView:(NSOutlineView*)ov isItemExpandable:(id)item
-{
-  return !((NAMNodeWrapper*)item).node->children.empty();
-}
-
-- (id)outlineView:(NSOutlineView*)ov objectValueForTableColumn:(NSTableColumn*)col byItem:(id)item
-{
-  auto& n = ((NAMNodeWrapper*)item).node;
-  std::string label = n->name;
-  if (n->IsModel())
-  {
-    std::string gear;
-    if (!n->gear_make.empty() && !n->gear_model.empty())
-      gear = n->gear_make + " " + n->gear_model;
-    else
-      gear = n->gear_make + n->gear_model;
-    if (!gear.empty())
-      label += " [" + gear + "]";
-  }
-  return [NSString stringWithUTF8String:label.c_str()];
-}
-
-@end
-
-using VoidFn = std::function<void()>;
-using FilterFn = std::function<void(const std::string&, const std::string&)>;
-
-@interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate, NSOutlineViewDelegate>
-@property(nonatomic, strong) NAMOutlineDataSource* dataSource;
-@property(nonatomic, strong) NSOutlineView* outlineView;
-@property(nonatomic, strong) NSButton* loadButton;
-@property(nonatomic, strong) NSTextField* searchField;
-@property(nonatomic, strong) NSPopUpButton* tagPopup;
-@property(nonatomic) VoidFn onLoad;
-@property(nonatomic) VoidFn onCancel;
-@property(nonatomic) FilterFn onFilterChanged;
-@property(nonatomic) VoidFn onFontInc;
-@property(nonatomic) VoidFn onFontDec;
-@property(nonatomic) VoidFn onWindowClose;
-- (instancetype)initWithFontSize:(int)fontSize;
-- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root;
-- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode;
-- (void)setAvailableTags:(const std::vector<std::string>&)tags;
-@end
-
-@implementation NAMLibraryWindowController
-
-- (instancetype)initWithFontSize:(int)fontSize
-{
-  NSPanel* panel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 800, 600)
-                                              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
-                                                        | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
-                                                backing:NSBackingStoreBuffered
-                                                  defer:YES];
-  panel.title = @"NAM Library Browser";
-  panel.minSize = NSMakeSize(600, 400);
-  self = [super initWithWindow:panel];
-  if (!self)
-    return nil;
-  panel.delegate = self;
-
-  NSView* cv = panel.contentView;
-
-  self.searchField = [NSTextField new];
-  self.searchField.placeholderString = @"Search models...";
-  self.searchField.translatesAutoresizingMaskIntoConstraints = NO;
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                           selector:@selector(searchChanged:)
-                                               name:NSControlTextDidChangeNotification
-                                             object:self.searchField];
-  [cv addSubview:self.searchField];
-
-  self.tagPopup = [NSPopUpButton new];
-  self.tagPopup.translatesAutoresizingMaskIntoConstraints = NO;
-  self.tagPopup.target = self;
-  self.tagPopup.action = @selector(tagChanged:);
-  [cv addSubview:self.tagPopup];
-
-  NSButton* fInc = [NSButton buttonWithTitle:@"A+" target:self action:@selector(fontInc:)];
-  NSButton* fDec = [NSButton buttonWithTitle:@"A-" target:self action:@selector(fontDec:)];
-  fInc.translatesAutoresizingMaskIntoConstraints = NO;
-  fDec.translatesAutoresizingMaskIntoConstraints = NO;
-  [cv addSubview:fInc];
-  [cv addSubview:fDec];
-
-  NSScrollView* scroll = [NSScrollView new];
-  scroll.hasVerticalScroller = YES;
-  scroll.autohidesScrollers = YES;
-  scroll.translatesAutoresizingMaskIntoConstraints = NO;
-
-  self.outlineView = [NSOutlineView new];
-  self.outlineView.rowHeight = fontSize * 1.4f;
-  self.outlineView.allowsMultipleSelection = NO;
-  self.outlineView.headerView = nil;
-  self.outlineView.target = self;
-  self.outlineView.doubleAction = @selector(doubleClicked:);
-  NSTableColumn* col = [[NSTableColumn alloc] initWithIdentifier:@"name"];
-  [self.outlineView addTableColumn:col];
-  self.outlineView.outlineTableColumn = col;
-  self.dataSource = [NAMOutlineDataSource new];
-  self.outlineView.dataSource = self.dataSource;
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                           selector:@selector(selectionChanged:)
-                                               name:NSOutlineViewSelectionDidChangeNotification
-                                             object:self.outlineView];
-  scroll.documentView = self.outlineView;
-  [cv addSubview:scroll];
-
-  self.loadButton = [NSButton buttonWithTitle:@"Load Selected Model" target:self action:@selector(loadClicked:)];
-  self.loadButton.translatesAutoresizingMaskIntoConstraints = NO;
-  self.loadButton.enabled = NO;
-  [cv addSubview:self.loadButton];
-
-  NSButton* cancel = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancelClicked:)];
-  cancel.translatesAutoresizingMaskIntoConstraints = NO;
-  [cv addSubview:cancel];
-
-  NSDictionary* v = @{
-    @"s" : self.searchField,
-    @"t" : self.tagPopup,
-    @"scroll" : scroll,
-    @"load" : self.loadButton,
-    @"cancel" : cancel,
-    @"fInc" : fInc,
-    @"fDec" : fDec
-  };
-
-  [cv addConstraints:[NSLayoutConstraint
-                       constraintsWithVisualFormat:@"H:|-10-[s]-6-[t(170)]-6-[fDec(40)]-4-[fInc(40)]-10-|"
-                                           options:0
-                                           metrics:nil
-                                             views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-10-[scroll]-10-|"
-                                                             options:0
-                                                             metrics:nil
-                                                               views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[cancel(120)]-10-[load(210)]-10-|"
-                                                             options:0
-                                                             metrics:nil
-                                                               views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[s(28)]-6-[scroll]-6-[load(30)]-10-|"
-                                                             options:0
-                                                             metrics:nil
-                                                               views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[t(28)]" options:0 metrics:nil views:v]];
-  [cv
-    addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[fInc(28)]" options:0 metrics:nil views:v]];
-  [cv
-    addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[fDec(28)]" options:0 metrics:nil views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[cancel(30)]-10-|"
-                                                             options:0
-                                                             metrics:nil
-                                                               views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-10-[scroll]-10-|"
-                                                             options:0
-                                                             metrics:nil
-                                                               views:v]];
-  return self;
-}
-
-- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
-{
-  self.dataSource.displayRoot = root;
-  [self.outlineView reloadData];
-  NSInteger n = [self.outlineView numberOfRows];
-  for (NSInteger i = 0; i < n; ++i)
-    [self.outlineView expandItem:[self.outlineView itemAtRow:i]];
-}
-
-- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode
-{
-  NSInteger row = self.outlineView.selectedRow;
-  if (row < 0)
-    return nullptr;
-  id item = [self.outlineView itemAtRow:row];
-  return item ? ((NAMNodeWrapper*)item).node : nullptr;
-}
-
-- (void)setAvailableTags:(const std::vector<std::string>&)tags
-{
-  [self.tagPopup removeAllItems];
-  [self.tagPopup addItemWithTitle:@"All tags"];
-  for (const auto& tag : tags)
-  {
-    if (!tag.empty())
-    {
-      NSString* title = [NSString stringWithUTF8String:tag.c_str()];
-      if (title)
-        [self.tagPopup addItemWithTitle:title];
-    }
-  }
-  [self.tagPopup selectItemAtIndex:0];
-}
-
-- (std::string)currentQuery
-{
-  NSString* s = self.searchField.stringValue;
-  return s.UTF8String ? s.UTF8String : "";
-}
-
-- (std::string)currentTag
-{
-  NSInteger idx = self.tagPopup.indexOfSelectedItem;
-  if (idx <= 0)
-    return "";
-  NSString* s = self.tagPopup.selectedItem.title;
-  return s.UTF8String ? s.UTF8String : "";
-}
-
-- (void)notifyFilterChanged
-{
-  if (self.onFilterChanged)
-    self.onFilterChanged([self currentQuery], [self currentTag]);
-}
-
-- (void)searchChanged:(NSNotification*)n
-{
-  (void)n;
-  [self notifyFilterChanged];
-}
-
-- (void)tagChanged:(id)sender
-{
-  (void)sender;
-  [self notifyFilterChanged];
-}
-
-- (void)selectionChanged:(NSNotification*)n
-{
-  (void)n;
-  auto node = [self selectedNode];
-  self.loadButton.enabled = (node && node->IsModel()) ? YES : NO;
-}
-
-- (void)doubleClicked:(id)sender
-{
-  (void)sender;
-  if ([self selectedNode] && [self selectedNode]->IsModel() && self.onLoad)
-    self.onLoad();
-}
-
-- (void)loadClicked:(id)sender
-{
-  (void)sender;
-  if (self.onLoad)
-    self.onLoad();
-}
-- (void)cancelClicked:(id)sender
-{
-  (void)sender;
-  if (self.onCancel)
-    self.onCancel();
-}
-- (void)fontInc:(id)sender
-{
-  (void)sender;
-  if (self.onFontInc)
-    self.onFontInc();
-}
-- (void)fontDec:(id)sender
-{
-  (void)sender;
-  if (self.onFontDec)
-    self.onFontDec();
-}
-
-- (void)windowWillClose:(NSNotification*)n
-{
-  (void)n;
-  if (self.onWindowClose)
-    self.onWindowClose();
-}
-
-- (void)dealloc
-{
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
-@end
-
-NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
-                                                 std::shared_ptr<NAMLibraryTreeNode> rootNode)
-: mpLibraryManager(pLibraryMgr)
-, mRootNode(rootNode)
-, mpWindowController(nullptr)
-{
-  LoadSettings();
-}
-
-NAMLibraryBrowserWindow::~NAMLibraryBrowserWindow()
-{
-  Close();
-}
-
-void NAMLibraryBrowserWindow::Open(void* pParentWindow)
-{
-  if (mIsOpen)
-    return;
-
-  @autoreleasepool
-  {
-    NAMLibraryWindowController* ctrl = [[NAMLibraryWindowController alloc] initWithFontSize:mFontSize];
-
-    if (mHasSavedBounds)
-    {
-      CGFloat screenH = [NSScreen mainScreen].frame.size.height;
-      NSRect frame = NSMakeRect(mWindowX, screenH - mWindowY - mWindowH, mWindowW, mWindowH);
-      BOOL onScreen = NO;
-      for (NSScreen* scr in [NSScreen screens])
-      {
-        if (NSIntersectsRect(frame, scr.frame))
-        {
-          onScreen = YES;
-          break;
-        }
-      }
-      if (onScreen)
-        [ctrl.window setFrame:frame display:NO];
-    }
-    else if (pParentWindow)
-    {
-      if (NSWindow* parentWin = ((__bridge NSView*)pParentWindow).window)
-      {
-        NSRect pf = parentWin.frame;
-        [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10, pf.origin.y, mWindowW, mWindowH) display:NO];
-      }
-    }
-
-    __weak NAMLibraryWindowController* weak = ctrl;
-
-    ctrl.onLoad = [this, weak]() {
-      if (auto c = weak)
-        if (auto node = [c selectedNode]; node && node->IsModel() && mOnModelSelected)
-        {
-          mOnModelSelected(node);
-          Close();
-        }
-    };
-
-    ctrl.onCancel = [this]() { Close(); };
-
-    ctrl.onFontInc = [this, weak]() {
-      if (mFontSize < mMaxFontSize)
-      {
-        mFontSize += 2;
-        if (auto c = weak)
-          c.outlineView.rowHeight = mFontSize * 1.4f;
-        SaveSettings();
-      }
-    };
-
-    ctrl.onFontDec = [this, weak]() {
-      if (mFontSize > mMinFontSize)
-      {
-        mFontSize -= 2;
-        if (auto c = weak)
-          c.outlineView.rowHeight = mFontSize * 1.4f;
-        SaveSettings();
-      }
-    };
-
-    ctrl.onWindowClose = [this]() {
-      if (mIsOpen)
-        Close();
-    };
-
-    ctrl.onFilterChanged = [this, weak](const std::string& query, const std::string& selectedTag) {
-      if (!mpLibraryManager)
-      {
-        mSearchRoot = nullptr;
-      }
-      else
-      {
-        const std::string queryTrimmed = Trim(query);
-        const std::string selectedTagTrimmed = Trim(selectedTag);
-
-        if (queryTrimmed.empty() && selectedTagTrimmed.empty())
-        {
-          mSearchRoot = nullptr;
-        }
-        else
-        {
-          std::vector<std::shared_ptr<NAMLibraryTreeNode>> results =
-            queryTrimmed.empty() ? mpLibraryManager->GetAllModels() : mpLibraryManager->SearchModels(queryTrimmed);
-
-          if (!selectedTagTrimmed.empty())
-          {
-            const std::string selectedLower = ToLowerAscii(selectedTagTrimmed);
-
-            results.erase(std::remove_if(results.begin(), results.end(),
-                                         [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-                                           if (!model)
-                                             return true;
-
-                                           for (const auto& tag : model->tags)
-                                           {
-                                             if (ToLowerAscii(Trim(tag)) == selectedLower)
-                                               return false;
-                                           }
-
-                                           return true;
-                                         }),
-                          results.end());
-          }
-
-          mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
-          mSearchRoot->name = "Filtered Results (" + std::to_string(results.size()) + " models)";
-          mSearchRoot->id = "search_root";
-          mSearchRoot->depth = 0;
-          mSearchRoot->expanded = true;
-
-          std::unordered_map<std::string, std::shared_ptr<NAMLibraryTreeNode>> nodeMap;
-          std::unordered_map<std::string, std::unordered_set<std::string>> childrenAdded;
-
-          auto addUniqueChild = [&](const std::shared_ptr<NAMLibraryTreeNode>& parentCopy,
-                                    const std::shared_ptr<NAMLibraryTreeNode>& childCopy) {
-            if (!parentCopy || !childCopy)
-              return;
-
-            auto& set = childrenAdded[parentCopy->id];
-            if (set.insert(childCopy->id).second)
-              parentCopy->children.push_back(childCopy);
-          };
-
-          std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)>
-            BuildAncestorChain;
-          BuildAncestorChain =
-            [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
-            if (!node)
-              return nullptr;
-
-            if (auto it = nodeMap.find(node->id); it != nodeMap.end())
-              return it->second;
-
-            auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
-            nodeCopy->children.clear();
-            nodeCopy->expanded = true;
-            nodeMap.emplace(node->id, nodeCopy);
-
-            if (node->parent)
-            {
-              auto parentCopy = BuildAncestorChain(node->parent);
-              nodeCopy->parent = parentCopy;
-
-              if (parentCopy)
-              {
-                nodeCopy->depth = parentCopy->depth + 1;
-                addUniqueChild(parentCopy, nodeCopy);
-              }
-              else
-              {
-                nodeCopy->parent = mSearchRoot;
-                nodeCopy->depth = 1;
-                addUniqueChild(mSearchRoot, nodeCopy);
-              }
-            }
-            else
-            {
-              nodeCopy->parent = mSearchRoot;
-              nodeCopy->depth = 1;
-              addUniqueChild(mSearchRoot, nodeCopy);
-            }
-
-            return nodeCopy;
-          };
-
-          for (const auto& model : results)
-            BuildAncestorChain(model);
-        }
-      }
-
-      if (auto c = weak)
-        [c setDisplayRoot:mSearchRoot ? mSearchRoot : mRootNode];
-    };
-
-    std::set<std::string> tagSet;
-    if (mpLibraryManager)
-    {
-      const auto& allModels = mpLibraryManager->GetAllModels();
-      for (const auto& model : allModels)
-      {
-        if (!model)
-          continue;
-        for (const auto& tag : model->tags)
-          if (!tag.empty())
-            tagSet.insert(tag);
-      }
-    }
-    std::vector<std::string> sortedTags(tagSet.begin(), tagSet.end());
-    [ctrl setAvailableTags:sortedTags];
-
-    [ctrl showWindow:nil];
-    [ctrl.window makeKeyAndOrderFront:nil];
-
-    mpWindowController = (__bridge_retained void*)ctrl;
-    mIsOpen = true;
-  }
-}
-
 #else
-  #error "Unsupported platform - need OS_WIN or OS_MAC defined"
+
+// Intentionally empty on non-Windows builds.
+
 #endif
-
-bool NAMLibraryBrowserWindow::GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const
-{
-  if (!node)
-    return false;
-
-  if (node->children.empty())
-    return false;
-
-  if (!node->id.empty())
-  {
-    auto it = mExpandedState.find(node->id);
-    if (it != mExpandedState.end())
-      return it->second;
-  }
-
-  return node->expanded;
-}
-
-void NAMLibraryBrowserWindow::SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded)
-{
-  if (!node)
-    return;
-
-  if (node->children.empty())
-    return;
-
-  if (node->id.empty())
-    return;
-
-  mExpandedState[node->id] = expanded;
-}
-
-void NAMLibraryBrowserWindow::SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded)
-{
-  if (!node)
-    return;
-
-  if (!node->children.empty())
-    SetFolderExpandedInState(node, expanded);
-
-  for (const auto& child : node->children)
-    SetExpandedStateRecursive(child, expanded);
-}
