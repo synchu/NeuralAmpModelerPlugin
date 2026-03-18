@@ -238,7 +238,7 @@ using ExpandChangedFn = std::function<void(const std::shared_ptr<NAMLibraryTreeN
 
   self.dataSource = [NAMOutlineDataSource new];
   self.outlineView.dataSource = self.dataSource;
-  self.outlineView.delegate = self;
+  self.outlineView.delegate = self.dataSource;
 
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(selectionChanged:)
