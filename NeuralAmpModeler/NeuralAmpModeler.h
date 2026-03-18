@@ -210,7 +210,7 @@ public:
   bool InitializeLibraryManager();
   std::shared_ptr<NAMLibraryTreeNode> GetLibraryRootNode() const { return mLibraryRootNode; }
   NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
-  void OpenLibraryBrowserWindow();  // Add this
+  void OpenLibraryBrowserWindow();  
 
   // Drag-and-drop file handling (moved from IControl.h hack)
   void HandleFileDrop(const char* str);

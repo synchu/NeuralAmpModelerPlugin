@@ -200,7 +200,13 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
   }
 
-  const HWND ownerHwnd = (mParentHwnd && IsWindow(mParentHwnd)) ? mParentHwnd : nullptr;
+  HWND ownerHwnd = nullptr;
+  if (mParentHwnd && IsWindow(mParentHwnd))
+  {
+    ownerHwnd = GetAncestor(mParentHwnd, GA_ROOT);
+    if (!ownerHwnd || !IsWindow(ownerHwnd))
+      ownerHwnd = mParentHwnd;
+  }
 
   mHwndDlg = CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW | WS_VISIBLE, x,
                              y, w, h, ownerHwnd, nullptr, GetModuleHandle(nullptr), this);
@@ -327,7 +333,7 @@ void NAMLibraryBrowserWindow::SaveSettings()
 
 void NAMLibraryBrowserWindow::Close()
 {
-  if (!mIsOpen)
+  if (!mHwndDlg && !mIsOpen)
     return;
 
   if (mHwndSearchEdit)
@@ -393,10 +399,28 @@ void NAMLibraryBrowserWindow::Close()
 
     DestroyWindow(mHwndDlg);
     mHwndDlg = nullptr;
+
+    
   }
 
   mTreeItemMap.clear();
   mIsOpen = false;
+}
+
+void NAMLibraryBrowserWindow::BringToFront()
+{
+  if (!mHwndDlg || !IsWindow(mHwndDlg))
+    return;
+
+  if (IsIconic(mHwndDlg))
+    ShowWindow(mHwndDlg, SW_RESTORE);
+  else
+    ShowWindow(mHwndDlg, SW_SHOW);
+
+ 
+  SetForegroundWindow(mHwndDlg);
+  BringWindowToTop(mHwndDlg);
+  SetActiveWindow(mHwndDlg);
 }
 
 void NAMLibraryBrowserWindow::InitializeControls()

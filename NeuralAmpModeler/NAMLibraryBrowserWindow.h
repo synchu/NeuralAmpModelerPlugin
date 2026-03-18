@@ -31,6 +31,7 @@ public:
   void Open(void* pParentWindow);
   void Close();
   bool IsOpen() const { return mIsOpen; }
+  void BringToFront();
 
   void SetOnModelSelected(std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&)> callback)
   {

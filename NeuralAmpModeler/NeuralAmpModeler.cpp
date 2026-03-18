@@ -309,13 +309,19 @@ void NeuralAmpModeler::OnUIClose()
   {
     mLibraryBrowserWindow->Close();
   }
+
+   Plugin::OnUIClose();
 }
+
 
 void NeuralAmpModeler::OpenLibraryBrowserWindow()
 {
   // If a browser window is already open, don't create another.
   if (mLibraryBrowserWindow && mLibraryBrowserWindow->IsOpen())
+  {
+    mLibraryBrowserWindow->BringToFront();
     return;
+  }
 
   // Refresh metadata (fast if unchanged; reloads only if data.json changed).
   if (!InitializeLibraryManager() || !mLibraryRootNode)
