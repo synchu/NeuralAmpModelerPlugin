@@ -29,6 +29,13 @@
 
 #include "NeuralAmpModelerControls.h"
 
+// Cross-platform debug output
+#ifdef _WIN32
+#define NAM_DBGMSG(msg) OutputDebugStringA(msg)
+#else
+#define NAM_DBGMSG(msg) fprintf(stderr, "%s", (msg))
+#endif
+
 using namespace iplug;
 using namespace igraphics;
 
@@ -322,6 +329,7 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
     ss << "To use the Library Browser, please install the NAM Model Manager "
           "and ensure it has created its library data at the location above.";
 
+    NAM_DBGMSG(ss.str().c_str());
     _ShowMessageBox(GetUI(), ss.str().c_str(), "NAM Library Not Found", kMB_OK);
     return;
   }
@@ -486,7 +494,7 @@ bool NeuralAmpModeler::InitializeLibraryManager()
 
   if (jsonPath.empty())
   {
-    OutputDebugStringA("NAM Library: Failed to determine data.json path\n");
+    NAM_DBGMSG("NAM Library: Failed to determine data.json path\n");
     return false;
   }
 
@@ -494,7 +502,7 @@ bool NeuralAmpModeler::InitializeLibraryManager()
   if (!std::filesystem::exists(jsonPath))
   {
     snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist: %s\n", jsonPath.c_str());
-    OutputDebugStringA(debugMsg);
+    NAM_DBGMSG(debugMsg);
     return false;
   }
 
@@ -503,7 +511,7 @@ bool NeuralAmpModeler::InitializeLibraryManager()
   if (ec)
   {
     snprintf(debugMsg, sizeof(debugMsg), "NAM Library: last_write_time failed: %s\n", jsonPath.c_str());
-    OutputDebugStringA(debugMsg);
+    NAM_DBGMSG(debugMsg);
     return false;
   }
 
@@ -513,18 +521,18 @@ bool NeuralAmpModeler::InitializeLibraryManager()
       mLibraryDataJsonWriteTime == writeTime)
   {
     mLibraryRootNode = mLibraryManager.GetRootNode();
-    OutputDebugStringA("NAM Library: Up-to-date (skipping reload)\n");
+    NAM_DBGMSG("NAM Library: Up-to-date (skipping reload)\n");
     return (mLibraryRootNode != nullptr);
   }
 
   snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loading/reloading from: %s\n", jsonPath.c_str());
-  OutputDebugStringA(debugMsg);
+  NAM_DBGMSG(debugMsg);
 
   // Load into a temporary manager so we don't destroy the existing one if parsing fails.
   NAMLibraryManager candidate;
   if (!candidate.LoadMetadata(jsonPath))
   {
-    OutputDebugStringA("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
+    NAM_DBGMSG("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
     // Keep whatever was already loaded.
     mLibraryRootNode = mLibraryManager.GetRootNode();
     return (mLibraryRootNode != nullptr);
@@ -540,11 +548,11 @@ bool NeuralAmpModeler::InitializeLibraryManager()
   {
     snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n",
              mLibraryRootNode->children.size());
-    OutputDebugStringA(debugMsg);
+    NAM_DBGMSG(debugMsg);
     return true;
   }
 
-  OutputDebugStringA("NAM Library: LoadMetadata succeeded but root node is null\n");
+  NAM_DBGMSG("NAM Library: LoadMetadata succeeded but root node is null\n");
   return false;
 }
 
