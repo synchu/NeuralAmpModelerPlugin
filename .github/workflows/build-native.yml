@@ -113,6 +113,42 @@ jobs:
             end
           end
 
+           --- Add image resources ---
+        img_dir = File.expand_path('../../resources/img', project_path)
+        img_files = Dir.glob(File.join(img_dir, '*')).select do |f|
+          File.file?(f) && f =~ /\.(png|jpg|jpeg|gif|bmp|icns|svg)$/i
+        end
+
+        if img_files.empty?
+          puts "No image resources found in #{img_dir}"
+        else
+          # Place resources in same source group or create a 'Resources' group
+          resources_group = source_group.parent.groups.find { |g| g.display_name == 'Resources' } ||
+                            source_group.parent.new_group('Resources')
+
+          img_files.each do |img_full_path|
+            img_filename = File.basename(img_full_path)
+            # Path for new_file is relative to .xcodeproj
+            rel_path = File.join('../../resources/img', img_filename)
+            # Avoid duplicates
+            if project.files.any? { |f| f.path == rel_path || f.display_name == img_filename }
+              puts "Resource: #{img_filename} already present - skipping"
+              next
+            end
+
+            ref = resources_group.new_file(rel_path)
+            ref.name = img_filename
+
+            # Add to Copy Bundle Resources for each target
+            targets.each do |t|
+              if t.respond_to?(:resources_build_phase) && t.resources_build_phase
+                t.resources_build_phase.add_file_reference(ref)
+                puts "  Added resource #{img_filename} to Copy Bundle Resources in #{t.name}"
+              end
+            end
+          end
+        end
+
           project.save
           puts 'Xcode project saved.'
           RUBY
