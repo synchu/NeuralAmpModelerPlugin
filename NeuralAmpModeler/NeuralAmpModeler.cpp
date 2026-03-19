@@ -144,7 +144,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto modelIconSVG = pGraphics->LoadSVG(MODEL_ICON_FN);
     const auto irIconOnSVG = pGraphics->LoadSVG(IR_ICON_ON_FN);
     const auto irIconOffSVG = pGraphics->LoadSVG(IR_ICON_OFF_FN);
-    const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  // ADD THIS LINE
+    const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  
 
     const auto backgroundBitmap = pGraphics->LoadBitmap(BACKGROUND_FN);
     const auto fileBackgroundBitmap = pGraphics->LoadBitmap(FILEBACKGROUND_FN);
