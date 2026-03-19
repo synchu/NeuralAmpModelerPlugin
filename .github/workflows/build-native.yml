@@ -119,7 +119,7 @@ jobs:
           end
 
           # --- Add image resources only to APP / AU / VST3 ---
-          img_dir = File.expand_path('../../resources/img', project_path)
+          img_dir = File.expand_path('../resources/img', project_path)
           img_files = Dir.glob(File.join(img_dir, '*')).select do |f|
             File.file?(f) && f =~ /\.(png|jpg|jpeg|gif|bmp|icns|svg)$/i
           end
@@ -132,7 +132,7 @@ jobs:
 
             img_files.each do |img_full_path|
               img_filename = File.basename(img_full_path)
-              rel_path = File.join('../../resources/img', img_filename)
+              rel_path = File.join('../resources/img', img_filename)
 
               ref = project.files.find { |f| f.path == rel_path || f.display_name == img_filename }
               unless ref
