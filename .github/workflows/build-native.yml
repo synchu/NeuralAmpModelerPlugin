@@ -83,13 +83,17 @@ jobs:
           source_group = nam_cpp.parent
           native_targets = project.targets.select { |t| t.is_a?(Xcodeproj::Project::Object::PBXNativeTarget) }
 
-          targets = native_targets.select do |t|
+          compile_targets = native_targets.select do |t|
             t.source_build_phase &&
               t.source_build_phase.files.any? { |bf| bf.file_ref == nam_cpp }
           end
 
+          resource_target_names = %w[APP AU VST3]
+          resource_targets = native_targets.select { |t| resource_target_names.include?(t.name) }
+
           puts "Group : #{source_group.display_name}"
-          puts "Targets: #{targets.map(&:name).join(', ')}"
+          puts "Compile targets: #{compile_targets.map(&:name).join(', ')}"
+          puts "Resource targets: #{resource_targets.map(&:name).join(', ')}"
 
           %w[
             ../NAMLibraryManager.cpp
@@ -99,6 +103,7 @@ jobs:
             ../NAMLibraryTreeView.cpp
           ].each do |rel|
             name = File.basename(rel)
+
             if project.files.any? { |f| f.display_name == name }
               puts "  #{name} already present - skipping"
               next
@@ -107,13 +112,13 @@ jobs:
             ref = source_group.new_file(rel)
             ref.name = name
 
-            targets.each do |t|
+            compile_targets.each do |t|
               t.source_build_phase.add_file_reference(ref)
               puts "  Added #{name} -> #{t.name}"
             end
           end
 
-          # --- Add image resources ---
+          # --- Add image resources only to APP / AU / VST3 ---
           img_dir = File.expand_path('../../resources/img', project_path)
           img_files = Dir.glob(File.join(img_dir, '*')).select do |f|
             File.file?(f) && f =~ /\.(png|jpg|jpeg|gif|bmp|icns|svg)$/i
@@ -122,26 +127,31 @@ jobs:
           if img_files.empty?
             puts "No image resources found in #{img_dir}"
           else
-            resources_group = source_group.parent.groups.find { |g| g.display_name == 'Resources' } ||
-                              source_group.parent.new_group('Resources')
+            main_group = project.main_group
+            resources_group = main_group['Resources'] || main_group.new_group('Resources')
 
             img_files.each do |img_full_path|
               img_filename = File.basename(img_full_path)
               rel_path = File.join('../../resources/img', img_filename)
 
-              if project.files.any? { |f| f.path == rel_path || f.display_name == img_filename }
-                puts "Resource: #{img_filename} already present - skipping"
-                next
+              ref = project.files.find { |f| f.path == rel_path || f.display_name == img_filename }
+              unless ref
+                ref = resources_group.new_file(rel_path)
+                ref.name = img_filename
+                puts "  Created file reference for resource #{img_filename}"
               end
 
-              ref = resources_group.new_file(rel_path)
-              ref.name = img_filename
+              resource_targets.each do |t|
+                next unless t.respond_to?(:resources_build_phase) && t.resources_build_phase
 
-              targets.each do |t|
-                if t.respond_to?(:resources_build_phase) && t.resources_build_phase
-                  t.resources_build_phase.add_file_reference(ref)
-                  puts "  Added resource #{img_filename} to Copy Bundle Resources in #{t.name}"
+                already_in_resources = t.resources_build_phase.files.any? { |bf| bf.file_ref == ref }
+                if already_in_resources
+                  puts "  Resource #{img_filename} already in #{t.name} - skipping"
+                  next
                 end
+
+                t.resources_build_phase.add_file_reference(ref)
+                puts "  Added resource #{img_filename} to #{t.name}"
               end
             end
           end
