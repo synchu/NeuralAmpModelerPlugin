@@ -67,7 +67,7 @@ jobs:
           ./download-prebuilt-libs.sh
         shell: bash
 
-            - name: Add library browser sources to Xcode project
+      - name: Add library browser sources to Xcode project
         if: startsWith(matrix.os, 'macos')
         run: |
           gem install xcodeproj
