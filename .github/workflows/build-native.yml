@@ -178,7 +178,7 @@ jobs:
         run: |
           set -o pipefail
           cd ${{ env.PROJECT_NAME }}/scripts
-          ./makedist-mac.sh full zip 2>&1 | tee "${GITHUB_WORKSPACE}/${{ matrix.log_path }}"
+          ./makedist-mac.sh full installer 2>&1 | tee "${GITHUB_WORKSPACE}/${{ matrix.log_path }}"
         shell: bash
 
       # ---------- Windows (Clang AVX) ----------
