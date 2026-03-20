@@ -1138,11 +1138,11 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     [ctrl showWindow:nil];
+    [ctrl.window orderFront:nil];
 
     if (ctrl.parentHostWindow)
-      [ctrl.parentHostWindow addChildWindow:ctrl.window ordered:NSWindowAbove];
+      [ctrl.window orderWindow:NSWindowAbove relativeTo:ctrl.parentHostWindow.windowNumber];
 
-    [ctrl.window orderFront:nil];
     [ctrl.window makeKeyWindow];
     [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
@@ -1168,17 +1168,14 @@ void NAMLibraryBrowserWindow::BringToFront()
     if (!ctrl)
       return;
 
-    if (ctrl.parentHostWindow)
-      [ctrl.parentHostWindow addChildWindow:ctrl.window ordered:NSWindowAbove];
-
     [ctrl showWindow:nil];
     [ctrl.window orderFront:nil];
-    [ctrl.window makeKeyWindow];
-    [ctrl.window makeMainWindow];
 
     if (ctrl.parentHostWindow)
-      [ctrl.parentHostWindow orderFront:nil];
+      [ctrl.window orderWindow:NSWindowAbove relativeTo:ctrl.parentHostWindow.windowNumber];
 
+    [ctrl.window makeKeyWindow];
+    [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
   }
 }
@@ -1236,19 +1233,6 @@ void NAMLibraryBrowserWindow::Close()
       mHasSavedBounds = true;
 
       ctrl.onWindowClose = nullptr;
-
-      if (ctrl.parentHostWindow)
-      {
-        @try
-        {
-          [ctrl.parentHostWindow removeChildWindow:ctrl.window];
-        }
-        @catch (NSException* exception)
-        {
-          (void) exception;
-        }
-      }
-
       [ctrl close];
 
 #if __has_feature(objc_arc)
