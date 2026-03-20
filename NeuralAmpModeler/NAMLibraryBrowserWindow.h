@@ -131,7 +131,7 @@ private:
   // Cross-platform process-lifetime UI state
   std::unordered_map<std::string, bool> mExpandedState;
 
-  int mFontSize = 30;
+  int mFontSize = 14;
   const int mMinFontSize = 12;
   const int mMaxFontSize = 48;
 

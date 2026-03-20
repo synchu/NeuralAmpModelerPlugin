@@ -115,6 +115,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 @property (nonatomic, strong) NSTimer* searchTimer;
 @property (nonatomic) BOOL suppressFilterCallbacks;
 @property (nonatomic) BOOL restoringExpansion;
+@property (nonatomic) BOOL displayRootIsFiltered;
 @property (nonatomic) int currentFontSize;
 
 @property (nonatomic) VoidFn onLoad;
@@ -140,8 +141,13 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
 - (NSTextField*)makeLabel:(NSString*)title
 {
-  NSTextField* label = [NSTextField labelWithString:title];
+  NSTextField* label = [[NSTextField alloc] initWithFrame:NSZeroRect];
   label.translatesAutoresizingMaskIntoConstraints = NO;
+  label.stringValue = title ? title : @"";
+  label.bezeled = NO;
+  label.drawsBackground = NO;
+  label.editable = NO;
+  label.selectable = NO;
   label.textColor = [NSColor colorWithCalibratedWhite:220.0/255.0 alpha:1.0];
   label.backgroundColor = [NSColor clearColor];
   return label;
@@ -170,10 +176,14 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.currentFontSize = fontSize;
   self.suppressFilterCallbacks = NO;
   self.restoringExpansion = NO;
+  self.displayRootIsFiltered = NO;
 
   NSView* cv = panel.contentView;
   cv.wantsLayer = YES;
-  cv.layer.backgroundColor = CGColorCreateGenericRGB(30.0/255.0, 30.0/255.0, 30.0/255.0, 1.0);
+  cv.layer.backgroundColor = [NSColor colorWithCalibratedRed:30.0/255.0
+                                                       green:30.0/255.0
+                                                        blue:30.0/255.0
+                                                       alpha:1.0].CGColor;
 
   self.searchLabel = [self makeLabel:@"Search:"];
   [cv addSubview:self.searchLabel];
@@ -342,13 +352,35 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   }
 }
 
+- (void)expandAllItemsRecursively:(id)item
+{
+  NSInteger childCount = [self.outlineView numberOfChildrenOfItem:item];
+  for (NSInteger i = 0; i < childCount; ++i)
+  {
+    id child = [self.outlineView child:i ofItem:item];
+    if (!child)
+      continue;
+
+    auto node = ((NAMNodeWrapper*) child).node;
+    if (node && !node->children.empty())
+      [self.outlineView expandItem:child];
+
+    [self expandAllItemsRecursively:child];
+  }
+}
+
 - (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
 {
   self.dataSource.displayRoot = root;
   [self.outlineView reloadData];
 
   self.restoringExpansion = YES;
-  [self restoreExpansionStateForItem:nil];
+
+  if (self.displayRootIsFiltered)
+    [self expandAllItemsRecursively:nil];
+  else
+    [self restoreExpansionStateForItem:nil];
+
   self.restoringExpansion = NO;
 
   NSInteger rows = [self.outlineView numberOfRows];
@@ -876,6 +908,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       if (!mpLibraryManager)
       {
         mSearchRoot = nullptr;
+        c.displayRootIsFiltered = NO;
         [c setDisplayRoot:mRootNode];
         return;
       }
@@ -901,6 +934,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
         std::vector<std::string> allTags(allTagSet.begin(), allTagSet.end());
         [c setAvailableTags:allTags selectedTag:mSelectedTag];
+        c.displayRootIsFiltered = NO;
         [c setDisplayRoot:mRootNode];
         return;
       }
@@ -1010,6 +1044,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       SetExpandedStateRecursive(mSearchRoot, true);
 
       [c setAvailableTags:filteredTags selectedTag:selectedTagTrimmed];
+      c.displayRootIsFiltered = (mSearchRoot != nullptr);
       [c setDisplayRoot:mSearchRoot ? mSearchRoot : mRootNode];
     };
 
@@ -1035,9 +1070,15 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     [ctrl setAvailableTags:sortedTags selectedTag:mSelectedTag];
 
     if (!mPendingSearchQuery.empty() || !mSelectedTag.empty())
+    {
+      ctrl.displayRootIsFiltered = YES;
       ctrl.onFilterChanged(mPendingSearchQuery, mSelectedTag);
+    }
     else
+    {
+      ctrl.displayRootIsFiltered = NO;
       [ctrl setDisplayRoot:mRootNode];
+    }
 
     [ctrl showWindow:nil];
     [ctrl.window makeKeyAndOrderFront:nil];
