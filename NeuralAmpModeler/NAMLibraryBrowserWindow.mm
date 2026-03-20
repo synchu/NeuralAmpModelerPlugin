@@ -36,6 +36,21 @@ namespace
     const auto strEnd = str.find_last_not_of(" \t\n\r");
     return str.substr(strBegin, strEnd - strBegin + 1);
   }
+
+  static NSString* NodeCacheKey(const std::shared_ptr<NAMLibraryTreeNode>& node)
+  {
+    if (!node)
+      return @"<null>";
+
+    if (!node->id.empty())
+      return [NSString stringWithUTF8String:node->id.c_str()];
+
+    if (!node->path.empty())
+      return [NSString stringWithUTF8String:node->path.c_str()];
+
+    std::string fallback = node->name + "|" + std::to_string(node->depth);
+    return [NSString stringWithUTF8String:fallback.c_str()];
+  }
 }
 
 @interface NAMNodeWrapper : NSObject
@@ -54,9 +69,41 @@ namespace
 
 @interface NAMOutlineDataSource : NSObject <NSOutlineViewDataSource>
 @property (nonatomic) std::shared_ptr<NAMLibraryTreeNode> displayRoot;
+@property (nonatomic, strong) NSMutableDictionary<NSString*, NAMNodeWrapper*>* wrapperCache;
+- (void)resetWrapperCache;
+- (NAMNodeWrapper*)wrapperForNode:(std::shared_ptr<NAMLibraryTreeNode>)node;
 @end
 
 @implementation NAMOutlineDataSource
+
+- (instancetype)init
+{
+  self = [super init];
+  if (self)
+    self.wrapperCache = [NSMutableDictionary dictionary];
+  return self;
+}
+
+- (void)resetWrapperCache
+{
+  [self.wrapperCache removeAllObjects];
+}
+
+- (NAMNodeWrapper*)wrapperForNode:(std::shared_ptr<NAMLibraryTreeNode>)node
+{
+  if (!node)
+    return nil;
+
+  NSString* key = NodeCacheKey(node);
+  NAMNodeWrapper* wrapper = self.wrapperCache[key];
+  if (!wrapper)
+  {
+    wrapper = [NAMNodeWrapper wrap:node];
+    self.wrapperCache[key] = wrapper;
+  }
+
+  return wrapper;
+}
 
 - (NSInteger)outlineView:(NSOutlineView*)ov numberOfChildrenOfItem:(id)item
 {
@@ -78,7 +125,7 @@ namespace
     return nil;
 
   if (idx < (NSInteger) parent->children.size())
-    return [NAMNodeWrapper wrap:parent->children[(size_t) idx]];
+    return [self wrapperForNode:parent->children[(size_t) idx]];
 
   return nil;
 }
@@ -364,7 +411,10 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
     if (!childNode->children.empty())
     {
-      [self.outlineView expandItem:[NAMNodeWrapper wrap:childNode]];
+      NAMNodeWrapper* wrapper = [self.dataSource wrapperForNode:childNode];
+      if (wrapper)
+        [self.outlineView expandItem:wrapper];
+
       [self expandAllItemsForNode:childNode];
     }
   }
@@ -373,6 +423,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 - (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
 {
   self.dataSource.displayRoot = root;
+  [self.dataSource resetWrapperCache];
   [self.outlineView reloadData];
 
   self.restoringExpansion = YES;
@@ -380,7 +431,6 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   if (self.displayRootIsFiltered)
   {
     [self expandAllItemsForNode:root];
-    [self.outlineView reloadData];
   }
   else
   {
@@ -1014,7 +1064,6 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
         auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
         nodeCopy->children.clear();
-        nodeCopy->expanded = true;
         nodeMap.emplace(node->id, nodeCopy);
 
         if (node->parent)
