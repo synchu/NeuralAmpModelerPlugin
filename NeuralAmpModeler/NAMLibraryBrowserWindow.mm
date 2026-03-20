@@ -164,6 +164,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 @property (nonatomic) BOOL restoringExpansion;
 @property (nonatomic) BOOL displayRootIsFiltered;
 @property (nonatomic) int currentFontSize;
+@property (nonatomic, weak) NSWindow* parentHostWindow;
 
 @property (nonatomic) VoidFn onLoad;
 @property (nonatomic) VoidFn onCancel;
@@ -202,7 +203,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
 - (instancetype)initWithFontSize:(int)fontSize
 {
-  NSPanel* panel = [[NSPanel alloc]
+  NSWindow* panel = [[NSWindow alloc]
     initWithContentRect:NSMakeRect(0, 0, 800, 600)
               styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                         NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
@@ -212,9 +213,13 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   panel.title = @"NAM Library Browser";
   panel.minSize = NSMakeSize(600, 400);
   panel.delegate = self;
+  panel.releasedWhenClosed = NO;
 
   if (@available(macOS 10.14, *))
     panel.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+
+  [panel setLevel:NSNormalWindowLevel];
+  [panel setHidesOnDeactivate:NO];
 
   self = [super initWithWindow:panel];
   if (!self)
@@ -224,6 +229,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.suppressFilterCallbacks = NO;
   self.restoringExpansion = NO;
   self.displayRootIsFiltered = NO;
+  self.parentHostWindow = nil;
 
   NSView* cv = panel.contentView;
   cv.wantsLayer = YES;
@@ -429,13 +435,9 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.restoringExpansion = YES;
 
   if (self.displayRootIsFiltered)
-  {
     [self expandAllItemsForNode:root];
-  }
   else
-  {
     [self restoreExpansionStateForItem:nil];
-  }
 
   self.restoringExpansion = NO;
 
@@ -881,6 +883,8 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     {
       if (NSWindow* parentWin = ((__bridge NSView*) pParentWindow).window)
       {
+        ctrl.parentHostWindow = parentWin;
+
         NSRect pf = parentWin.frame;
         [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
                                          pf.origin.y,
@@ -1134,7 +1138,13 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     [ctrl showWindow:nil];
-    [ctrl.window makeKeyAndOrderFront:nil];
+
+    if (ctrl.parentHostWindow)
+      [ctrl.parentHostWindow addChildWindow:ctrl.window ordered:NSWindowAbove];
+
+    [ctrl.window orderFront:nil];
+    [ctrl.window makeKeyWindow];
+    [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
 
 #if __has_feature(objc_arc)
@@ -1158,8 +1168,17 @@ void NAMLibraryBrowserWindow::BringToFront()
     if (!ctrl)
       return;
 
+    if (ctrl.parentHostWindow)
+      [ctrl.parentHostWindow addChildWindow:ctrl.window ordered:NSWindowAbove];
+
     [ctrl showWindow:nil];
-    [ctrl.window makeKeyAndOrderFront:nil];
+    [ctrl.window orderFront:nil];
+    [ctrl.window makeKeyWindow];
+    [ctrl.window makeMainWindow];
+
+    if (ctrl.parentHostWindow)
+      [ctrl.parentHostWindow orderFront:nil];
+
     [NSApp activateIgnoringOtherApps:YES];
   }
 }
@@ -1217,6 +1236,19 @@ void NAMLibraryBrowserWindow::Close()
       mHasSavedBounds = true;
 
       ctrl.onWindowClose = nullptr;
+
+      if (ctrl.parentHostWindow)
+      {
+        @try
+        {
+          [ctrl.parentHostWindow removeChildWindow:ctrl.window];
+        }
+        @catch (NSException* exception)
+        {
+          (void) exception;
+        }
+      }
+
       [ctrl close];
 
 #if __has_feature(objc_arc)
