@@ -218,8 +218,9 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   if (@available(macOS 10.14, *))
     panel.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
 
-  [panel setLevel:NSNormalWindowLevel];
+  [panel setLevel:NSFloatingWindowLevel];
   [panel setHidesOnDeactivate:NO];
+  [panel setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace];
 
   self = [super initWithWindow:panel];
   if (!self)
@@ -1138,11 +1139,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     [ctrl showWindow:nil];
-    [ctrl.window orderFront:nil];
-
-    if (ctrl.parentHostWindow)
-      [ctrl.window orderWindow:NSWindowAbove relativeTo:ctrl.parentHostWindow.windowNumber];
-
+    [ctrl.window orderFrontRegardless];
     [ctrl.window makeKeyWindow];
     [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
@@ -1169,11 +1166,7 @@ void NAMLibraryBrowserWindow::BringToFront()
       return;
 
     [ctrl showWindow:nil];
-    [ctrl.window orderFront:nil];
-
-    if (ctrl.parentHostWindow)
-      [ctrl.window orderWindow:NSWindowAbove relativeTo:ctrl.parentHostWindow.windowNumber];
-
+    [ctrl.window orderFrontRegardless];
     [ctrl.window makeKeyWindow];
     [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
