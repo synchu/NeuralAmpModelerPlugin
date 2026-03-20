@@ -352,20 +352,21 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   }
 }
 
-- (void)expandAllItemsRecursively:(id)item
+- (void)expandAllItemsForNode:(std::shared_ptr<NAMLibraryTreeNode>)node
 {
-  NSInteger childCount = [self.outlineView numberOfChildrenOfItem:item];
-  for (NSInteger i = 0; i < childCount; ++i)
+  if (!node)
+    return;
+
+  for (const auto& childNode : node->children)
   {
-    id child = [self.outlineView child:i ofItem:item];
-    if (!child)
+    if (!childNode)
       continue;
 
-    auto node = ((NAMNodeWrapper*) child).node;
-    if (node && !node->children.empty())
-      [self.outlineView expandItem:child];
-
-    [self expandAllItemsRecursively:child];
+    if (!childNode->children.empty())
+    {
+      [self.outlineView expandItem:[NAMNodeWrapper wrap:childNode]];
+      [self expandAllItemsForNode:childNode];
+    }
   }
 }
 
@@ -377,9 +378,14 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.restoringExpansion = YES;
 
   if (self.displayRootIsFiltered)
-    [self expandAllItemsRecursively:nil];
+  {
+    [self expandAllItemsForNode:root];
+    [self.outlineView reloadData];
+  }
   else
+  {
     [self restoreExpansionStateForItem:nil];
+  }
 
   self.restoringExpansion = NO;
 
@@ -1040,8 +1046,6 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
       for (const auto& model : results)
         BuildAncestorChain(model);
-
-      SetExpandedStateRecursive(mSearchRoot, true);
 
       [c setAvailableTags:filteredTags selectedTag:selectedTagTrimmed];
       c.displayRootIsFiltered = (mSearchRoot != nullptr);
