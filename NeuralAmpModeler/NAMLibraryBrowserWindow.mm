@@ -4,6 +4,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <CoreFoundation/CoreFoundation.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <algorithm>
 #include <cctype>
@@ -12,6 +13,9 @@
 #include <fstream>
 #include <set>
 #include <unordered_set>
+#include <vector>
+#include <string>
+#include <functional>
 
 namespace
 {
@@ -32,10 +36,6 @@ namespace
     const auto strEnd = str.find_last_not_of(" \t\n\r");
     return str.substr(strBegin, strEnd - strBegin + 1);
   }
-
- 
-
-  
 }
 
 @interface NAMNodeWrapper : NSObject
@@ -52,7 +52,7 @@ namespace
 }
 @end
 
-@interface NAMOutlineDataSource : NSObject <NSOutlineViewDataSource, NSOutlineViewDelegate>
+@interface NAMOutlineDataSource : NSObject <NSOutlineViewDataSource>
 @property (nonatomic) std::shared_ptr<NAMLibraryTreeNode> displayRoot;
 @end
 
@@ -66,7 +66,7 @@ namespace
     return 0;
 
   auto parent = item ? ((NAMNodeWrapper*) item).node : self.displayRoot;
-  return (NSInteger) parent->children.size();
+  return parent ? (NSInteger) parent->children.size() : 0;
 }
 
 - (id)outlineView:(NSOutlineView*)ov child:(NSInteger)idx ofItem:(id)item
@@ -74,6 +74,9 @@ namespace
   (void) ov;
 
   auto parent = item ? ((NAMNodeWrapper*) item).node : self.displayRoot;
+  if (!parent)
+    return nil;
+
   if (idx < (NSInteger) parent->children.size())
     return [NAMNodeWrapper wrap:parent->children[(size_t) idx]];
 
@@ -83,18 +86,481 @@ namespace
 - (BOOL)outlineView:(NSOutlineView*)ov isItemExpandable:(id)item
 {
   (void) ov;
-  return !((NAMNodeWrapper*) item).node->children.empty();
+  if (!item)
+    return NO;
+
+  auto node = ((NAMNodeWrapper*) item).node;
+  return node ? !node->children.empty() : NO;
 }
 
-- (id)outlineView:(NSOutlineView*)ov objectValueForTableColumn:(NSTableColumn*)col byItem:(id)item
+@end
+
+using VoidFn = std::function<void()>;
+using FilterFn = std::function<void(const std::string&, const std::string&)>;
+using ExpandChangedFn = std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&, bool)>;
+using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNode>&)>;
+
+@interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate, NSOutlineViewDelegate>
+@property (nonatomic, strong) NAMOutlineDataSource* dataSource;
+@property (nonatomic, strong) NSOutlineView* outlineView;
+@property (nonatomic, strong) NSButton* loadButton;
+@property (nonatomic, strong) NSTextField* searchField;
+@property (nonatomic, strong) NSPopUpButton* tagPopup;
+@property (nonatomic, strong) NSButton* tagResetButton;
+@property (nonatomic, strong) NSTextField* searchLabel;
+@property (nonatomic, strong) NSTextField* tagLabel;
+@property (nonatomic, strong) NSButton* fontIncButton;
+@property (nonatomic, strong) NSButton* fontDecButton;
+@property (nonatomic, strong) NSButton* cancelButton;
+@property (nonatomic, strong) NSTimer* searchTimer;
+@property (nonatomic) BOOL suppressFilterCallbacks;
+@property (nonatomic) BOOL restoringExpansion;
+@property (nonatomic) int currentFontSize;
+
+@property (nonatomic) VoidFn onLoad;
+@property (nonatomic) VoidFn onCancel;
+@property (nonatomic) FilterFn onFilterChanged;
+@property (nonatomic) VoidFn onFontInc;
+@property (nonatomic) VoidFn onFontDec;
+@property (nonatomic) VoidFn onWindowClose;
+@property (nonatomic) ExpandChangedFn onExpandedStateChanged;
+@property (nonatomic) ShouldExpandFn shouldExpandNode;
+
+- (instancetype)initWithFontSize:(int)fontSize;
+- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root;
+- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode;
+- (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag;
+- (void)setSearchTextFromUtf8:(const std::string&)query;
+- (std::string)currentQuery;
+- (std::string)currentTag;
+- (void)applyFontSize:(int)fontSize;
+@end
+
+@implementation NAMLibraryWindowController
+
+- (NSTextField*)makeLabel:(NSString*)title
 {
-  (void) ov;
-  (void) col;
+  NSTextField* label = [NSTextField labelWithString:title];
+  label.translatesAutoresizingMaskIntoConstraints = NO;
+  label.textColor = [NSColor colorWithCalibratedWhite:220.0/255.0 alpha:1.0];
+  label.backgroundColor = [NSColor clearColor];
+  return label;
+}
+
+- (instancetype)initWithFontSize:(int)fontSize
+{
+  NSPanel* panel = [[NSPanel alloc]
+    initWithContentRect:NSMakeRect(0, 0, 800, 600)
+              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                        NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+                backing:NSBackingStoreBuffered
+                  defer:YES];
+
+  panel.title = @"NAM Library Browser";
+  panel.minSize = NSMakeSize(600, 400);
+  panel.delegate = self;
+
+  if (@available(macOS 10.14, *))
+    panel.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+
+  self = [super initWithWindow:panel];
+  if (!self)
+    return nil;
+
+  self.currentFontSize = fontSize;
+  self.suppressFilterCallbacks = NO;
+  self.restoringExpansion = NO;
+
+  NSView* cv = panel.contentView;
+  cv.wantsLayer = YES;
+  cv.layer.backgroundColor = CGColorCreateGenericRGB(30.0/255.0, 30.0/255.0, 30.0/255.0, 1.0);
+
+  self.searchLabel = [self makeLabel:@"Search:"];
+  [cv addSubview:self.searchLabel];
+
+  self.searchField = [NSTextField new];
+  self.searchField.translatesAutoresizingMaskIntoConstraints = NO;
+  self.searchField.placeholderString = @"Search models...";
+  self.searchField.drawsBackground = YES;
+  self.searchField.backgroundColor = [NSColor colorWithCalibratedWhite:40.0/255.0 alpha:1.0];
+  self.searchField.textColor = [NSColor colorWithCalibratedWhite:220.0/255.0 alpha:1.0];
+  self.searchField.bezelStyle = NSTextFieldRoundedBezel;
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(searchChanged:)
+                                               name:NSControlTextDidChangeNotification
+                                             object:self.searchField];
+  [cv addSubview:self.searchField];
+
+  self.tagLabel = [self makeLabel:@"Tag:"];
+  [cv addSubview:self.tagLabel];
+
+  self.tagPopup = [NSPopUpButton new];
+  self.tagPopup.translatesAutoresizingMaskIntoConstraints = NO;
+  self.tagPopup.target = self;
+  self.tagPopup.action = @selector(tagChanged:);
+  [cv addSubview:self.tagPopup];
+
+  self.tagResetButton = [NSButton buttonWithTitle:@"X" target:self action:@selector(resetTag:)];
+  self.tagResetButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [cv addSubview:self.tagResetButton];
+
+  self.fontDecButton = [NSButton buttonWithTitle:@"A-" target:self action:@selector(fontDec:)];
+  self.fontIncButton = [NSButton buttonWithTitle:@"A+" target:self action:@selector(fontInc:)];
+  self.fontIncButton.translatesAutoresizingMaskIntoConstraints = NO;
+  self.fontDecButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [cv addSubview:self.fontIncButton];
+  [cv addSubview:self.fontDecButton];
+
+  NSScrollView* scroll = [NSScrollView new];
+  scroll.hasVerticalScroller = YES;
+  scroll.autohidesScrollers = YES;
+  scroll.translatesAutoresizingMaskIntoConstraints = NO;
+  scroll.borderType = NSBezelBorder;
+  scroll.drawsBackground = YES;
+  scroll.backgroundColor = [NSColor colorWithCalibratedWhite:30.0/255.0 alpha:1.0];
+
+  self.outlineView = [NSOutlineView new];
+  self.outlineView.rowHeight = std::max((CGFloat)(fontSize + 4), (CGFloat)(fontSize * 1.3f));
+  self.outlineView.allowsMultipleSelection = NO;
+  self.outlineView.headerView = nil;
+  self.outlineView.target = self;
+  self.outlineView.doubleAction = @selector(doubleClicked:);
+  self.outlineView.backgroundColor = [NSColor colorWithCalibratedWhite:30.0/255.0 alpha:1.0];
+  self.outlineView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleRegular;
+  self.outlineView.focusRingType = NSFocusRingTypeNone;
+
+  NSTableColumn* col = [[NSTableColumn alloc] initWithIdentifier:@"name"];
+  col.editable = NO;
+  [self.outlineView addTableColumn:col];
+  self.outlineView.outlineTableColumn = col;
+
+  self.dataSource = [NAMOutlineDataSource new];
+  self.outlineView.dataSource = self.dataSource;
+  self.outlineView.delegate = self;
+
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(selectionChanged:)
+                                               name:NSOutlineViewSelectionDidChangeNotification
+                                             object:self.outlineView];
+
+  scroll.documentView = self.outlineView;
+  [cv addSubview:scroll];
+
+  self.loadButton = [NSButton buttonWithTitle:@"Load Selected Model" target:self action:@selector(loadClicked:)];
+  self.loadButton.translatesAutoresizingMaskIntoConstraints = NO;
+  self.loadButton.enabled = NO;
+  [cv addSubview:self.loadButton];
+
+  self.cancelButton = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancelClicked:)];
+  self.cancelButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [cv addSubview:self.cancelButton];
+
+  NSDictionary* v = @{
+    @"searchLabel": self.searchLabel,
+    @"searchField": self.searchField,
+    @"tagLabel": self.tagLabel,
+    @"tagPopup": self.tagPopup,
+    @"tagReset": self.tagResetButton,
+    @"scroll": scroll,
+    @"load": self.loadButton,
+    @"cancel": self.cancelButton,
+    @"fInc": self.fontIncButton,
+    @"fDec": self.fontDecButton
+  };
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"H:|-10-[searchLabel(60)]-6-[searchField]-6-[tagLabel(32)]-6-[tagPopup(170)]-6-[tagReset(34)]-10-[fDec(40)]-4-[fInc(40)]-10-|"
+                                                                 options:NSLayoutFormatAlignAllCenterY
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"H:|-10-[scroll]-10-|"
+                                                                 options:0
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"H:[cancel(120)]-10-[load(210)]-10-|"
+                                                                 options:0
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"V:|-10-[searchField(28)]-10-[scroll]-10-[load(30)]-10-|"
+                                                                 options:0
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"V:[cancel(30)]-10-|"
+                                                                 options:0
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [self applyFontSize:fontSize];
+
+  return self;
+}
+
+- (void)applyFontSize:(int)fontSize
+{
+  self.currentFontSize = fontSize;
+
+  NSFont* uiFont = [NSFont systemFontOfSize:fontSize];
+  if (!uiFont)
+    uiFont = [NSFont systemFontOfSize:13.0];
+
+  self.searchLabel.font = uiFont;
+  self.tagLabel.font = uiFont;
+  self.searchField.font = uiFont;
+  self.tagPopup.font = uiFont;
+  self.tagResetButton.font = uiFont;
+  self.fontIncButton.font = uiFont;
+  self.fontDecButton.font = uiFont;
+  self.loadButton.font = uiFont;
+  self.cancelButton.font = uiFont;
+
+  self.outlineView.rowHeight = std::max((CGFloat)(fontSize + 4), (CGFloat)(fontSize * 1.3f));
+  [self.outlineView reloadData];
+}
+
+- (void)restoreExpansionStateForItem:(id)item
+{
+  NSInteger childCount = [self.outlineView numberOfChildrenOfItem:item];
+  for (NSInteger i = 0; i < childCount; ++i)
+  {
+    id child = [self.outlineView child:i ofItem:item];
+    if (!child)
+      continue;
+
+    auto node = ((NAMNodeWrapper*) child).node;
+    if (node && !node->children.empty() && self.shouldExpandNode && self.shouldExpandNode(node))
+      [self.outlineView expandItem:child];
+
+    [self restoreExpansionStateForItem:child];
+  }
+}
+
+- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
+{
+  self.dataSource.displayRoot = root;
+  [self.outlineView reloadData];
+
+  self.restoringExpansion = YES;
+  [self restoreExpansionStateForItem:nil];
+  self.restoringExpansion = NO;
+
+  NSInteger rows = [self.outlineView numberOfRows];
+  if (rows > 0)
+  {
+    [self.outlineView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
+    [self.outlineView scrollRowToVisible:0];
+  }
+  else
+  {
+    self.loadButton.enabled = NO;
+  }
+}
+
+- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode
+{
+  NSInteger row = self.outlineView.selectedRow;
+  if (row < 0)
+    return nullptr;
+
+  id item = [self.outlineView itemAtRow:row];
+  return item ? ((NAMNodeWrapper*) item).node : nullptr;
+}
+
+- (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag
+{
+  self.suppressFilterCallbacks = YES;
+
+  [self.tagPopup removeAllItems];
+  [self.tagPopup addItemWithTitle:@"All tags"];
+
+  NSInteger selectedIndex = 0;
+  NSInteger idx = 1;
+
+  for (const auto& tag : tags)
+  {
+    if (tag.empty())
+      continue;
+
+    NSString* title = [NSString stringWithUTF8String:tag.c_str()];
+    if (!title)
+      continue;
+
+    [self.tagPopup addItemWithTitle:title];
+
+    if (!selectedTag.empty() && tag == selectedTag)
+      selectedIndex = idx;
+
+    ++idx;
+  }
+
+  [self.tagPopup selectItemAtIndex:selectedIndex];
+  self.suppressFilterCallbacks = NO;
+}
+
+- (void)setSearchTextFromUtf8:(const std::string&)query
+{
+  NSString* str = [NSString stringWithUTF8String:query.c_str()];
+  self.searchField.stringValue = str ? str : @"";
+}
+
+- (std::string)currentQuery
+{
+  NSString* s = self.searchField.stringValue;
+  return s.UTF8String ? s.UTF8String : "";
+}
+
+- (std::string)currentTag
+{
+  NSInteger idx = self.tagPopup.indexOfSelectedItem;
+  if (idx <= 0)
+    return "";
+
+  NSString* s = self.tagPopup.selectedItem.title;
+  return s.UTF8String ? s.UTF8String : "";
+}
+
+- (void)notifyFilterChanged
+{
+  if (self.suppressFilterCallbacks)
+    return;
+
+  if (self.onFilterChanged)
+    self.onFilterChanged([self currentQuery], [self currentTag]);
+}
+
+- (void)searchChanged:(NSNotification*)n
+{
+  (void) n;
+
+  [self.searchTimer invalidate];
+  self.searchTimer = [NSTimer scheduledTimerWithTimeInterval:0.3
+                                                      target:self
+                                                    selector:@selector(debouncedFilterFire:)
+                                                    userInfo:nil
+                                                     repeats:NO];
+}
+
+- (void)debouncedFilterFire:(NSTimer*)timer
+{
+  (void) timer;
+  self.searchTimer = nil;
+  [self notifyFilterChanged];
+}
+
+- (void)tagChanged:(id)sender
+{
+  (void) sender;
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
+  [self notifyFilterChanged];
+}
+
+- (void)resetTag:(id)sender
+{
+  (void) sender;
+  self.suppressFilterCallbacks = YES;
+  [self.tagPopup selectItemAtIndex:0];
+  self.suppressFilterCallbacks = NO;
+
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
+
+  if (self.onFilterChanged)
+    self.onFilterChanged([self currentQuery], "");
+}
+
+- (void)selectionChanged:(NSNotification*)n
+{
+  (void) n;
+  auto node = [self selectedNode];
+  self.loadButton.enabled = (node && node->IsModel()) ? YES : NO;
+}
+
+- (void)doubleClicked:(id)sender
+{
+  (void) sender;
+  auto node = [self selectedNode];
+  if (node && node->IsModel() && self.onLoad)
+    self.onLoad();
+}
+
+- (void)loadClicked:(id)sender   { (void) sender; if (self.onLoad) self.onLoad(); }
+- (void)cancelClicked:(id)sender { (void) sender; if (self.onCancel) self.onCancel(); }
+- (void)fontInc:(id)sender       { (void) sender; if (self.onFontInc) self.onFontInc(); }
+- (void)fontDec:(id)sender       { (void) sender; if (self.onFontDec) self.onFontDec(); }
+
+- (void)windowWillClose:(NSNotification*)n
+{
+  (void) n;
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
+
+  if (self.onWindowClose)
+    self.onWindowClose();
+}
+
+- (void)outlineViewItemDidExpand:(NSNotification*)notification
+{
+  if (self.restoringExpansion || !self.onExpandedStateChanged)
+    return;
+
+  id item = notification.userInfo[@"NSObject"];
+  if (!item)
+    return;
+
+  auto node = ((NAMNodeWrapper*) item).node;
+  if (node)
+    self.onExpandedStateChanged(node, true);
+}
+
+- (void)outlineViewItemDidCollapse:(NSNotification*)notification
+{
+  if (self.restoringExpansion || !self.onExpandedStateChanged)
+    return;
+
+  id item = notification.userInfo[@"NSObject"];
+  if (!item)
+    return;
+
+  auto node = ((NAMNodeWrapper*) item).node;
+  if (node)
+    self.onExpandedStateChanged(node, false);
+}
+
+- (NSView*)outlineView:(NSOutlineView*)outlineView
+    viewForTableColumn:(NSTableColumn*)tableColumn
+                  item:(id)item
+{
+  (void) tableColumn;
+
+  NSTableCellView* cell = [outlineView makeViewWithIdentifier:@"NAMCell" owner:self];
+  if (!cell)
+  {
+    cell = [[NSTableCellView alloc] initWithFrame:NSMakeRect(0, 0, 100, 20)];
+    cell.identifier = @"NAMCell";
+
+    NSTextField* tf = [[NSTextField alloc] initWithFrame:cell.bounds];
+    tf.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    tf.bordered = NO;
+    tf.editable = NO;
+    tf.selectable = NO;
+    tf.drawsBackground = NO;
+    tf.focusRingType = NSFocusRingTypeNone;
+    cell.textField = tf;
+    [cell addSubview:tf];
+  }
 
   auto n = ((NAMNodeWrapper*) item).node;
-  std::string label = n->name;
+  std::string label = n ? n->name : "";
 
-  if (n->IsModel())
+  if (n && n->IsModel())
   {
     std::vector<std::string> metaParts;
     metaParts.reserve(3);
@@ -104,8 +570,10 @@ namespace
       std::string gear;
       if (!n->gear_make.empty() && !n->gear_model.empty())
         gear = n->gear_make + " " + n->gear_model;
+      else if (!n->gear_make.empty())
+        gear = n->gear_make;
       else
-        gear = n->gear_make + n->gear_model;
+        gear = n->gear_model;
 
       if (!gear.empty())
         metaParts.push_back(std::move(gear));
@@ -136,316 +604,23 @@ namespace
     }
   }
 
-  return [NSString stringWithUTF8String:label.c_str()];
+  cell.textField.stringValue = [NSString stringWithUTF8String:label.c_str()] ?: @"";
+  cell.textField.textColor = [NSColor colorWithCalibratedWhite:220.0/255.0 alpha:1.0];
+  cell.textField.font = [NSFont systemFontOfSize:self.currentFontSize];
+
+  return cell;
 }
 
-@end
-
-using VoidFn = std::function<void()>;
-using FilterFn = std::function<void(const std::string&, const std::string&)>;
-using ExpandChangedFn = std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&, bool)>;
-
-@interface NAMLibraryWindowController : NSWindowController <NSWindowDelegate>
-@property (nonatomic, strong) NAMOutlineDataSource* dataSource;
-@property (nonatomic, strong) NSOutlineView* outlineView;
-@property (nonatomic, strong) NSButton* loadButton;
-@property (nonatomic, strong) NSTextField* searchField;
-@property (nonatomic, strong) NSPopUpButton* tagPopup;
-@property (nonatomic) VoidFn onLoad;
-@property (nonatomic) VoidFn onCancel;
-@property (nonatomic) FilterFn onFilterChanged;
-@property (nonatomic) VoidFn onFontInc;
-@property (nonatomic) VoidFn onFontDec;
-@property (nonatomic) VoidFn onWindowClose;
-@property (nonatomic) ExpandChangedFn onExpandedStateChanged;
-- (instancetype)initWithFontSize:(int)fontSize;
-- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root;
-- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode;
-- (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag;
-- (void)setSearchTextFromUtf8:(const std::string&)query;
-- (std::string)currentQuery;
-- (std::string)currentTag;
-@end
-
-@implementation NAMLibraryWindowController
-
-- (instancetype)initWithFontSize:(int)fontSize
+- (BOOL)outlineView:(NSOutlineView*)outlineView shouldSelectItem:(id)item
 {
-  NSPanel* panel = [[NSPanel alloc]
-    initWithContentRect:NSMakeRect(0, 0, 800, 600)
-              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                        NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
-                backing:NSBackingStoreBuffered
-                  defer:YES];
-
-  panel.title = @"NAM Library Browser";
-  panel.minSize = NSMakeSize(600, 400);
-
-  self = [super initWithWindow:panel];
-  if (!self)
-    return nil;
-
-  panel.delegate = self;
-
-  NSView* cv = panel.contentView;
-
-  self.searchField = [NSTextField new];
-  self.searchField.placeholderString = @"Search models...";
-  self.searchField.translatesAutoresizingMaskIntoConstraints = NO;
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                           selector:@selector(searchChanged:)
-                                               name:NSControlTextDidChangeNotification
-                                             object:self.searchField];
-  [cv addSubview:self.searchField];
-
-  self.tagPopup = [NSPopUpButton new];
-  self.tagPopup.translatesAutoresizingMaskIntoConstraints = NO;
-  self.tagPopup.target = self;
-  self.tagPopup.action = @selector(tagChanged:);
-  [cv addSubview:self.tagPopup];
-
-  NSButton* fInc = [NSButton buttonWithTitle:@"A+" target:self action:@selector(fontInc:)];
-  NSButton* fDec = [NSButton buttonWithTitle:@"A-" target:self action:@selector(fontDec:)];
-  fInc.translatesAutoresizingMaskIntoConstraints = NO;
-  fDec.translatesAutoresizingMaskIntoConstraints = NO;
-  [cv addSubview:fInc];
-  [cv addSubview:fDec];
-
-  NSScrollView* scroll = [NSScrollView new];
-  scroll.hasVerticalScroller = YES;
-  scroll.autohidesScrollers = YES;
-  scroll.translatesAutoresizingMaskIntoConstraints = NO;
-
-  self.outlineView = [NSOutlineView new];
-  self.outlineView.rowHeight = fontSize * 1.4f;
-  self.outlineView.allowsMultipleSelection = NO;
-  self.outlineView.headerView = nil;
-  self.outlineView.target = self;
-  self.outlineView.doubleAction = @selector(doubleClicked:);
-
-  NSTableColumn* col = [[NSTableColumn alloc] initWithIdentifier:@"name"];
-  [self.outlineView addTableColumn:col];
-  self.outlineView.outlineTableColumn = col;
-
-  self.dataSource = [NAMOutlineDataSource new];
-  self.outlineView.dataSource = self.dataSource;
-  self.outlineView.delegate = self.dataSource;
-
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                           selector:@selector(selectionChanged:)
-                                               name:NSOutlineViewSelectionDidChangeNotification
-                                             object:self.outlineView];
-
-  scroll.documentView = self.outlineView;
-  [cv addSubview:scroll];
-
-  self.loadButton = [NSButton buttonWithTitle:@"Load Selected Model" target:self action:@selector(loadClicked:)];
-  self.loadButton.translatesAutoresizingMaskIntoConstraints = NO;
-  self.loadButton.enabled = NO;
-  [cv addSubview:self.loadButton];
-
-  NSButton* cancel = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancelClicked:)];
-  cancel.translatesAutoresizingMaskIntoConstraints = NO;
-  [cv addSubview:cancel];
-
-  NSDictionary* v = @{
-    @"s": self.searchField,
-    @"t": self.tagPopup,
-    @"scroll": scroll,
-    @"load": self.loadButton,
-    @"cancel": cancel,
-    @"fInc": fInc,
-    @"fDec": fDec
-  };
-
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:|-10-[s]-6-[t(170)]-6-[fDec(40)]-4-[fInc(40)]-10-|"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:|-10-[scroll]-10-|"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:[cancel(120)]-10-[load(210)]-10-|"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[s(28)]-6-[scroll]-6-[load(30)]-10-|"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[t(28)]"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[fInc(28)]"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[fDec(28)]"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:[cancel(30)]-10-|"
-                                                                 options:0
-                                                                 metrics:nil
-                                                                   views:v]];
-
-  return self;
-}
-
-- (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
-{
-  self.dataSource.displayRoot = root;
-  [self.outlineView reloadData];
-
-  NSInteger n = [self.outlineView numberOfRows];
-  for (NSInteger i = 0; i < n; ++i)
-    [self.outlineView expandItem:[self.outlineView itemAtRow:i]];
-}
-
-- (std::shared_ptr<NAMLibraryTreeNode>)selectedNode
-{
-  NSInteger row = self.outlineView.selectedRow;
-  if (row < 0)
-    return nullptr;
-
-  id item = [self.outlineView itemAtRow:row];
-  return item ? ((NAMNodeWrapper*) item).node : nullptr;
-}
-
-- (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag
-{
-  [self.tagPopup removeAllItems];
-  [self.tagPopup addItemWithTitle:@"All tags"];
-
-  NSInteger selectedIndex = 0;
-  NSInteger idx = 1;
-
-  for (const auto& tag : tags)
-  {
-    if (tag.empty())
-      continue;
-
-    NSString* title = [NSString stringWithUTF8String:tag.c_str()];
-    if (!title)
-      continue;
-
-    [self.tagPopup addItemWithTitle:title];
-
-    if (!selectedTag.empty() && tag == selectedTag)
-      selectedIndex = idx;
-
-    ++idx;
-  }
-
-  [self.tagPopup selectItemAtIndex:selectedIndex];
-}
-
-- (void)setSearchTextFromUtf8:(const std::string&)query
-{
-  NSString* str = [NSString stringWithUTF8String:query.c_str()];
-  self.searchField.stringValue = str ? str : @"";
-}
-
-- (std::string)currentQuery
-{
-  NSString* s = self.searchField.stringValue;
-  return s.UTF8String ? s.UTF8String : "";
-}
-
-- (std::string)currentTag
-{
-  NSInteger idx = self.tagPopup.indexOfSelectedItem;
-  if (idx <= 0)
-    return "";
-
-  NSString* s = self.tagPopup.selectedItem.title;
-  return s.UTF8String ? s.UTF8String : "";
-}
-
-- (void)notifyFilterChanged
-{
-  if (self.onFilterChanged)
-    self.onFilterChanged([self currentQuery], [self currentTag]);
-}
-
-- (void)searchChanged:(NSNotification*)n
-{
-  (void) n;
-  [self notifyFilterChanged];
-}
-
-- (void)tagChanged:(id)sender
-{
-  (void) sender;
-  [self notifyFilterChanged];
-}
-
-- (void)selectionChanged:(NSNotification*)n
-{
-  (void) n;
-  auto node = [self selectedNode];
-  self.loadButton.enabled = (node && node->IsModel()) ? YES : NO;
-}
-
-- (void)doubleClicked:(id)sender
-{
-  (void) sender;
-  if ([self selectedNode] && [self selectedNode]->IsModel() && self.onLoad)
-    self.onLoad();
-}
-
-- (void)loadClicked:(id)sender   { (void) sender; if (self.onLoad) self.onLoad(); }
-- (void)cancelClicked:(id)sender { (void) sender; if (self.onCancel) self.onCancel(); }
-- (void)fontInc:(id)sender       { (void) sender; if (self.onFontInc) self.onFontInc(); }
-- (void)fontDec:(id)sender       { (void) sender; if (self.onFontDec) self.onFontDec(); }
-
-- (void)windowWillClose:(NSNotification*)n
-{
-  (void) n;
-  if (self.onWindowClose)
-    self.onWindowClose();
-}
-
-- (void)outlineViewItemDidExpand:(NSNotification*)notification
-{
-  if (!self.onExpandedStateChanged)
-    return;
-
-  id item = notification.userInfo[@"NSObject"];
-  if (!item)
-    return;
-
-  auto node = ((NAMNodeWrapper*) item).node;
-  if (node)
-    self.onExpandedStateChanged(node, true);
-}
-
-- (void)outlineViewItemDidCollapse:(NSNotification*)notification
-{
-  if (!self.onExpandedStateChanged)
-    return;
-
-  id item = notification.userInfo[@"NSObject"];
-  if (!item)
-    return;
-
-  auto node = ((NAMNodeWrapper*) item).node;
-  if (node)
-    self.onExpandedStateChanged(node, false);
+  (void) outlineView;
+  return item != nil;
 }
 
 - (void)dealloc
 {
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
   [super dealloc];
@@ -554,8 +729,6 @@ void NAMLibraryBrowserWindow::LoadSettings()
     {
     }
   }
-
-  
 }
 
 void NAMLibraryBrowserWindow::SaveSettings()
@@ -637,6 +810,10 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     NAMLibraryWindowController* weak = ctrl;
 #endif
 
+    ctrl.shouldExpandNode = [this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
+      return GetFolderExpandedFromState(node);
+    };
+
     ctrl.onLoad = [this, weak]() {
       NAMLibraryWindowController* c = weak;
       if (c)
@@ -660,7 +837,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
         mFontSize += 2;
         NAMLibraryWindowController* c = weak;
         if (c)
-          c.outlineView.rowHeight = mFontSize * 1.4f;
+          [c applyFontSize:mFontSize];
         SaveSettings();
       }
     };
@@ -671,7 +848,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
         mFontSize -= 2;
         NAMLibraryWindowController* c = weak;
         if (c)
-          c.outlineView.rowHeight = mFontSize * 1.4f;
+          [c applyFontSize:mFontSize];
         SaveSettings();
       }
     };
@@ -932,9 +1109,8 @@ void NAMLibraryBrowserWindow::Close()
       mPendingSearchQuery = [ctrl currentQuery];
       mSelectedTag = [ctrl currentTag];
 
-     if (mOnWindowClosed){
+      if (mOnWindowClosed)
         mOnWindowClosed();
-     }
 
       NSRect frame = ctrl.window.frame;
       NSScreen* screen = ctrl.window.screen ?: [NSScreen mainScreen];
