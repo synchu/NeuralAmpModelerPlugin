@@ -39,8 +39,6 @@ public:
   void GetCurrentUIState(std::string& searchQuery, std::string& selectedTag,
                          std::unordered_map<std::string, bool>& expandedState) const;
 
-  
-
   void SetOnModelSelected(std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&)> callback)
   {
     mOnModelSelected = callback;
@@ -70,6 +68,9 @@ private:
   void UpdateFontSize();
   void RecreateFont();
   void UpdateChildFonts();
+
+  void SuspendInitialRedraw();
+  void ResumeInitialRedraw();
 
   static INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam);
   INT_PTR HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
@@ -114,7 +115,6 @@ private:
   std::unordered_map<HTREEITEM, std::shared_ptr<NAMLibraryTreeNode>> mTreeItemMap;
 
   UINT_PTR mSearchTimerId = 0;
- 
 
   static constexpr UINT_PTR SEARCH_TIMER_ID = 1;
   static constexpr UINT SEARCH_DELAY_MS = 300;

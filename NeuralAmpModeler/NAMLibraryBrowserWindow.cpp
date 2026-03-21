@@ -65,7 +65,6 @@ std::string WideToUtf8(const wchar_t* text)
   return result;
 }
 
-
 } // namespace
 
   // Control IDs
@@ -86,11 +85,6 @@ NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
 , mRootNode(rootNode)
 {
   LoadSettings();
-
-  /* auto& s = GetBrowserSessionState();
-  mPendingSearchQuery = s.lastSearchQuery;
-  mSelectedTag = s.lastSelectedTag;
-  mExpandedState = s.expandedState;*/
 }
 
 NAMLibraryBrowserWindow::~NAMLibraryBrowserWindow()
@@ -113,6 +107,41 @@ NAMLibraryBrowserWindow::~NAMLibraryBrowserWindow()
   {
     DeleteObject(mEditBgBrush);
     mEditBgBrush = nullptr;
+  }
+}
+
+void NAMLibraryBrowserWindow::SuspendInitialRedraw()
+{
+  if (mHwndDlg)
+    SendMessageW(mHwndDlg, WM_SETREDRAW, FALSE, 0);
+
+  if (mHwndTreeView)
+    SendMessageW(mHwndTreeView, WM_SETREDRAW, FALSE, 0);
+
+  if (mHwndTagCombo)
+    SendMessageW(mHwndTagCombo, WM_SETREDRAW, FALSE, 0);
+}
+
+void NAMLibraryBrowserWindow::ResumeInitialRedraw()
+{
+  if (mHwndTagCombo)
+    SendMessageW(mHwndTagCombo, WM_SETREDRAW, TRUE, 0);
+
+  if (mHwndTreeView)
+    SendMessageW(mHwndTreeView, WM_SETREDRAW, TRUE, 0);
+
+  if (mHwndDlg)
+    SendMessageW(mHwndDlg, WM_SETREDRAW, TRUE, 0);
+
+  if (mHwndTreeView)
+  {
+    RedrawWindow(
+      mHwndTreeView, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
+  }
+
+  if (mHwndDlg)
+  {
+    RedrawWindow(mHwndDlg, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
   }
 }
 
@@ -160,7 +189,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
 
   wcex.hInstance = GetModuleHandle(nullptr);
   wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-  wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+  wcex.hbrBackground = nullptr;
   wcex.lpszClassName = L"NAMLibraryBrowserWindow";
 
   static bool registered = false;
@@ -197,12 +226,14 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       ownerHwnd = mParentHwnd;
   }
 
-  mHwndDlg = CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW | WS_VISIBLE, x,
-                             y, w, h, ownerHwnd, nullptr, GetModuleHandle(nullptr), this);
+  mHwndDlg = CreateWindowExW(0, L"NAMLibraryBrowserWindow", L"NAM Library Browser", WS_OVERLAPPEDWINDOW, x, y, w, h,
+                             ownerHwnd, nullptr, GetModuleHandle(nullptr), this);
 
   if (mHwndDlg)
   {
     InitializeControls();
+    SuspendInitialRedraw();
+
     PopulateTagComboBox();
 
     if (mHwndSearchEdit && !mPendingSearchQuery.empty())
@@ -233,6 +264,8 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     PerformSearch(mPendingSearchQuery);
+
+    ResumeInitialRedraw();
 
     ShowWindow(mHwndDlg, SW_SHOW);
     UpdateWindow(mHwndDlg);
@@ -372,12 +405,8 @@ void NAMLibraryBrowserWindow::Close()
     }
   }
 
-  {
-    if (mOnWindowClosed)
-    {
-      mOnWindowClosed();
-    }
-  }
+  if (mOnWindowClosed)
+    mOnWindowClosed();
 
   if (mHwndDlg)
   {
@@ -404,8 +433,6 @@ void NAMLibraryBrowserWindow::Close()
 
     DestroyWindow(mHwndDlg);
     mHwndDlg = nullptr;
-
-    
   }
 
   mTreeItemMap.clear();
@@ -422,7 +449,6 @@ void NAMLibraryBrowserWindow::BringToFront()
   else
     ShowWindow(mHwndDlg, SW_SHOW);
 
- 
   SetForegroundWindow(mHwndDlg);
   BringWindowToTop(mHwndDlg);
   SetActiveWindow(mHwndDlg);
@@ -483,6 +509,11 @@ void NAMLibraryBrowserWindow::InitializeControls()
   SendMessage(mHwndTreeView, WM_SETFONT, (WPARAM)mHFont, TRUE);
   UpdateFontSize();
   SetWindowTheme(mHwndTreeView, L"Explorer", nullptr);
+
+  #ifndef TVS_EX_DOUBLEBUFFER
+    #define TVS_EX_DOUBLEBUFFER 0x0004
+  #endif
+  TreeView_SetExtendedStyle(mHwndTreeView, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
 
   TreeView_SetBkColor(mHwndTreeView, RGB(30, 30, 30));
   TreeView_SetTextColor(mHwndTreeView, RGB(220, 220, 220));
@@ -701,22 +732,28 @@ void NAMLibraryBrowserWindow::PopulateTreeView()
   if (!mHwndTreeView)
     return;
 
+  SendMessageW(mHwndTreeView, WM_SETREDRAW, FALSE, 0);
+
   TreeView_DeleteAllItems(mHwndTreeView);
   mTreeItemMap.clear();
 
   const auto rootToDisplay = mSearchRoot ? mSearchRoot : mRootNode;
-  if (!rootToDisplay)
-    return;
-
-  for (const auto& child : rootToDisplay->children)
-    AddTreeNode(TVI_ROOT, child, true);
-
-  const HTREEITEM hFirst = TreeView_GetRoot(mHwndTreeView);
-  if (hFirst)
+  if (rootToDisplay)
   {
-    TreeView_SelectItem(mHwndTreeView, hFirst);
-    TreeView_EnsureVisible(mHwndTreeView, hFirst);
+    for (const auto& child : rootToDisplay->children)
+      AddTreeNode(TVI_ROOT, child, true);
+
+    const HTREEITEM hFirst = TreeView_GetRoot(mHwndTreeView);
+    if (hFirst)
+    {
+      TreeView_SelectItem(mHwndTreeView, hFirst);
+      TreeView_EnsureVisible(mHwndTreeView, hFirst);
+    }
   }
+
+  SendMessageW(mHwndTreeView, WM_SETREDRAW, TRUE, 0);
+  RedrawWindow(
+    mHwndTreeView, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 void NAMLibraryBrowserWindow::OnTreeViewSelectionChanged()
@@ -882,41 +919,53 @@ void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
     BuildAncestorChain(model);
 
   PopulateTagComboBox(&searchResults);
-
   SetExpandedStateRecursive(mSearchRoot, true);
-
   PopulateTreeView();
 }
 
 void NAMLibraryBrowserWindow::ResizeControls(int width, int height)
 {
-  if (mHwndSearchEdit)
-    SetWindowPos(mHwndSearchEdit, nullptr, 80, 10, width - 520, 35, SWP_NOZORDER);
+  if (!mHwndDlg)
+    return;
 
-  if (mHwndTagLabel)
-    SetWindowPos(mHwndTagLabel, nullptr, width - 430, 10, 40, 35, SWP_NOZORDER);
+  SendMessageW(mHwndDlg, WM_SETREDRAW, FALSE, 0);
 
-  if (mHwndTagCombo)
-    SetWindowPos(mHwndTagCombo, nullptr, width - 385, 10, 220, 300, SWP_NOZORDER);
+  HDWP hdwp = BeginDeferWindowPos(8);
+  if (hdwp)
+  {
+    if (mHwndSearchEdit)
+      hdwp = DeferWindowPos(hdwp, mHwndSearchEdit, nullptr, 80, 10, width - 520, 35, SWP_NOZORDER);
 
-  HWND hwndReset = GetDlgItem(mHwndDlg, IDC_TAG_RESET);
-  if (hwndReset)
-    SetWindowPos(hwndReset, nullptr, width - 160, 10, 35, 35, SWP_NOZORDER);
+    if (mHwndTagLabel)
+      hdwp = DeferWindowPos(hdwp, mHwndTagLabel, nullptr, width - 430, 10, 40, 35, SWP_NOZORDER);
 
-  if (mHwndFontDecButton)
-    SetWindowPos(mHwndFontDecButton, nullptr, width - 110, 10, 45, 35, SWP_NOZORDER);
+    if (mHwndTagCombo)
+      hdwp = DeferWindowPos(hdwp, mHwndTagCombo, nullptr, width - 385, 10, 220, 300, SWP_NOZORDER);
 
-  if (mHwndFontIncButton)
-    SetWindowPos(mHwndFontIncButton, nullptr, width - 60, 10, 45, 35, SWP_NOZORDER);
+    HWND hwndReset = GetDlgItem(mHwndDlg, IDC_TAG_RESET);
+    if (hwndReset)
+      hdwp = DeferWindowPos(hdwp, hwndReset, nullptr, width - 160, 10, 35, 35, SWP_NOZORDER);
 
-  if (mHwndTreeView)
-    SetWindowPos(mHwndTreeView, nullptr, 10, 55, width - 20, height - 110, SWP_NOZORDER);
+    if (mHwndFontDecButton)
+      hdwp = DeferWindowPos(hdwp, mHwndFontDecButton, nullptr, width - 110, 10, 45, 35, SWP_NOZORDER);
 
-  if (mHwndLoadButton)
-    SetWindowPos(mHwndLoadButton, nullptr, width - 400, height - 50, 240, 40, SWP_NOZORDER);
+    if (mHwndFontIncButton)
+      hdwp = DeferWindowPos(hdwp, mHwndFontIncButton, nullptr, width - 60, 10, 45, 35, SWP_NOZORDER);
 
-  if (mHwndCancelButton)
-    SetWindowPos(mHwndCancelButton, nullptr, width - 150, height - 50, 140, 40, SWP_NOZORDER);
+    if (mHwndTreeView)
+      hdwp = DeferWindowPos(hdwp, mHwndTreeView, nullptr, 10, 55, width - 20, height - 110, SWP_NOZORDER);
+
+    if (mHwndLoadButton)
+      hdwp = DeferWindowPos(hdwp, mHwndLoadButton, nullptr, width - 400, height - 50, 240, 40, SWP_NOZORDER);
+
+    if (mHwndCancelButton)
+      hdwp = DeferWindowPos(hdwp, mHwndCancelButton, nullptr, width - 150, height - 50, 140, 40, SWP_NOZORDER);
+
+    EndDeferWindowPos(hdwp);
+  }
+
+  SendMessageW(mHwndDlg, WM_SETREDRAW, TRUE, 0);
+  RedrawWindow(mHwndDlg, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 INT_PTR CALLBACK NAMLibraryBrowserWindow::DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -1208,6 +1257,8 @@ void NAMLibraryBrowserWindow::PopulateTagComboBox(
     ~FlagGuard() { Flag = false; }
   } guard(mIsPopulatingTags);
 
+  SendMessageW(mHwndTagCombo, WM_SETREDRAW, FALSE, 0);
+
   ComboBox_ResetContent(mHwndTagCombo);
   SendMessageW(mHwndTagCombo, CB_ADDSTRING, 0, (LPARAM)L"All tags");
 
@@ -1249,6 +1300,9 @@ void NAMLibraryBrowserWindow::PopulateTagComboBox(
   {
     ComboBox_SetCurSel(mHwndTagCombo, 0);
   }
+
+  SendMessageW(mHwndTagCombo, WM_SETREDRAW, TRUE, 0);
+  RedrawWindow(mHwndTagCombo, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
 }
 
 void NAMLibraryBrowserWindow::OnTagSelectionChanged()
