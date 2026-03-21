@@ -98,7 +98,7 @@ namespace
   NAMNodeWrapper* wrapper = self.wrapperCache[key];
   if (!wrapper)
   {
-    wrapper = [NAMNodeWrapper wrap:node];
+    wrapper = [NAMNodeWrapper wrap:node]; // Stable wrapper cache: required for reliable NSOutlineView expansion state.
     self.wrapperCache[key] = wrapper;
   }
 
@@ -218,7 +218,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   if (@available(macOS 10.14, *))
     panel.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
 
-  [panel setLevel:NSFloatingWindowLevel];
+  [panel setLevel:NSFloatingWindowLevel]; // Keep AU/VST3 browser above host/plugin editor reliably.
   [panel setHidesOnDeactivate:NO];
   [panel setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace];
 
@@ -389,6 +389,41 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   [self.outlineView reloadData];
 }
 
+- (std::string)selectedNodeKey
+{
+  auto node = [self selectedNode];
+  if (!node)
+    return {};
+
+  if (!node->id.empty())
+    return node->id;
+
+  if (!node->path.empty())
+    return node->path;
+
+  return node->name;
+}
+
+- (BOOL)popupAlreadyMatchesTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag
+{
+  NSInteger expectedCount = (NSInteger)tags.size() + 1;
+  if (self.tagPopup.numberOfItems != expectedCount)
+    return NO;
+
+  if (![[self.tagPopup itemTitleAtIndex:0] isEqualToString:@"All tags"])
+    return NO;
+
+  for (NSInteger i = 0; i < (NSInteger)tags.size(); ++i)
+  {
+    NSString* title = [NSString stringWithUTF8String:tags[(size_t)i].c_str()];
+    if (!title || ![[self.tagPopup itemTitleAtIndex:(i + 1)] isEqualToString:title])
+      return NO;
+  }
+
+  std::string currentSel = [self currentTag];
+  return currentSel == selectedTag;
+}
+
 - (void)restoreExpansionStateForItem:(id)item
 {
   NSInteger childCount = [self.outlineView numberOfChildrenOfItem:item];
@@ -427,31 +462,79 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   }
 }
 
+- (void)selectNodeMatchingKey:(const std::string&)key
+{
+  if (key.empty())
+    return;
+
+  NSInteger rows = [self.outlineView numberOfRows];
+  for (NSInteger row = 0; row < rows; ++row)
+  {
+    id item = [self.outlineView itemAtRow:row];
+    if (!item)
+      continue;
+
+    auto node = ((NAMNodeWrapper*) item).node;
+    if (!node)
+      continue;
+
+    const bool match = (!node->id.empty() && node->id == key) ||
+                       (!node->path.empty() && node->path == key) ||
+                       (node->id.empty() && node->path.empty() && node->name == key);
+
+    if (match)
+    {
+      [self.outlineView selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:NO];
+      [self.outlineView scrollRowToVisible:row];
+      return;
+    }
+  }
+}
+
 - (void)setDisplayRoot:(std::shared_ptr<NAMLibraryTreeNode>)root
 {
+  // Preserve selection + top row so refresh feels steadier during filter/search updates.
+  std::string previousSelectionKey = [self selectedNodeKey];
+  NSInteger previousTopRow = [self.outlineView rowsInRect:self.outlineView.visibleRect].location;
+  if (previousTopRow == NSNotFound)
+    previousTopRow = 0;
+
   self.dataSource.displayRoot = root;
   [self.dataSource resetWrapperCache];
+
+  [NSAnimationContext beginGrouping];
+  [[NSAnimationContext currentContext] setDuration:0.0]; // Disable implicit animation during reload/expand.
   [self.outlineView reloadData];
 
   self.restoringExpansion = YES;
 
   if (self.displayRootIsFiltered)
-    [self expandAllItemsForNode:root];
+    [self expandAllItemsForNode:root];   // Filtered trees should expose all ancestors immediately.
   else
     [self restoreExpansionStateForItem:nil];
 
   self.restoringExpansion = NO;
+  [NSAnimationContext endGrouping];
 
   NSInteger rows = [self.outlineView numberOfRows];
   if (rows > 0)
   {
-    [self.outlineView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
-    [self.outlineView scrollRowToVisible:0];
+    if (!previousSelectionKey.empty())
+      [self selectNodeMatchingKey:previousSelectionKey];
+
+    if (self.outlineView.selectedRow < 0)
+      [self.outlineView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
+
+    if (previousTopRow >= 0 && previousTopRow < rows)
+      [self.outlineView scrollRowToVisible:previousTopRow];
   }
   else
   {
     self.loadButton.enabled = NO;
   }
+
+  auto node = [self selectedNode];
+  self.loadButton.enabled = (node && node->IsModel()) ? YES : NO;
 }
 
 - (std::shared_ptr<NAMLibraryTreeNode>)selectedNode
@@ -466,6 +549,10 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
 - (void)setAvailableTags:(const std::vector<std::string>&)tags selectedTag:(const std::string&)selectedTag
 {
+  // Skip popup rebuild if nothing actually changed; reduces redundant redraw churn on macOS.
+  if ([self popupAlreadyMatchesTags:tags selectedTag:selectedTag])
+    return;
+
   self.suppressFilterCallbacks = YES;
 
   [self.tagPopup removeAllItems];
@@ -535,7 +622,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
                                                       target:self
                                                     selector:@selector(debouncedFilterFire:)
                                                     userInfo:nil
-                                                     repeats:NO];
+                                                     repeats:NO]; // Debounce search to avoid rebuild on every keystroke.
 }
 
 - (void)debouncedFilterFire:(NSTimer*)timer
@@ -1139,7 +1226,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     }
 
     [ctrl showWindow:nil];
-    [ctrl.window orderFrontRegardless];
+    [ctrl.window orderFrontRegardless]; // Floating tool window is the robust AU/VST3 behavior.
     [ctrl.window makeKeyWindow];
     [ctrl.window makeMainWindow];
     [NSApp activateIgnoringOtherApps:YES];
