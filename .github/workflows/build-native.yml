@@ -264,7 +264,7 @@ jobs:
           name: ${{ matrix.log_name }}
           path: ${{ matrix.log_path }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 2
 
       # ---------- Upload binaries ----------
       - name: Upload artifact
