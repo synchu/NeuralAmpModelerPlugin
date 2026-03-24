@@ -7,7 +7,8 @@
 	url = https://gitlab.com/libeigen/eigen.git
 [submodule "NeuralAmpModeler/NeuralAmpModelerCore"]
 	path = NeuralAmpModeler/NeuralAmpModelerCore
-	url = https://github.com/sdatkinson/NeuralAmpModelerCore.git
+	url = https://github.com/synchu/NeuralAmpModelerCore.git
+	branch = dsp-opts
 [submodule "AudioDSPTools"]
 	path = NeuralAmpModeler/AudioDSPTools
 	url = https://github.com/sdatkinson/AudioDSPTools.git
