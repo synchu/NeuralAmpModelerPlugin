@@ -436,6 +436,8 @@
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\dsp.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\lstm.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\slimmable.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\slimmable_wavenet.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\util.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\version.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet.h" />
@@ -520,6 +522,7 @@
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\ring_buffer.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\slimmable_wavenet.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\dsp.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
