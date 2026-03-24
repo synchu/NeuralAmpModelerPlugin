@@ -1,3 +1,6 @@
+**NOTE: This is the NAM Plugin form with added drag and drop and Library Browser!!!**
+
+  
 # Neural Amp Modeler Plug-in
 
 A VST3/AudioUnit plug-in\* for [Neural Amp Modeler](https://github.com/sdatkinson/neural-amp-modeler), built with [iPlug2](https://iplug2.github.io).
