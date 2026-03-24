@@ -99,13 +99,13 @@ class ResamplingNAM : public nam::DSP
 public:
   // Resampling wrapper around the NAM models
   ResamplingNAM(std::unique_ptr<nam::DSP> encapsulated, const double expected_sample_rate)
-  : nam::DSP(expected_sample_rate)
+  : nam::DSP(1, 1, expected_sample_rate)
   , mEncapsulated(std::move(encapsulated))
   , mResampler(GetNAMSampleRate(mEncapsulated))
   {
     // Assign the encapsulated object's processing function  to this object's member so that the resampler can use it:
     auto ProcessBlockFunc = [&](NAM_SAMPLE** input, NAM_SAMPLE** output, int numFrames) {
-      mEncapsulated->process(input[0], output[0], numFrames);
+      mEncapsulated->process(input, output, numFrames);
     };
     mBlockProcessFunc = ProcessBlockFunc;
 
@@ -137,7 +137,7 @@ public:
 
   void prewarm() override { mEncapsulated->prewarm(); };
 
-  void process(NAM_SAMPLE* input, NAM_SAMPLE* output, const int num_frames) override
+  void process(NAM_SAMPLE** input, NAM_SAMPLE** output, const int num_frames) override
   {
     if (num_frames > mMaxExternalBlockSize)
       // We can afford to be careful
@@ -149,7 +149,7 @@ public:
     }
     else
     {
-      mResampler.ProcessBlock(&input, &output, num_frames, mBlockProcessFunc);
+      mResampler.ProcessBlock(input, output, num_frames, mBlockProcessFunc);
     }
   };
 
@@ -210,7 +210,11 @@ public:
   bool InitializeLibraryManager();
   std::shared_ptr<NAMLibraryTreeNode> GetLibraryRootNode() const { return mLibraryRootNode; }
   NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
-  void OpenLibraryBrowserWindow();  // Add this
+  void OpenLibraryBrowserWindow();
+  // Per-instance library browser UI state
+  std::string mLibraryBrowserSearchQuery;
+  std::string mLibraryBrowserSelectedTag;
+  std::unordered_map<std::string, bool> mLibraryBrowserExpandedState;
 
   // Drag-and-drop file handling (moved from IControl.h hack)
   void HandleFileDrop(const char* str);
@@ -336,9 +340,9 @@ private:
   // Library browser
   NAMLibraryManager mLibraryManager;
   std::shared_ptr<NAMLibraryTreeNode> mLibraryRootNode;
-  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;  // Add this
+  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;
 
-  // Used to avoid re-parsing unless NAM Model Manager updated data.json
+  // Used to auto-refresh metadata when NAM Model Manager updates data.json
   std::string mLibraryDataJsonPath;
   std::filesystem::file_time_type mLibraryDataJsonWriteTime{};
 };

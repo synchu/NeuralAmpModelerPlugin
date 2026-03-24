@@ -27,7 +27,7 @@ public:
   void OnMouseOver(float x, float y, const IMouseMod& mod) override;
   void OnMouseOut() override;
   void OnMouseWheel(float x, float y, const IMouseMod& mod, float d) override;
-
+  
 private:
   struct TreeItemUI
   {

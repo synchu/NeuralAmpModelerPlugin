@@ -1,5 +1,5 @@
 #include "NAMLibraryTreeView.h"
-#include "../Colors.h"  // ADD THIS LINE
+#include "Colors.h"
 #include <algorithm>
 
 NAMLibraryTreeView::NAMLibraryTreeView(const IRECT& bounds, const IVStyle& style)
@@ -56,7 +56,7 @@ void NAMLibraryTreeView::BuildDisplayList(
   {
     TreeItemUI item;
     item.node = node;
-    item.displayIndex = displayList.size();
+    item.displayIndex = static_cast<int>(displayList.size());
     item.yPos = yPos;
     displayList.push_back(item);
     yPos += ITEM_HEIGHT;

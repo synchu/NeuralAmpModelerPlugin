@@ -1,5 +1,5 @@
 #include "NAMLibraryBrowserPanel.h"
-#include "../Colors.h"
+#include "Colors.h"
 #include <filesystem>
 #include <cctype>
 

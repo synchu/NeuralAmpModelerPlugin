@@ -98,6 +98,12 @@
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp">
       <Filter>NAM</Filter>
     </ClCompile>
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\ring_buffer.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
     <ClCompile Include="..\AudioDSPTools\dsp\dsp.cpp">
       <Filter>dsp</Filter>
     </ClCompile>
@@ -303,6 +309,12 @@
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\activations.h">
       <Filter>NAM</Filter>
     </ClInclude>
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\conv1d.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\ring_buffer.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\convnet.h">
       <Filter>NAM</Filter>
     </ClInclude>
@@ -442,6 +454,9 @@
     <None Include="..\config\NeuralAmpModeler-win.props">
       <Filter>config</Filter>
     </None>
+    <None Include="NamModelHarness.vcxproj" />
+    <None Include="NamModelHarness.vcxproj.filters" />
+    <None Include="..\NAMLibraryBrowserWindow.mm" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\resources\NeuralAmpModeler.ico">

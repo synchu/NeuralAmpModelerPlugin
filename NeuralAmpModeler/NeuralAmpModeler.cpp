@@ -30,6 +30,13 @@
 
 #include "NeuralAmpModelerControls.h"
 
+// Cross-platform debug output
+#ifdef _WIN32
+#define NAM_DBGMSG(msg) OutputDebugStringA(msg)
+#else
+#define NAM_DBGMSG(msg) fprintf(stderr, "%s", (msg))
+#endif
+
 using namespace iplug;
 using namespace igraphics;
 
@@ -138,7 +145,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto modelIconSVG = pGraphics->LoadSVG(MODEL_ICON_FN);
     const auto irIconOnSVG = pGraphics->LoadSVG(IR_ICON_ON_FN);
     const auto irIconOffSVG = pGraphics->LoadSVG(IR_ICON_OFF_FN);
-    const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  // ADD THIS LINE
+    const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  
 
     const auto backgroundBitmap = pGraphics->LoadBitmap(BACKGROUND_FN);
     const auto fileBackgroundBitmap = pGraphics->LoadBitmap(FILEBACKGROUND_FN);
@@ -289,6 +296,8 @@ NeuralAmpModeler::~NeuralAmpModeler()
   // Clean up library browser window
   if (mLibraryBrowserWindow)
   {
+    mLibraryBrowserWindow->GetCurrentUIState(
+      mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
     mLibraryBrowserWindow->Close();
     mLibraryBrowserWindow.reset();
   }
@@ -301,15 +310,25 @@ void NeuralAmpModeler::OnUIClose()
   // Close library browser window when plugin UI closes
   if (mLibraryBrowserWindow)
   {
+    mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(&mLibraryManager, mLibraryRootNode);
+
+    mLibraryBrowserWindow->SetInitialUIState(
+      mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
     mLibraryBrowserWindow->Close();
   }
+
+   Plugin::OnUIClose();
 }
+
 
 void NeuralAmpModeler::OpenLibraryBrowserWindow()
 {
-  // If already open, don't create another.
+  // If a browser window is already open, don't create another.
   if (mLibraryBrowserWindow && mLibraryBrowserWindow->IsOpen())
+  {
+    mLibraryBrowserWindow->BringToFront();
     return;
+  }
 
   // Refresh metadata (fast if unchanged; reloads only if data.json changed).
   if (!InitializeLibraryManager() || !mLibraryRootNode)
@@ -322,13 +341,25 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
       ss << "Expected location:\n    " << jsonPath << "\n\n";
     ss << "To use the Library Browser, please install the NAM Model Manager "
           "and ensure it has created its library data at the location above.";
+
+    NAM_DBGMSG(ss.str().c_str());
     _ShowMessageBox(GetUI(), ss.str().c_str(), "NAM Library Not Found", kMB_OK);
     return;
   }
 
-  // Recreate so the window captures the latest root node.
+  // Recreate the window object so it uses the latest root node.
   mLibraryBrowserWindow.reset();
   mLibraryBrowserWindow = std::make_unique<NAMLibraryBrowserWindow>(&mLibraryManager, mLibraryRootNode);
+
+  mLibraryBrowserWindow->SetInitialUIState(
+    mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
+  mLibraryBrowserWindow->SetOnWindowClosed([this]() {
+    if (mLibraryBrowserWindow)
+    {
+      mLibraryBrowserWindow->GetCurrentUIState(
+        mLibraryBrowserSearchQuery, mLibraryBrowserSelectedTag, mLibraryBrowserExpandedState);
+    }
+  });
 
   mLibraryBrowserWindow->SetOnModelSelected([this](const std::shared_ptr<NAMLibraryTreeNode>& node) {
     if (!node || !node->IsModel())
@@ -392,7 +423,7 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
 
   if (mModel != nullptr)
   {
-    mModel->process(triggerOutput[0], mOutputPointers[0], nFrames);
+    mModel->process(triggerOutput, mOutputPointers, nFrames);
   }
   else
   {
@@ -468,29 +499,31 @@ void NeuralAmpModeler::OnIdle()
 
 bool NeuralAmpModeler::InitializeLibraryManager()
 {
-  std::string jsonPath = GetNAMLibraryDataJsonPath();
+  const std::string jsonPath = GetNAMLibraryDataJsonPath();
 
   char debugMsg[512];
 
   if (jsonPath.empty())
   {
-    OutputDebugStringA("NAM Library: Failed to determine data.json path\n");
+    NAM_DBGMSG("NAM Library: Failed to determine data.json path\n");
     return false;
   }
 
+  // If the file doesn't exist, don't clobber any previously loaded metadata.
   if (!std::filesystem::exists(jsonPath))
   {
-    std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist: %s\n", jsonPath.c_str());
-    OutputDebugStringA(debugMsg);
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: File does not exist: %s\n", jsonPath.c_str());
+    NAM_DBGMSG(debugMsg);
     return false;
   }
+
 
   std::error_code ec;
   const auto writeTime = std::filesystem::last_write_time(jsonPath, ec);
   if (ec)
   {
-    std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: last_write_time failed: %s\n", jsonPath.c_str());
-    OutputDebugStringA(debugMsg);
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: last_write_time failed: %s\n", jsonPath.c_str());
+    NAM_DBGMSG(debugMsg);
     return false;
   }
 
@@ -500,27 +533,39 @@ bool NeuralAmpModeler::InitializeLibraryManager()
       mLibraryDataJsonWriteTime == writeTime)
   {
     mLibraryRootNode = mLibraryManager.GetRootNode();
+    NAM_DBGMSG("NAM Library: Up-to-date (skipping reload)\n");
     return (mLibraryRootNode != nullptr);
   }
 
-  std::snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loading/reloading from: %s\n", jsonPath.c_str());
-  OutputDebugStringA(debugMsg);
+  snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loading/reloading from: %s\n", jsonPath.c_str());
+  NAM_DBGMSG(debugMsg);
 
-  // Load into a temporary manager so failures don't clobber a working cache.
+  // Load into a temporary manager so we don't destroy the existing one if parsing fails.
   NAMLibraryManager candidate;
   if (!candidate.LoadMetadata(jsonPath))
   {
-    OutputDebugStringA("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
+    NAM_DBGMSG("NAM Library: LoadMetadata failed (keeping existing metadata)\n");
+    // Keep whatever was already loaded.
     mLibraryRootNode = mLibraryManager.GetRootNode();
     return (mLibraryRootNode != nullptr);
   }
 
+  // Commit.
   mLibraryManager = candidate;
   mLibraryRootNode = mLibraryManager.GetRootNode();
   mLibraryDataJsonPath = jsonPath;
   mLibraryDataJsonWriteTime = writeTime;
 
-  return (mLibraryRootNode != nullptr);
+  if (mLibraryRootNode)
+  {
+    snprintf(debugMsg, sizeof(debugMsg), "NAM Library: Loaded successfully with %zu top-level items\n",
+             mLibraryRootNode->children.size());
+    NAM_DBGMSG(debugMsg);
+    return true;
+  }
+
+  NAM_DBGMSG("NAM Library: LoadMetadata succeeded but root node is null\n");
+  return false;
 }
 
 std::string NeuralAmpModeler::GetNAMLibraryDataJsonPath() const

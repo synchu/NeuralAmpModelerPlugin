@@ -32,7 +32,7 @@ def main():
         )
     else:
         dst = (
-            os.environ["TARGET_BUILD_DIR"]
+            os.environ["TARGET_BUILD_DIR"] + "/"
             + os.environ["UNLOCALIZED_RESOURCES_FOLDER_PATH"]
         )
 

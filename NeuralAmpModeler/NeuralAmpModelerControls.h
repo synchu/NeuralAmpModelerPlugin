@@ -440,7 +440,7 @@ public:
       WDL_String fileName, path;
       GetSelectedFile(fileName);
 
-      const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 38 : 45;
+      const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 35 : 45;
       mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
 
       mCompletionHandlerFunc(fileName, path);
@@ -470,7 +470,7 @@ public:
         SetupMenu();
         SetSelectedFile(fileName.Get());
 
-        const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 38 : 45;
+        const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 35 : 45;
         mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
         break;
       }

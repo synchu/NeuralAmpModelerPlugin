@@ -8,7 +8,7 @@
 #define PLUG_EMAIL_STR "spam@me.com"
 #define PLUG_COPYRIGHT_STR "Copyright 2022 Steven Atkinson"
 #define PLUG_CLASS_NAME NeuralAmpModeler
-#define BUNDLE_NAME "NeuralAmpModelerAVX"
+#define BUNDLE_NAME "NeuralAmpModeler"
 #define BUNDLE_MFR "StevenAtkinson"
 #define BUNDLE_DOMAIN "com"
 

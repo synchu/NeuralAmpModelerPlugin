@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NeuralAmpModeler-vst3", "pr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NeuralAmpModeler-aax", "projects\NeuralAmpModeler-aax.vcxproj", "{DC4B5920-933D-4C82-B842-F34431D55A93}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NamModelHarness", "projects\NamModelHarness.vcxproj", "{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -66,6 +68,22 @@ Global
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|Win32.Build.0 = Tracer|Win32
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|x64.ActiveCfg = Tracer|x64
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|x64.Build.0 = Tracer|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Debug|Win32.Build.0 = Debug|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Debug|x64.ActiveCfg = Debug|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Debug|x64.Build.0 = Debug|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release|Win32.ActiveCfg = Release|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release|Win32.Build.0 = Release|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release|x64.ActiveCfg = Release|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release|x64.Build.0 = Release|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|Win32.ActiveCfg = Release-Clang-x64-v3|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|Win32.Build.0 = Release-Clang-x64-v3|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|x64.ActiveCfg = Release-Clang-x64-v3|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|x64.Build.0 = Release-Clang-x64-v3|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|Win32.ActiveCfg = Tracer|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|Win32.Build.0 = Tracer|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|x64.ActiveCfg = Tracer|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|x64.Build.0 = Tracer|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
