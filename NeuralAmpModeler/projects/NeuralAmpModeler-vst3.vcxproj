@@ -430,7 +430,9 @@
     <ClInclude Include="..\NeuralAmpModelerControls.h" />
     <ClInclude Include="..\NAMLibraryBrowserWindow.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\activations.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\conv1d.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\convnet.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\ring_buffer.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\dsp.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\lstm.h" />
@@ -515,7 +517,9 @@
     <ClCompile Include="..\NeuralAmpModeler.cpp" />
     <ClCompile Include="..\NAMLibraryBrowserWindow.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\ring_buffer.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\dsp.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
