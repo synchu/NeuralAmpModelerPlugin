@@ -198,7 +198,8 @@ static BenchResult RunTrial(nam::DSP& model, const double sampleRate, const int 
   for (int it = 0; it < warmIters; ++it)
   {
     NAM_SAMPLE* in = const_cast<NAM_SAMPLE*>(&inputAll[static_cast<size_t>(it) * blockSize]);
-    model.process(in, output.data(), blockSize);
+    NAM_SAMPLE* out = output.data();
+    model.process(&in, &out, blockSize);
   }
 
   const auto t0 = std::chrono::high_resolution_clock::now();
@@ -206,7 +207,8 @@ static BenchResult RunTrial(nam::DSP& model, const double sampleRate, const int 
   for (int it = 0; it < iterations; ++it)
   {
     NAM_SAMPLE* in = const_cast<NAM_SAMPLE*>(&inputAll[static_cast<size_t>(it) * blockSize]);
-    model.process(in, output.data(), blockSize);
+    NAM_SAMPLE* out = output.data();
+    model.process(&in, &out, blockSize);
   }
 
   const auto t1 = std::chrono::high_resolution_clock::now();
