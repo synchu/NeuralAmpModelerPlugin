@@ -17,7 +17,7 @@ jobs:
       upload_url: ${{steps.create_release.outputs.upload_url}}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6.0.2
         with:
           submodules: recursive
 
@@ -47,7 +47,7 @@ jobs:
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6.0.2
       with:
         submodules: recursive
 
@@ -102,7 +102,7 @@ jobs:
 
     - name: Add msbuild to PATH (Windows)
       if: matrix.os == 'windows-latest'
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v2
 
     - name: Setup Python3
       if: matrix.os == 'windows-latest'

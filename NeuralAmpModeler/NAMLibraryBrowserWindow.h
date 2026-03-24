@@ -5,16 +5,21 @@
 #include <vector>
 #include <functional>
 #include <unordered_map>
+
 #include "NAMLibraryManager.h"
 #include "NAMLibraryTreeNode.h"
 
 #if defined(_WIN32) && !defined(OS_WIN)
-#define OS_WIN
+  #define OS_WIN
+#endif
+
+#if defined(__APPLE__) && !defined(OS_MAC)
+  #define OS_MAC
 #endif
 
 #if defined(OS_WIN)
-#include <windows.h>
-#include <CommCtrl.h>
+  #include <windows.h>
+  #include <CommCtrl.h>
 #endif
 
 class NAMLibraryBrowserWindow
@@ -26,24 +31,28 @@ public:
   void Open(void* pParentWindow);
   void Close();
   bool IsOpen() const { return mIsOpen; }
+  void BringToFront();
+
+  void SetInitialUIState(const std::string& searchQuery, const std::string& selectedTag,
+                         const std::unordered_map<std::string, bool>& expandedState);
+
+  void GetCurrentUIState(std::string& searchQuery, std::string& selectedTag,
+                         std::unordered_map<std::string, bool>& expandedState) const;
 
   void SetOnModelSelected(std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&)> callback)
   {
     mOnModelSelected = callback;
   }
 
+  void SetOnWindowClosed(std::function<void()> callback) { mOnWindowClosed = callback; }
+  std::function<void()> mOnWindowClosed;
+
 private:
 #if defined(OS_WIN)
   void InitializeControls();
   void PopulateTreeView();
-
   void AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node, bool ancestorsExpanded);
   void AutoExpandDescendantsFromFlags(HTREEITEM hParentItem);
-
-  // In-memory expansion state (folders only; models/leaves ignore expanded).
-  bool GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const;
-  void SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
-  void SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
 
   void OnTreeViewSelectionChanged();
   void OnTreeViewDoubleClick();
@@ -60,17 +69,24 @@ private:
   void RecreateFont();
   void UpdateChildFonts();
 
+  void SuspendInitialRedraw();
+  void ResumeInitialRedraw();
+
   static INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam);
   INT_PTR HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
   bool mIsAutoExpanding = false;
-
-  // node->id -> expanded (folders only)
-  std::unordered_map<std::string, bool> mExpandedState;
 #endif
+
+  // Cross-platform in-memory folder expansion state helpers
+  bool GetFolderExpandedFromState(const std::shared_ptr<NAMLibraryTreeNode>& node) const;
+  void SetFolderExpandedInState(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
+  void SetExpandedStateRecursive(const std::shared_ptr<NAMLibraryTreeNode>& node, bool expanded);
 
   void LoadSettings();
   void SaveSettings();
+
+  static std::string GetSettingsFilePath();
 
   NAMLibraryManager* mpLibraryManager = nullptr;
   std::shared_ptr<NAMLibraryTreeNode> mRootNode;
@@ -91,6 +107,7 @@ private:
   HWND mHwndCancelButton = nullptr;
   HWND mHwndFontIncButton = nullptr;
   HWND mHwndFontDecButton = nullptr;
+
   HFONT mHFont = nullptr;
   HBRUSH mDarkBgBrush = nullptr;
   HBRUSH mEditBgBrush = nullptr;
@@ -98,24 +115,31 @@ private:
   std::unordered_map<HTREEITEM, std::shared_ptr<NAMLibraryTreeNode>> mTreeItemMap;
 
   UINT_PTR mSearchTimerId = 0;
-  std::string mPendingSearchQuery;
-  std::string mSelectedTag;
+
   static constexpr UINT_PTR SEARCH_TIMER_ID = 1;
   static constexpr UINT SEARCH_DELAY_MS = 300;
+
   bool mIsPopulatingTags = false;
+
 #elif defined(OS_MAC)
   void* mpWindowController = nullptr;
 #endif
 
-  int mFontSize = 30;
+  std::string mPendingSearchQuery;
+  std::string mSelectedTag;
+
+  // Cross-platform process-lifetime UI state
+  std::unordered_map<std::string, bool> mExpandedState;
+
+  int mFontSize = 14;
   const int mMinFontSize = 12;
   const int mMaxFontSize = 48;
 
   bool mIsOpen = false;
+
   int mMinWidth = 600;
   int mMinHeight = 400;
 
-  static std::string GetSettingsFilePath();
   int mWindowX = 0;
   int mWindowY = 0;
   int mWindowW = 800;

@@ -168,9 +168,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">
     <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'">
     <OutDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\</OutDir>
@@ -270,6 +272,7 @@
       <AdditionalIncludeDirectories>$(APP_INC_PATHS);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -520,6 +523,9 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="..\config\NeuralAmpModeler-mac.xcconfig" />
+    <None Include="..\NAMLibraryBrowserWindow.mm" />
+    <None Include="NamModelHarness.vcxproj" />
+    <None Include="NamModelHarness.vcxproj.filters" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

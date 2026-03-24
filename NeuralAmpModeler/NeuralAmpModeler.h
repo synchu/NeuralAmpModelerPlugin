@@ -210,7 +210,14 @@ public:
   bool InitializeLibraryManager();
   std::shared_ptr<NAMLibraryTreeNode> GetLibraryRootNode() const { return mLibraryRootNode; }
   NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
-  void OpenLibraryBrowserWindow();  // Add this
+  void OpenLibraryBrowserWindow();  
+    // Per-instance library browser UI state
+  std::string mLibraryBrowserSearchQuery;
+  std::string mLibraryBrowserSelectedTag;
+  std::unordered_map<std::string, bool> mLibraryBrowserExpandedState;
+
+  // Drag-and-drop file handling (moved from IControl.h hack)
+  void HandleFileDrop(const char* str);
 
   // Drag-and-drop file handling (moved from IControl.h hack)
   void HandleFileDrop(const char* str);
@@ -336,9 +343,9 @@ private:
   // Library browser
   NAMLibraryManager mLibraryManager;
   std::shared_ptr<NAMLibraryTreeNode> mLibraryRootNode;
-  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;  // Add this
+  std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;
 
-  // Used to avoid re-parsing unless NAM Model Manager updated data.json
+  // Used to auto-refresh metadata when NAM Model Manager updates data.json
   std::string mLibraryDataJsonPath;
   std::filesystem::file_time_type mLibraryDataJsonWriteTime{};
 };

@@ -568,5 +568,6 @@
     <None Include="..\config\NeuralAmpModeler-mac.xcconfig">
       <Filter>config</Filter>
     </None>
+    <None Include="..\NAMLibraryBrowserWindow.mm" />
   </ItemGroup>
 </Project>
