@@ -46,10 +46,13 @@ DEBUG_OPTIMIZE = 0 //0,1,2,3,s
 
 GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO
 
+// Flags to pass to compiler for all builds
+// -fno-math-errno / -fno-trapping-math: skip errno and FP-exception checks after math calls (safe for audio DSP)
+// -ffp-contract=fast: enable FMA fusion on ARM NEON (fmadd) for dot products / GEMM
+// -fno-signed-zeros: audio DSP does not distinguish -0.0 from 0.0
+GCC_CFLAGS = -Wno-write-strings -fno-math-errno -fno-trapping-math -ffp-contract=fast -fno-signed-zeros
+
 // Uncomment to enable relaxed IEEE compliance
 //GCC_FAST_MATH = YES
-
-// Flags to pass to compiler for all builds
-GCC_CFLAGS = -Wno-write-strings
 
 ENABLE_BITCODE = YES
