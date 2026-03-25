@@ -8,6 +8,10 @@
 [submodule "NeuralAmpModeler/NeuralAmpModelerCore"]
 	path = NeuralAmpModeler/NeuralAmpModelerCore
 	url = https://github.com/synchu/NeuralAmpModelerCore.git
+<<<<<<< copilot/dsp-opts-optimize-cpu-usage
+=======
+	branch = dsp-opts
+>>>>>>> dsp-opts
 [submodule "AudioDSPTools"]
 	path = NeuralAmpModeler/AudioDSPTools
 	url = https://github.com/sdatkinson/AudioDSPTools.git
