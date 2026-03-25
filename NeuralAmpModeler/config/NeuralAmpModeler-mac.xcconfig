@@ -24,7 +24,7 @@ EXTRA_LNK_FLAGS = -framework Accelerate -framework Metal -framework MetalKit // 
 
 //------------------------------
 // PREPROCESSOR MACROS
-EXTRA_ALL_DEFS = OBJC_PREFIX=vNeuralAmpModeler SWELL_APP_PREFIX=Swell_vNeuralAmpModeler IGRAPHICS_NANOVG IGRAPHICS_METAL GRAYED_ALPHA=0.5f
+EXTRA_ALL_DEFS = OBJC_PREFIX=vNeuralAmpModeler SWELL_APP_PREFIX=Swell_vNeuralAmpModeler IGRAPHICS_NANOVG IGRAPHICS_METAL GRAYED_ALPHA=0.5f NAM_USE_INLINE_GEMM
 //EXTRA_DEBUG_DEFS =
 //EXTRA_RELEASE_DEFS =
 //EXTRA_TRACER_DEFS =
@@ -51,11 +51,16 @@ ARCHS = $(ARCHS_STANDARD_64_BIT)
 
 GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO
 
-// Flags to pass to compiler for all builds
-GCC_CFLAGS[arch=x86_64] = -Wno-write-strings -mfpmath=sse -msse -msse2 -msse3 //-mavx
+// Flags for all architectures: warning suppression + safe fast-math subset
+// -fno-math-errno / -fno-trapping-math: skip errno and FP-exception checks after math calls (safe for audio DSP)
+// -ffp-contract=fast: enable FMA fusion (vfmadd on Intel, fmadd on Apple Silicon) for dot products / GEMM
+// -fno-signed-zeros: audio DSP does not distinguish -0.0 from 0.0
+NAM_FLOAT_CFLAGS = -fno-math-errno -fno-trapping-math -ffp-contract=fast -fno-signed-zeros
+GCC_CFLAGS = -Wno-write-strings $(NAM_FLOAT_CFLAGS)
 
-// Uncomment to enable relaxed IEEE compliance
-//GCC_FAST_MATH = YES
+// x86_64 (Intel Mac / Rosetta): upgrade SIMD target to AVX2 (all Intel Macs since Haswell 2013)
+// -mfpmath=sse: use SSE/AVX registers for scalar FP (not x87)
+GCC_CFLAGS[arch=x86_64] = -Wno-write-strings -mfpmath=sse -mavx2 $(NAM_FLOAT_CFLAGS)
 
 // uncomment this to enable codesigning - necessary for AUv3 delivery
 CODE_SIGN_IDENTITY=//Mac Developer
