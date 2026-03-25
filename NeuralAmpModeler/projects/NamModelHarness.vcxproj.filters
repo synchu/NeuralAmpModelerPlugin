@@ -17,7 +17,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\ring_buffer.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\dsp.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\get_dsp.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\lstm.cpp"><Filter>Source Files\NAM</Filter></ClCompile>
@@ -27,7 +29,9 @@
 
   <ItemGroup>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\activations.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\conv1d.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\convnet.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\ring_buffer.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\dsp.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\lstm.h"><Filter>Header Files</Filter></ClInclude>
