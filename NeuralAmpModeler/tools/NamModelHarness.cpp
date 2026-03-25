@@ -88,7 +88,14 @@ static void PrintBuildInfo()
   std::cout << ", SSE2";
 #endif
 
-  std::cout << ", built " << __DATE__ << " " << __TIME__ << "\n\n";
+  std::cout << ", built " << __DATE__ << " " << __TIME__ << "\n";
+
+#if defined(NAM_USE_INLINE_GEMM)
+  std::cout << "NAM_USE_INLINE_GEMM: YES\n";
+#else
+  std::cout << "NAM_USE_INLINE_GEMM: NO (inline GEMM paths disabled)\n";
+#endif
+  std::cout << "\n";
 }
 
 struct BenchResult
