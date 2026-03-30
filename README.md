@@ -1,4 +1,4 @@
-**NOTE: This is the NAM Plugin form with added drag and drop and Library Browser!!!**
+**NOTE: This is the NAM Plugin fork with added drag and drop, Library Browser and tone3000.com connectivity!!!**
 
   
 # Neural Amp Modeler Plug-in
