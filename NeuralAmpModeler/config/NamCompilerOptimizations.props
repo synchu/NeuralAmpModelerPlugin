@@ -43,4 +43,21 @@
     </ClCompile>
   </ItemDefinitionGroup>
 
+  <!-- clang-cl: optimization flags for Release-Compat|x64 (SSE2 baseline — no AVX2) -->
+  <!-- Same fast-math flags as x64-v3 but targets x86-64 baseline for broad CPU compatibility -->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release-Compat' and '$(Platform)'=='x64' and '$(PlatformToolset)'=='ClangCL'">
+    <ClCompile>
+      <AdditionalOptions>
+        /clang:-O3
+        /clang:-march=x86-64
+        /clang:-fno-math-errno
+        /clang:-fno-trapping-math
+        /clang:-fno-signed-zeros
+        /clang:-ffp-contract=fast
+        /clang:-fassociative-math
+        %(AdditionalOptions)
+      </AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
 </Project>
