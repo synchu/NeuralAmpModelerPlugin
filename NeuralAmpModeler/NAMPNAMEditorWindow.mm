@@ -49,6 +49,7 @@ namespace
 //  Forward declaration
 // ============================================================
 @class NAMPNAMEditorController;
+static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots);
 
 // ============================================================
 //  Helper: styled controls
@@ -103,10 +104,10 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     <NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSDraggingDestination>
 
 // Callbacks to C++ side
-@property (nonatomic, copy) std::function<void()>                         onWindowClosed;
-@property (nonatomic, copy) std::function<void(const std::string&)>       onSaved;
-@property (nonatomic, copy) std::function<void(const ModelMapSlot&)>      onPreviewSlot;
-@property (nonatomic, copy) std::function<void(const std::string&)>       onPreviewChain;
+@property (nonatomic, assign) std::function<void()>                         onWindowClosed;
+@property (nonatomic, assign) std::function<void(const std::string&)>       onSaved;
+@property (nonatomic, assign) std::function<void(const ModelMapSlot&)>      onPreviewSlot;
+@property (nonatomic, assign) std::function<void(const std::string&)>       onPreviewChain;
 
 // Shared state handed in from C++
 @property (nonatomic) std::vector<ModelMapSlot>* slots;
