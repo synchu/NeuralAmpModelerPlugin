@@ -169,6 +169,31 @@ static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots)
   return warn;
 }
 
+// ---- Portable path helpers ----
+// Store paths relative to the .pnam file using forward slashes so files are
+// cross-platform compatible (Mac/Windows network shares, different mount points).
+static std::string MakePortablePath(const std::string& absPath, const std::string& baseDir)
+{
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path rel = fs::relative(fs::path(absPath), fs::path(baseDir), ec);
+  if (ec || rel.empty()) return absPath;
+  return rel.generic_string(); // forward slashes
+}
+
+static std::string ResolvePath(const std::string& stored, const std::string& baseDir)
+{
+  if (stored.empty()) return stored;
+  namespace fs = std::filesystem;
+  fs::path p(stored);
+  if (p.is_absolute()) return stored;
+  fs::path resolved = fs::path(baseDir) / p;
+  std::error_code ec;
+  fs::path canonical = fs::weakly_canonical(resolved, ec);
+  return ec ? resolved.string() : canonical.string();
+}
+
+
 // ---- Constructor / Destructor ----
 
 NAMPNAMEditorWindow::NAMPNAMEditorWindow() = default;
@@ -367,6 +392,9 @@ void NAMPNAMEditorWindow::BringToFront()
 
 void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
 {
+  namespace fs = std::filesystem;
+  const std::string baseDir = fs::path(pnamPath).parent_path().string();
+
   std::ifstream f(pnamPath);
   if (!f.is_open()) return;
 
@@ -376,7 +404,7 @@ void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
 
   mSlots.clear();
   mCurrentFilePath = pnamPath;
-  mLastOpenedPNAMPath = pnamPath;  // remember for next session
+  mLastOpenedPNAMPath = pnamPath;
 
   if (j.contains("slots") && j["slots"].is_array())
   {
@@ -385,7 +413,7 @@ void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
       ModelMapSlot slot;
       slot.ampGainMin  = jSlot.value("amp_gain_min", 0.0);
       slot.ampGainMax  = jSlot.value("amp_gain_max", 10.0);
-      slot.namFilePath = jSlot.value("nam_path", std::string{});
+      slot.namFilePath = ResolvePath(jSlot.value("nam_path", std::string{}), baseDir);
       if (jSlot.contains("overrides"))
       {
         const auto& jOv = jSlot["overrides"];
@@ -405,7 +433,7 @@ void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
     UpdateTitleBar();
     SetEditPanelEnabled(false);
     if (!mSlots.empty()) SelectSlotIndex(0);
-    SaveSettings();  // persist LastPNAMPath immediately
+    SaveSettings();
   }
 }
 
@@ -1136,6 +1164,9 @@ void NAMPNAMEditorWindow::OnSaveAs()
 
 bool NAMPNAMEditorWindow::SaveToFile(const std::string& path)
 {
+  namespace fs = std::filesystem;
+  
+
   json j;
   j["pnam_version"] = 1;
   j["slots"]        = json::array();
@@ -1145,7 +1176,7 @@ bool NAMPNAMEditorWindow::SaveToFile(const std::string& path)
     json jSlot;
     jSlot["amp_gain_min"] = slot.ampGainMin;
     jSlot["amp_gain_max"] = slot.ampGainMax;
-    jSlot["nam_path"]     = slot.namFilePath;
+    jSlot["nam_path"] = slot.namFilePath;
 
     json jOv = json::object();
     if (slot.overrides.outputLevel.has_value()) jOv["output_level"] = *slot.overrides.outputLevel;

@@ -53,6 +53,32 @@ namespace
           warn += "Slot " + std::to_string(i + 1) + " and slot " + std::to_string(j + 1) + " overlap.\n";
     return warn;
   }
+
+  // Convert absolute path to portable relative path (relative to a base directory).
+  // Uses forward slashes so the file is cross-platform readable.
+  std::string MakePortablePath(const std::string& absPath, const std::string& baseDir)
+  {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path rel = fs::relative(fs::path(absPath), fs::path(baseDir), ec);
+    if (ec || rel.empty()) return absPath; // fallback: store as-is
+    // Normalise to forward slashes
+    std::string s = rel.generic_string();
+    return s;
+  }
+
+  // Resolve a stored path (possibly relative with forward slashes) against a base directory.
+  std::string ResolvePath(const std::string& stored, const std::string& baseDir)
+  {
+    if (stored.empty()) return stored;
+    namespace fs = std::filesystem;
+    fs::path p(stored); // generic_string forward-slash path parses fine on all platforms
+    if (p.is_absolute()) return stored;
+    fs::path resolved = fs::path(baseDir) / p;
+    std::error_code ec;
+    fs::path canonical = fs::weakly_canonical(resolved, ec);
+    return ec ? resolved.string() : canonical.string();
+  }
 }
 
 // ============================================================
@@ -147,8 +173,8 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 @property (nonatomic, strong) NSButton*     saveAsBtn;
 @property (nonatomic, strong) NSButton*     fontDecBtn;
 @property (nonatomic, strong) NSButton*     fontIncBtn;
+@property (nonatomic, strong) NSButton*     closeBtn;
 
-// Left panel
 @property (nonatomic, strong) NSTableView*  slotTable;
 @property (nonatomic, strong) NSButton*     addBtn;
 @property (nonatomic, strong) NSButton*     removeBtn;
@@ -262,7 +288,8 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   _saveAsBtn  = MakeButton(@"Save As…",   self, @selector(onSaveAs:));
   _fontDecBtn = MakeButton(@"A−",         self, @selector(onFontDec:));
   _fontIncBtn = MakeButton(@"A+",         self, @selector(onFontInc:));
-  for (NSButton* b in @[_newBtn, _openBtn, _saveBtn, _saveAsBtn, _fontDecBtn, _fontIncBtn])
+  _closeBtn    = MakeButton(@"Close",       self, @selector(onClose:));
+  for (NSButton* b in @[_newBtn, _openBtn, _saveBtn, _saveAsBtn, _fontDecBtn, _fontIncBtn, _closeBtn])
   {
     b.font = font;
     [cv addSubview:b];
@@ -539,9 +566,9 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   [split addSubview:rightScroll];
   [split setHoldingPriority:NSLayoutPriorityDefaultLow forSubviewAtIndex:0];
 
-  // ---- Root layout (toolbar + split) ----
+  // ---- Root layout (toolbar + split + close button) ----
   [NSLayoutConstraint activateConstraints:@[
-    // Toolbar horizontal: path label ... buttons
+    // Toolbar horizontal: path label stretches, buttons on right
     [_filePathLabel.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:8],
     [_newBtn.leadingAnchor constraintGreaterThanOrEqualToAnchor:_filePathLabel.trailingAnchor constant:8],
     [_openBtn.leadingAnchor constraintEqualToAnchor:_newBtn.trailingAnchor constant:4],
@@ -559,7 +586,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     [_fontDecBtn.widthAnchor constraintEqualToConstant:36],
     [_fontIncBtn.widthAnchor constraintEqualToConstant:36],
 
-    // Toolbar vertical: all buttons same row
+    // Toolbar vertical: all buttons on the same row
     [_newBtn.topAnchor constraintEqualToAnchor:cv.topAnchor constant:8],
     [_filePathLabel.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
     [_openBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
@@ -568,11 +595,16 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     [_fontDecBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
     [_fontIncBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
 
-    // Split view below toolbar, filling remainder
+    // Split view: below toolbar, above the close button
     [split.topAnchor constraintEqualToAnchor:_newBtn.bottomAnchor constant:8],
     [split.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:8],
     [split.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-8],
-    [split.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-8],
+    [split.bottomAnchor constraintEqualToAnchor:_closeBtn.topAnchor constant:-8],
+
+    // Close button — pinned to lower-right corner
+    [_closeBtn.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-8],
+    [_closeBtn.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-8],
+    [_closeBtn.widthAnchor constraintEqualToConstant:80],
   ]];
 
   [split setPosition:340 ofDividerAtIndex:0];
@@ -793,6 +825,9 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
 - (void)loadFileFromPath:(const std::string&)path
 {
+  namespace fs = std::filesystem;
+  const std::string baseDir = fs::path(path).parent_path().string();
+
   std::ifstream f(path);
   if (!f.is_open()) return;
   json j;
@@ -809,7 +844,8 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
       ModelMapSlot slot;
       slot.ampGainMin  = jSlot.value("amp_gain_min", 0.0);
       slot.ampGainMax  = jSlot.value("amp_gain_max", 10.0);
-      slot.namFilePath = jSlot.value("nam_path", std::string{});
+      // Resolve stored (possibly relative) path against this .pnam's directory
+      slot.namFilePath = ResolvePath(jSlot.value("nam_path", std::string{}), baseDir);
       if (jSlot.contains("overrides"))
       {
         const auto& jOv = jSlot["overrides"];
@@ -869,6 +905,9 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
 - (BOOL)saveToFile:(const std::string&)path
 {
+  namespace fs = std::filesystem;
+  
+
   json j;
   j["pnam_version"] = 1;
   j["slots"] = json::array();
@@ -877,7 +916,8 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     json jSlot;
     jSlot["amp_gain_min"] = slot.ampGainMin;
     jSlot["amp_gain_max"] = slot.ampGainMax;
-    jSlot["nam_path"]     = slot.namFilePath;
+    // Store as portable relative path
+    jSlot["nam_path"] = slot.namFilePath;
     json jOv = json::object();
     if (slot.overrides.outputLevel.has_value()) jOv["output_level"] = *slot.overrides.outputLevel;
     if (slot.overrides.toneBass.has_value())    jOv["tone_bass"]    = *slot.overrides.toneBass;
@@ -1065,11 +1105,17 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   [self applyFont];
 }
 
+- (void)onClose:(id)s
+{
+  [self.window performClose:nil];
+}
+
 - (void)applyFont
 {
   NSFont* font = [NSFont systemFontOfSize:self.currentFontSize];
   for (NSControl* c in @[_filePathLabel, _newBtn, _openBtn, _saveBtn, _saveAsBtn,
-                          _fontDecBtn, _fontIncBtn, _addBtn, _removeBtn, _upBtn, _downBtn,
+                          _fontDecBtn, _fontIncBtn, _closeBtn,
+                          _addBtn, _removeBtn, _upBtn, _downBtn,
                           _distributeBtn, _gainMinEdit, _gainMaxEdit, _namPathEdit, _browseBtn,
                           _ovOutputCheck, _ovOutputEdit, _ovBassCheck, _ovBassEdit,
                           _ovMidCheck, _ovMidEdit, _ovTrebleCheck, _ovTrebleEdit,
@@ -1280,7 +1326,9 @@ void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
   }
   else
   {
-    // Window not open yet — parse into mSlots directly (mirrors C++ LoadFile logic)
+    namespace fs = std::filesystem;
+    const std::string baseDir = fs::path(pnamPath).parent_path().string();
+
     std::ifstream f(pnamPath);
     if (!f.is_open()) return;
     json j;
@@ -1295,7 +1343,7 @@ void NAMPNAMEditorWindow::LoadFile(const std::string& pnamPath)
         ModelMapSlot slot;
         slot.ampGainMin  = jSlot.value("amp_gain_min", 0.0);
         slot.ampGainMax  = jSlot.value("amp_gain_max", 10.0);
-        slot.namFilePath = jSlot.value("nam_path", std::string{});
+        slot.namFilePath = ResolvePath(jSlot.value("nam_path", std::string{}), baseDir);
         if (jSlot.contains("overrides"))
         {
           const auto& jOv = jSlot["overrides"];
