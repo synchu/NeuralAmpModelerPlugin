@@ -3,7 +3,7 @@
   <PropertyGroup Label="UserMacros">
     <IPLUG2_ROOT>$(ProjectDir)..\..\iPlug2</IPLUG2_ROOT>
     <BINARY_NAME>NeuralAmpModelerAVX</BINARY_NAME>
-    <EXTRA_ALL_DEFS>IGRAPHICS_NANOVG;IGRAPHICS_GL2;GRAYED_ALPHA=0.5f</EXTRA_ALL_DEFS>
+    <EXTRA_ALL_DEFS>IGRAPHICS_NANOVG;IGRAPHICS_GL2;GRAYED_ALPHA=0.5f;NAM_USE_INLINE_GEMM</EXTRA_ALL_DEFS>
     <EXTRA_DEBUG_DEFS />
     <EXTRA_RELEASE_DEFS />
     <EXTRA_TRACER_DEFS />
@@ -14,8 +14,6 @@
 
   <ImportGroup Label="PropertySheets">
     <Import Project="$(IPLUG2_ROOT)\..\common-win.props" />
-    <Import Project="$(MSBuildThisFileDirectory)NamCompilerOptimizations.props"
-            Condition="Exists('$(MSBuildThisFileDirectory)NamCompilerOptimizations.props')" />
   </ImportGroup>
 
   <PropertyGroup>

@@ -69,6 +69,34 @@ public:
   }
 };
 
+class NAMTextCircleButtonControl : public IButtonControlBase
+{
+public:
+  NAMTextCircleButtonControl(const IRECT& bounds, IActionFunction af)
+  : IButtonControlBase(bounds, af)
+  {
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    const IColor col = mDisabled ? PluginColors::NAM_3 : PluginColors::NAM_THEMECOLOR;
+
+    if (!mDisabled && mMouseIsOver)
+      g.FillEllipse(PluginColors::MOUSEOVER, mRECT);
+
+    g.DrawEllipse(col, mRECT, nullptr, 1.5f);
+
+    // Three horizontal bars drawn as primitives — cross-platform, no font needed
+    const float cx  = mRECT.MW();
+    const float cy  = mRECT.MH();
+    const float hw  = mRECT.W() * 0.27f;
+    const float vsp = mRECT.H() * 0.13f;
+
+    for (int i = -1; i <= 1; ++i)
+      g.DrawLine(col, cx - hw, cy + i * vsp, cx + hw, cy + i * vsp, nullptr, 1.8f);
+  }
+};
+
 class NAMKnobControl : public WithFileDrop<IVKnobControl>, public IBitmapBase
 {
 public:
@@ -81,6 +109,14 @@ public:
 
   void OnRescale() override { mBitmap = GetUI()->GetScaledBitmap(mBitmap); }
 
+  // Called from the delegate (OnIdle) to set slot-boundary positions.
+  // Each value is normalised [0, 1] matching the knob's param range.
+  void SetPNAMBoundaries(std::vector<float> boundaries)
+  {
+    mPNAMBoundaries = std::move(boundaries);
+    SetDirty(false);
+  }
+
   void DrawWidget(IGraphics& g) override
   {
     float widgetRadius = GetRadius() * 0.73;
@@ -89,6 +125,26 @@ public:
     const float angle = mAngle1 + (static_cast<float>(GetValue()) * (mAngle2 - mAngle1));
     DrawIndicatorTrack(g, angle, cx + 0.5, cy, widgetRadius);
     g.DrawFittedBitmap(mBitmap, knobRect);
+
+    // ---- PNAM slot-boundary tick marks ----
+    if (!mPNAMBoundaries.empty())
+    {
+      const float kPi = 3.14159265f;
+      const float r0 = widgetRadius * 1.06f;  // inner tick radius
+      const float r1 = widgetRadius * 1.22f;  // outer tick radius
+      const IColor tickColor = PluginColors::NAM_THEMECOLOR.WithOpacity(0.85f);
+      for (float b : mPNAMBoundaries)
+      {
+        const float tickAngle = mAngle1 + b * (mAngle2 - mAngle1);
+        const float rad = tickAngle * kPi / 180.f;
+        const float sinA = std::sin(rad), cosA = std::cos(rad);
+        g.DrawLine(tickColor,
+                   cx + r0 * sinA, cy - r0 * cosA,
+                   cx + r1 * sinA, cy - r1 * cosA,
+                   &mBlend, 2.f);
+      }
+    }
+
     float data[2][2];
     RadialPoints(angle, cx, cy, mInnerPointerFrac * widgetRadius, mInnerPointerFrac * widgetRadius, 2, data);
     g.PathCircle(data[1][0], data[1][1], 3);
@@ -99,6 +155,9 @@ public:
                {}, &mBlend);
     g.DrawCircle(COLOR_BLACK.WithOpacity(0.5f), data[1][0], data[1][1], 3, &mBlend);
   }
+
+private:
+  std::vector<float> mPNAMBoundaries; // normalised [0,1] slot boundaries; empty = no pnam active
 };
 
 class NAMSwitchControl : public WithFileDrop<IVSlideSwitchControl>, public IBitmapBase
@@ -245,11 +304,12 @@ public:
                     const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG, 
                     const ISVG& librarySVG,
                     const IBitmap& bitmap)
-  : WithFileDrop<IDirBrowseControlBase>(bounds, fileExtension, false, false)
+  : WithFileDrop<IDirBrowseControlBase>(bounds, "nam", false, false)  // "nam" only for ScanDirectory
   , mClearMsgTag(clearMsgTag)
   , mDefaultLabelStr(labelStr)
   , mCompletionHandlerFunc(ch)
-  , mStyle(style.WithDrawFrame(false)) // Don't modify colors here
+  , mDialogExtension(fileExtension)   // file-open dialog filter (e.g. "nam pnam")
+  , mStyle(style.WithDrawFrame(false))
   , mBitmap(bitmap)
   , mLoadSVG(loadSVG)
   , mClearSVG(clearSVG)
@@ -319,14 +379,34 @@ public:
       });
 #else
       pCaller->GetUI()->PromptForFile(
-        fileName, path, EFileAction::Open, mExtension.Get(), [&](const WDL_String& fileName, const WDL_String& path) {
+        fileName, path, EFileAction::Open, mDialogExtension.Get(), [&](const WDL_String& fileName, const WDL_String& path) {
           if (fileName.GetLength())
           {
+            // If the dialog didn't return a directory (e.g. UNC/network paths),
+            // derive it from the selected file path.
+            const char* pathStr = path.Get();
+            WDL_String derivedPath;
+            if (!pathStr || !pathStr[0])
+            {
+              std::filesystem::path fp = std::filesystem::u8path(fileName.Get());
+              std::string parentStr = fp.parent_path().string();
+              derivedPath.Set(parentStr.c_str());
+              pathStr = derivedPath.Get();
+            }
+
             ClearPathList();
-            AddPath(path.Get(), "");
-            SetupMenu();
-            SetSelectedFile(fileName.Get());
-            LoadFileAtCurrentIndex();
+            if (pathStr && pathStr[0])
+            {
+              AddPath(pathStr, "");
+              SetupMenu();
+              SetSelectedFile(fileName.Get());
+              LoadFileAtCurrentIndex();
+            }
+            else
+            {
+              // No directory available — call the completion handler directly.
+              mCompletionHandlerFunc(fileName, path);
+            }
           }
         });
 #endif
@@ -373,7 +453,7 @@ public:
       ->SetAnimationEndActionFunction(nextFileFunc);
     
     // Only add library browser button for model browser (not IR browser)
-    if (strcmp(mExtension.Get(), "nam") == 0)
+    if (strstr(mExtension.Get(), "nam") != nullptr)
     {
       AddChildControl(new NAMSquareButtonControl(libraryButtonBounds, [this](IControl* pCaller) {
         auto* pPlugin = PLUG();
@@ -440,7 +520,7 @@ public:
       WDL_String fileName, path;
       GetSelectedFile(fileName);
 
-      const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 35 : 45;
+      const size_t maxChars = (strstr(mExtension.Get(), "nam") != nullptr) ? 35 : 45;
       mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
 
       mCompletionHandlerFunc(fileName, path);
@@ -465,13 +545,24 @@ public:
         directory.Set(reinterpret_cast<const char*>(pData));
         directory.remove_filepart(true);
 
-        ClearPathList();
-        AddPath(directory.Get(), "");
-        SetupMenu();
-        SetSelectedFile(fileName.Get());
+        const size_t maxChars = (strstr(mExtension.Get(), "nam") != nullptr) ? 35 : 45;
 
-        const size_t maxChars = (strcmp(mExtension.Get(), "nam") == 0) ? 35 : 45;
-        mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
+        // Only populate the prev/next file navigation if we have a valid directory.
+        // Display-only strings (e.g. "[Chain] MyChain" from .pnam loads) have no directory.
+        if (directory.GetLength())
+        {
+          ClearPathList();
+          AddPath(directory.Get(), "");
+          SetupMenu();
+          SetSelectedFile(fileName.Get());
+          mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
+        }
+        else
+        {
+          // No directory — this is a display-only label (e.g. a .pnam chain name).
+          // Just update the label directly; don't touch the file navigation list.
+          mFileNameControl->SetLabelAndTooltip(fileName.Get());
+        }
         break;
       }
       default: break;
@@ -492,14 +583,15 @@ private:
   int mClearMsgTag;
   WDL_String mDefaultLabelStr;
   IFileDialogCompletionHandlerFunc mCompletionHandlerFunc;
+  WDL_String mDialogExtension;   // file-open dialog filter (e.g. "nam pnam")
   IVStyle mStyle;
   NAMFileNameControl* mFileNameControl = nullptr;
-  IBitmap mBitmap;      
-  ISVG mLoadSVG;         
-  ISVG mClearSVG;        
-  ISVG mLeftSVG;         
-  ISVG mRightSVG;       
-  ISVG mLibrarySVG;      
+  IBitmap mBitmap;
+  ISVG mLoadSVG;
+  ISVG mClearSVG;
+  ISVG mLeftSVG;
+  ISVG mRightSVG;
+  ISVG mLibrarySVG;
 };
 
 class NAMMeterControl : public WithFileDrop<IVPeakAvgMeterControl<>>, public IBitmapBase
@@ -927,3 +1019,5 @@ private:
     IText mText;
   };
 };
+
+

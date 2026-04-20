@@ -34,14 +34,21 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		121CB341D802D15830113366 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 		13D358AF0E029A17055AA8EC /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
 		18E64064D35938374CAA2F54 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		23F63FC25D3081D7849F4BF8 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		25D7BB72A82B96C37E91C377 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		2C569D8EE935FABE6DDBD306 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		2D607DF523B2091F3B4F6955 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		315730AFC2046189865F82D1 /* gating_activations.h in Headers */ = {isa = PBXBuildFile; fileRef = AFE76D97D830827C94E3F89B /* gating_activations.h */; };
 		356A0863DD4FDFE171C0561C /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		388355D2916903C30FA0A86F /* registry.h in Headers */ = {isa = PBXBuildFile; fileRef = 68E8C84DB7D7AD9CD84FC6DB /* registry.h */; };
+		3A26085BC4E3D0B1C376D8A4 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
 		3B364DAE39EBCEFBBD9A5DDA /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
 		3DC9DD3ED68F5C43F35C744B /* conv1d.h in Headers */ = {isa = PBXBuildFile; fileRef = ED0E023704FBF8DEE3BEDEAE /* conv1d.h */; };
-		C826A6FCE48478DCB74F2134 /* slimmable_wavenet.h in Headers */ = {isa = PBXBuildFile; fileRef = 846A32C3BB81E3C29B621792 /* slimmable_wavenet.h */; };
-		5D2CCE8038A39D5E0853964B /* slimmable.h in Headers */ = {isa = PBXBuildFile; fileRef = 73C8EB5BB682575EC87A171A /* slimmable.h */; };
 		3F155063FF908D3E4528CCAD /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
+		41E801933CDBEE30CA4FEC67 /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
 		4F037D76261F9DB400A752B5 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F037D75261F9DB400A752B5 /* Images.xcassets */; };
 		4F037D77261F9DB400A752B5 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F037D75261F9DB400A752B5 /* Images.xcassets */; };
 		4F03A58C20A4621100EBDFFB /* IGraphicsNanoVG.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F03A55020A4621000EBDFFB /* IGraphicsNanoVG.h */; };
@@ -151,7 +158,6 @@
 		4F2FB1A22A0047430027AB66 /* convnet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14B2A0047420027AB66 /* convnet.cpp */; };
 		4F2FB1A32A0047430027AB66 /* convnet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14B2A0047420027AB66 /* convnet.cpp */; };
 		4F2FB1A42A0047430027AB66 /* convnet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14B2A0047420027AB66 /* convnet.cpp */; };
-		4F2FB1A52A0047430027AB66 /* wavenet.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F2FB14C2A0047420027AB66 /* wavenet.h */; };
 		4F2FB1A62A0047430027AB66 /* lstm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14D2A0047420027AB66 /* lstm.cpp */; };
 		4F2FB1A72A0047430027AB66 /* lstm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14D2A0047420027AB66 /* lstm.cpp */; };
 		4F2FB1A82A0047430027AB66 /* lstm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB14D2A0047420027AB66 /* lstm.cpp */; };
@@ -173,15 +179,6 @@
 		4F2FB1B82A0047430027AB66 /* activations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1512A0047420027AB66 /* activations.cpp */; };
 		4F2FB1B92A0047430027AB66 /* activations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1512A0047420027AB66 /* activations.cpp */; };
 		4F2FB1BA2A0047430027AB66 /* activations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1512A0047420027AB66 /* activations.cpp */; };
-		4F2FB1BB2A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1BC2A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1BD2A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1BE2A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1BF2A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1C02A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1C12A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1C22A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
-		4F2FB1C32A0047430027AB66 /* wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet.cpp */; };
 		4F2FB1C42A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
 		4F2FB1C52A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
 		4F2FB1C62A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
@@ -448,17 +445,32 @@
 		4FFBB93020863B0E00DDD0E7 /* fbuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8158C1205D50EB00393585 /* fbuffer.cpp */; };
 		4FFBB93420863B0E00DDD0E7 /* coreiids.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8158E0205D50EB00393585 /* coreiids.cpp */; };
 		4FFBB93520863B0E00DDD0E7 /* vstnoteexpressiontypes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F81588E205D50EB00393585 /* vstnoteexpressiontypes.cpp */; };
+		5091257AEDF545C00E8F3669 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		527DE867562E7A15CB3A1381 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
 		55B2E65A1EEC6D691E2E5538 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
 		566068F315E5C35D4C64A375 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		5D2CCE8038A39D5E0853964B /* slimmable.h in Headers */ = {isa = PBXBuildFile; fileRef = 73C8EB5BB682575EC87A171A /* slimmable.h */; };
 		65B075C85F6AEBE478A5341D /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
 		6705B0B3207731689A2DD34D /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
 		69ED3E18BDCA9D8C41BC0A1F /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
+		7921BA45672B8829923CBFFE /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
+		79F127EA3659862A3115DE1E /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 		7C6D2B97873B69C0436FE296 /* ring_buffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 545D631F2B6A90A7D22C850E /* ring_buffer.h */; };
+		7E21B6AA16D578B796810FF7 /* detail.h in Headers */ = {isa = PBXBuildFile; fileRef = BDEA3FCDC83CACBB81749A20 /* detail.h */; };
 		819448687946D1254A1FB006 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
+		85E51F08B1F3A5AEF1BA2310 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		88ED085CFB10BCD0D1B72626 /* container.h in Headers */ = {isa = PBXBuildFile; fileRef = 82EEF83E257C83286184F1D1 /* container.h */; };
 		8B6D71536E06BD645C000B57 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		9125BB775A5D8C4AAE37A48E /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
 		97A34012AB1AB78C520DA261 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		9A250C763937BBB210E95D5C /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
+		9C6CD989CD3B01F7A6BD7F5A /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
 		9C7CBDF6837E82FED8EFEC78 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
 		9D5F369B6CCFDD7EEADA5925 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		A10714F71C5FF79E64682E21 /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
+		A2C999D35DB9EAF132DC20C9 /* slimmable.h in Headers */ = {isa = PBXBuildFile; fileRef = 1700F2BA8027D3FFC8C94247 /* slimmable.h */; };
+		A919E2A00F456BA32E05E62F /* model_config.h in Headers */ = {isa = PBXBuildFile; fileRef = 4DC943BC60FBDB7F67C44E16 /* model_config.h */; };
+		A948DA64A07D2ABC36BF474B /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
 		AA341E1D2B9E5A530069C260 /* ToneStack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA341E1B2B9E5A530069C260 /* ToneStack.cpp */; };
 		AA341E1E2B9E5A530069C260 /* ToneStack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA341E1B2B9E5A530069C260 /* ToneStack.cpp */; };
 		AA341E1F2B9E5A530069C260 /* ToneStack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA341E1B2B9E5A530069C260 /* ToneStack.cpp */; };
@@ -485,20 +497,24 @@
 		AA7C86022B439AC000B5FB3A /* heapbuf.h in Headers */ = {isa = PBXBuildFile; fileRef = AA7C85F82B439AC000B5FB3A /* heapbuf.h */; };
 		AAB7BBB72CC4B8C6000B8B6E /* get_dsp.h in Headers */ = {isa = PBXBuildFile; fileRef = AAB7BBB62CC4B8C6000B8B6E /* get_dsp.h */; };
 		AE196794CD4C1DEED8A44AF9 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
+		B0F957279AA079B341F0A6CF /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		B6E072561D9D3F8CEBB3A442 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		B7515DADE10095FADB375ACA /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
 		B885CBC52304AE7300D73128 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
 		B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */; };
 		B8E22A0D220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */; };
+		C27EBF8669A5B61D137C8EAB /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		CFB2E0C8AD2E046484FEC9F0 /* film.h in Headers */ = {isa = PBXBuildFile; fileRef = D51F6108D1F11EA18D718F21 /* film.h */; };
 		DB1F84CAFA1621994F62D1B6 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
+		DC11DA39C0B2D9233FFBA4B7 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		DEE9CBC2EA76EBE183F296E2 /* model.h in Headers */ = {isa = PBXBuildFile; fileRef = C4D2D55C0D791E1D11CAF004 /* model.h */; };
 		EBE80BBCA41D61453D967C9B /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
-		D09B68D5B3D855B2D54626AA /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		0EA0D005593D35C7A173F658 /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		D4159047BA5CA011E2C50B63 /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		F10FAD6B342F5A7655942040 /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		F538C2ED5750BA5C557DDA32 /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		E6647A9418D1B324B18EBC9E /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		89FF18E07B402036CF58B69A /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		C29B1D652497AD60431ACA17 /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
-		3F468B591236D04A5EDE0B0C /* slimmable_wavenet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30877432D1026706D7E805DA /* slimmable_wavenet.cpp */; };
+		EFAC0DA601E0FD8A11032189 /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
+		F69D6B76820691042E53BA22 /* params.h in Headers */ = {isa = PBXBuildFile; fileRef = 75A94BC414EB3488384C040E /* params.h */; };
+		F7E3C34D5B239FD501128770 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
+		FC4DC0F81482911D2CBFB0EC /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
+		FCED81D72082C58F0155DB30 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		FF173D18AB1B46B857A598A3 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -640,10 +656,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1700F2BA8027D3FFC8C94247 /* slimmable.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable.h; path = slimmable.h; sourceTree = "<group>"; };
 		30A33B491A4460DA418F92D7 /* ring_buffer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = ring_buffer.cpp; path = ring_buffer.cpp; sourceTree = "<group>"; };
-		30877432D1026706D7E805DA /* slimmable_wavenet.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = slimmable_wavenet.cpp; path = slimmable_wavenet.cpp; sourceTree = "<group>"; };
-		846A32C3BB81E3C29B621792 /* slimmable_wavenet.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable_wavenet.h; path = slimmable_wavenet.h; sourceTree = "<group>"; };
-		73C8EB5BB682575EC87A171A /* slimmable.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable.h; path = slimmable.h; sourceTree = "<group>"; };
+		4DC943BC60FBDB7F67C44E16 /* model_config.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = model_config.h; path = model_config.h; sourceTree = "<group>"; };
 		4F037D75261F9DB400A752B5 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ../resources/Images.xcassets; sourceTree = "<group>"; };
 		4F03A55020A4621000EBDFFB /* IGraphicsNanoVG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IGraphicsNanoVG.h; sourceTree = "<group>"; };
 		4F03A55420A4621000EBDFFB /* IGraphicsNanoVG.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsNanoVG.cpp; sourceTree = "<group>"; };
@@ -703,13 +718,11 @@
 		4F2FB1492A0047420027AB66 /* convnet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = convnet.h; sourceTree = "<group>"; };
 		4F2FB14A2A0047420027AB66 /* lstm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lstm.h; sourceTree = "<group>"; };
 		4F2FB14B2A0047420027AB66 /* convnet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = convnet.cpp; sourceTree = "<group>"; };
-		4F2FB14C2A0047420027AB66 /* wavenet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wavenet.h; sourceTree = "<group>"; };
 		4F2FB14D2A0047420027AB66 /* lstm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = lstm.cpp; sourceTree = "<group>"; };
 		4F2FB14E2A0047420027AB66 /* util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = util.h; sourceTree = "<group>"; };
 		4F2FB14F2A0047420027AB66 /* dsp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dsp.h; sourceTree = "<group>"; };
 		4F2FB1502A0047420027AB66 /* activations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = activations.h; sourceTree = "<group>"; };
 		4F2FB1512A0047420027AB66 /* activations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = activations.cpp; sourceTree = "<group>"; };
-		4F2FB1522A0047420027AB66 /* wavenet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = wavenet.cpp; sourceTree = "<group>"; };
 		4F2FB1532A0047420027AB66 /* get_dsp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = get_dsp.cpp; sourceTree = "<group>"; };
 		4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = IPlugPluginBase.cpp; path = ../../iPlug2/IPlug/IPlugPluginBase.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		4F35DEAC207E5C5A00867D8F /* IPlugPluginBase.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugPluginBase.h; path = ../../iPlug2/IPlug/IPlugPluginBase.h; sourceTree = "<group>"; tabWidth = 2; };
@@ -1061,6 +1074,10 @@
 		52FBBED30D0CF143001C8B8A /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = config.h; path = ../config.h; sourceTree = "<group>"; tabWidth = 2; usesTabs = 0; };
 		545D631F2B6A90A7D22C850E /* ring_buffer.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ring_buffer.h; path = ring_buffer.h; sourceTree = "<group>"; };
 		5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = conv1d.cpp; path = conv1d.cpp; sourceTree = "<group>"; };
+		68E8C84DB7D7AD9CD84FC6DB /* registry.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = registry.h; path = registry.h; sourceTree = "<group>"; };
+		73C8EB5BB682575EC87A171A /* slimmable.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable.h; path = slimmable.h; sourceTree = "<group>"; };
+		75A94BC414EB3488384C040E /* params.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = params.h; path = params.h; sourceTree = "<group>"; };
+		82EEF83E257C83286184F1D1 /* container.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = container.h; path = container.h; sourceTree = "<group>"; };
 		AA341E1B2B9E5A530069C260 /* ToneStack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ToneStack.cpp; path = ../ToneStack.cpp; sourceTree = "<group>"; };
 		AA341E1C2B9E5A530069C260 /* ToneStack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ToneStack.h; path = ../ToneStack.h; sourceTree = "<group>"; };
 		AA355E2C295B688F0061AA3D /* Colors.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Colors.h; path = ../Colors.h; sourceTree = "<group>"; };
@@ -1070,9 +1087,16 @@
 		AA7C85F72B439AC000B5FB3A /* ptrlist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ptrlist.h; sourceTree = "<group>"; };
 		AA7C85F82B439AC000B5FB3A /* heapbuf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = heapbuf.h; sourceTree = "<group>"; };
 		AAB7BBB62CC4B8C6000B8B6E /* get_dsp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = get_dsp.h; sourceTree = "<group>"; };
+		AFE76D97D830827C94E3F89B /* gating_activations.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = gating_activations.h; path = gating_activations.h; sourceTree = "<group>"; };
 		B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = IPlugVST3_ProcessorBase.cpp; path = ../../iPlug2/IPlug/VST3/IPlugVST3_ProcessorBase.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		B8E22A0B220268C4007CBF4C /* IPlugVST3_ProcessorBase.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugVST3_ProcessorBase.h; path = ../../iPlug2/IPlug/VST3/IPlugVST3_ProcessorBase.h; sourceTree = "<group>"; tabWidth = 2; };
 		B8EA6B932203868500D23A86 /* IPlugVST3_Common.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugVST3_Common.h; path = ../../iPlug2/IPlug/VST3/IPlugVST3_Common.h; sourceTree = "<group>"; tabWidth = 2; };
+		BDEA3FCDC83CACBB81749A20 /* detail.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = detail.h; path = detail.h; sourceTree = "<group>"; };
+		C4D2D55C0D791E1D11CAF004 /* model.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = model.h; path = model.h; sourceTree = "<group>"; };
+		CE18B820ACF913A9FCCCB41A /* container.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = container.cpp; path = container.cpp; sourceTree = "<group>"; };
+		D51F6108D1F11EA18D718F21 /* film.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = film.h; path = film.h; sourceTree = "<group>"; };
+		DCB8A31262D866F790A5BCB4 /* slimmable.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = slimmable.cpp; path = slimmable.cpp; sourceTree = "<group>"; };
+		EA06A11CB62C27023A94D050 /* model.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = model.cpp; sourceTree = "<group>"; };
 		ED0E023704FBF8DEE3BEDEAE /* conv1d.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = conv1d.h; path = conv1d.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -1341,15 +1365,18 @@
 				4F2FB1462A0047420027AB66 /* util.cpp */,
 				4F2FB14E2A0047420027AB66 /* util.h */,
 				4F2FB1472A0047420027AB66 /* version.h */,
-				4F2FB1522A0047420027AB66 /* wavenet.cpp */,
-				4F2FB14C2A0047420027AB66 /* wavenet.h */,
 				5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */,
 				ED0E023704FBF8DEE3BEDEAE /* conv1d.h */,
 				30A33B491A4460DA418F92D7 /* ring_buffer.cpp */,
 				545D631F2B6A90A7D22C850E /* ring_buffer.h */,
-				30877432D1026706D7E805DA /* slimmable_wavenet.cpp */,
-				846A32C3BB81E3C29B621792 /* slimmable_wavenet.h */,
 				73C8EB5BB682575EC87A171A /* slimmable.h */,
+				6FEF5D7C938488C3E6D7A903 /* wavenet */,
+				CE18B820ACF913A9FCCCB41A /* container.cpp */,
+				82EEF83E257C83286184F1D1 /* container.h */,
+				D51F6108D1F11EA18D718F21 /* film.h */,
+				AFE76D97D830827C94E3F89B /* gating_activations.h */,
+				4DC943BC60FBDB7F67C44E16 /* model_config.h */,
+				68E8C84DB7D7AD9CD84FC6DB /* registry.h */,
 			);
 			name = NAM;
 			path = ../NeuralAmpModelerCore/NAM;
@@ -2018,6 +2045,20 @@
 			name = WDL;
 			sourceTree = "<group>";
 		};
+		6FEF5D7C938488C3E6D7A903 /* wavenet */ = {
+			isa = PBXGroup;
+			children = (
+				EA06A11CB62C27023A94D050 /* model.cpp */,
+				DCB8A31262D866F790A5BCB4 /* slimmable.cpp */,
+				C4D2D55C0D791E1D11CAF004 /* model.h */,
+				BDEA3FCDC83CACBB81749A20 /* detail.h */,
+				75A94BC414EB3488384C040E /* params.h */,
+				1700F2BA8027D3FFC8C94247 /* slimmable.h */,
+			);
+			name = wavenet;
+			path = wavenet;
+			sourceTree = "<group>";
+		};
 		AA7C85F12B439AC000B5FB3A /* ResamplingContainer */ = {
 			isa = PBXGroup;
 			children = (
@@ -2083,7 +2124,6 @@
 				4F4856862773C3B5005BCF8E /* IPlugAUAudioUnit.h in Headers */,
 				4F2FB15F2A0047420027AB66 /* NoiseGate.h in Headers */,
 				4F2FB17D2A0047430027AB66 /* dsp.h in Headers */,
-				4F2FB1A52A0047430027AB66 /* wavenet.h in Headers */,
 				4F78BE1222E73DD900AD537E /* NeuralAmpModelerAU.h in Headers */,
 				4F2FB1542A0047420027AB66 /* Resample.h in Headers */,
 				4F2FB15E2A0047420027AB66 /* wav.h in Headers */,
@@ -2100,8 +2140,16 @@
 				AA355E2E295B688F0061AA3D /* Colors.h in Headers */,
 				3DC9DD3ED68F5C43F35C744B /* conv1d.h in Headers */,
 				7C6D2B97873B69C0436FE296 /* ring_buffer.h in Headers */,
-				C826A6FCE48478DCB74F2134 /* slimmable_wavenet.h in Headers */,
 				5D2CCE8038A39D5E0853964B /* slimmable.h in Headers */,
+				DEE9CBC2EA76EBE183F296E2 /* model.h in Headers */,
+				7E21B6AA16D578B796810FF7 /* detail.h in Headers */,
+				F69D6B76820691042E53BA22 /* params.h in Headers */,
+				88ED085CFB10BCD0D1B72626 /* container.h in Headers */,
+				CFB2E0C8AD2E046484FEC9F0 /* film.h in Headers */,
+				315730AFC2046189865F82D1 /* gating_activations.h in Headers */,
+				A919E2A00F456BA32E05E62F /* model_config.h in Headers */,
+				388355D2916903C30FA0A86F /* registry.h in Headers */,
+				A2C999D35DB9EAF132DC20C9 /* slimmable.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2748,7 +2796,6 @@
 				4F6369DE20A464BB0022C370 /* IGraphicsNanoVG_src.m in Sources */,
 				4F7C4958255DDFC400DF7588 /* IControls.cpp in Sources */,
 				4F2FB1562A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
-				4F2FB1BC2A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F2FB1922A0047430027AB66 /* dsp.cpp in Sources */,
 				4F8D9707209EF5AC006E2A11 /* NeuralAmpModeler.cpp in Sources */,
 				4F7C495A255DDFC400DF7588 /* ITextEntryControl.cpp in Sources */,
@@ -2764,7 +2811,9 @@
 				4F2FB1882A0047430027AB66 /* util.cpp in Sources */,
 				3B364DAE39EBCEFBBD9A5DDA /* conv1d.cpp in Sources */,
 				9C7CBDF6837E82FED8EFEC78 /* ring_buffer.cpp in Sources */,
-				D09B68D5B3D855B2D54626AA /* slimmable_wavenet.cpp in Sources */,
+				25D7BB72A82B96C37E91C377 /* model.cpp in Sources */,
+				9125BB775A5D8C4AAE37A48E /* slimmable.cpp in Sources */,
+				FCED81D72082C58F0155DB30 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2774,7 +2823,6 @@
 			files = (
 				4F2FB1A22A0047430027AB66 /* convnet.cpp in Sources */,
 				4F2FB1842A0047430027AB66 /* wav.cpp in Sources */,
-				4F2FB1C12A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F2FB1662A0047430027AB66 /* dsp.cpp in Sources */,
 				4F2FB1AC2A0047430027AB66 /* lstm.cpp in Sources */,
 				4F2FB1B82A0047430027AB66 /* activations.cpp in Sources */,
@@ -2788,7 +2836,9 @@
 				4F2FB1972A0047430027AB66 /* dsp.cpp in Sources */,
 				69ED3E18BDCA9D8C41BC0A1F /* conv1d.cpp in Sources */,
 				356A0863DD4FDFE171C0561C /* ring_buffer.cpp in Sources */,
-				0EA0D005593D35C7A173F658 /* slimmable_wavenet.cpp in Sources */,
+				527DE867562E7A15CB3A1381 /* model.cpp in Sources */,
+				9C6CD989CD3B01F7A6BD7F5A /* slimmable.cpp in Sources */,
+				79F127EA3659862A3115DE1E /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2812,7 +2862,6 @@
 				4F2FB1582A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				4F2FB18A2A0047430027AB66 /* util.cpp in Sources */,
 				4F993F7423055C96000313AF /* IPlugProcessor.cpp in Sources */,
-				4F2FB1BE2A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F8C10E320BA2796006320CD /* IGraphicsEditorDelegate.cpp in Sources */,
 				4F6FD2B422675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
 				4FDAC0ED207D76C600299363 /* IPlugTimer.cpp in Sources */,
@@ -2831,7 +2880,9 @@
 				4F3862F22014BBEC0009F402 /* NeuralAmpModeler.cpp in Sources */,
 				DB1F84CAFA1621994F62D1B6 /* conv1d.cpp in Sources */,
 				65B075C85F6AEBE478A5341D /* ring_buffer.cpp in Sources */,
-				D4159047BA5CA011E2C50B63 /* slimmable_wavenet.cpp in Sources */,
+				A948DA64A07D2ABC36BF474B /* model.cpp in Sources */,
+				9A250C763937BBB210E95D5C /* slimmable.cpp in Sources */,
+				121CB341D802D15830113366 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2853,7 +2904,6 @@
 				4F7C496F255DDFCB00DF7588 /* ITextEntryControl.cpp in Sources */,
 				4F3EE1CF231438D000004786 /* swell-menu.mm in Sources */,
 				4F2FB1992A0047430027AB66 /* dsp.cpp in Sources */,
-				4F2FB1C32A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F3EE1D0231438D000004786 /* IGraphicsMac_view.mm in Sources */,
 				4F7C496E255DDFCB00DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1D1231438D000004786 /* swell-appstub.mm in Sources */,
@@ -2888,7 +2938,9 @@
 				4F3EE1E5231438D000004786 /* IPlugTimer.cpp in Sources */,
 				819448687946D1254A1FB006 /* conv1d.cpp in Sources */,
 				9D5F369B6CCFDD7EEADA5925 /* ring_buffer.cpp in Sources */,
-				F10FAD6B342F5A7655942040 /* slimmable_wavenet.cpp in Sources */,
+				2D607DF523B2091F3B4F6955 /* model.cpp in Sources */,
+				FC4DC0F81482911D2CBFB0EC /* slimmable.cpp in Sources */,
+				FF173D18AB1B46B857A598A3 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2920,7 +2972,6 @@
 				4F2FB1982A0047430027AB66 /* dsp.cpp in Sources */,
 				AA341E252B9E5A530069C260 /* ToneStack.cpp in Sources */,
 				4F78BE2522E7406D00AD537E /* IPlugPluginBase.cpp in Sources */,
-				4F2FB1C22A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F2FB1A32A0047430027AB66 /* convnet.cpp in Sources */,
 				4F78BE2622E7406D00AD537E /* IPlugAPIBase.cpp in Sources */,
 				4F2FB1AD2A0047430027AB66 /* lstm.cpp in Sources */,
@@ -2932,7 +2983,9 @@
 				4F2FB15C2A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				3F155063FF908D3E4528CCAD /* conv1d.cpp in Sources */,
 				18E64064D35938374CAA2F54 /* ring_buffer.cpp in Sources */,
-				F538C2ED5750BA5C557DDA32 /* slimmable_wavenet.cpp in Sources */,
+				F7E3C34D5B239FD501128770 /* model.cpp in Sources */,
+				EFAC0DA601E0FD8A11032189 /* slimmable.cpp in Sources */,
+				B6E072561D9D3F8CEBB3A442 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2955,7 +3008,6 @@
 				4F81597F205D50EB00393585 /* fdynlib.cpp in Sources */,
 				4F2FB1802A0047430027AB66 /* wav.cpp in Sources */,
 				4F2FB1622A0047430027AB66 /* dsp.cpp in Sources */,
-				4F2FB1BD2A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F815919205D50EB00393585 /* memorystream.cpp in Sources */,
 				4F9828C1140A9EB700F3FCC1 /* IPlugParameter.cpp in Sources */,
 				4F81591A205D50EB00393585 /* pluginview.cpp in Sources */,
@@ -3004,7 +3056,9 @@
 				4F2FB1742A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
 				EBE80BBCA41D61453D967C9B /* conv1d.cpp in Sources */,
 				8B6D71536E06BD645C000B57 /* ring_buffer.cpp in Sources */,
-				E6647A9418D1B324B18EBC9E /* slimmable_wavenet.cpp in Sources */,
+				3A26085BC4E3D0B1C376D8A4 /* model.cpp in Sources */,
+				41E801933CDBEE30CA4FEC67 /* slimmable.cpp in Sources */,
+				5091257AEDF545C00E8F3669 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3036,7 +3090,6 @@
 				4F2FB1952A0047430027AB66 /* dsp.cpp in Sources */,
 				AA341E212B9E5A530069C260 /* ToneStack.cpp in Sources */,
 				4FB600231567CB0A0020189A /* IPlugParameter.cpp in Sources */,
-				4F2FB1BF2A0047430027AB66 /* wavenet.cpp in Sources */,
 				4F2FB1A02A0047430027AB66 /* convnet.cpp in Sources */,
 				4FB600261567CB0A0020189A /* AAX_Exports.cpp in Sources */,
 				4F2FB1AA2A0047430027AB66 /* lstm.cpp in Sources */,
@@ -3048,7 +3101,9 @@
 				4F2FB1592A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				55B2E65A1EEC6D691E2E5538 /* conv1d.cpp in Sources */,
 				566068F315E5C35D4C64A375 /* ring_buffer.cpp in Sources */,
-				89FF18E07B402036CF58B69A /* slimmable_wavenet.cpp in Sources */,
+				DC11DA39C0B2D9233FFBA4B7 /* model.cpp in Sources */,
+				B7515DADE10095FADB375ACA /* slimmable.cpp in Sources */,
+				23F63FC25D3081D7849F4BF8 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3093,7 +3148,6 @@
 				4F7C4957255DDFC300DF7588 /* ITextEntryControl.cpp in Sources */,
 				4FD16D3E13B63595001D0217 /* swell-menu.mm in Sources */,
 				4F2FB1912A0047430027AB66 /* dsp.cpp in Sources */,
-				4F2FB1BB2A0047430027AB66 /* wavenet.cpp in Sources */,
 				4FB1F59120E4B011004157C8 /* IGraphicsMac_view.mm in Sources */,
 				4F7C4956255DDFC300DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F5C5F6B21BED08700E024A7 /* swell-appstub.mm in Sources */,
@@ -3128,7 +3182,9 @@
 				4FDAC0EA207D76C600299363 /* IPlugTimer.cpp in Sources */,
 				6705B0B3207731689A2DD34D /* conv1d.cpp in Sources */,
 				AE196794CD4C1DEED8A44AF9 /* ring_buffer.cpp in Sources */,
-				C29B1D652497AD60431ACA17 /* slimmable_wavenet.cpp in Sources */,
+				85E51F08B1F3A5AEF1BA2310 /* model.cpp in Sources */,
+				A10714F71C5FF79E64682E21 /* slimmable.cpp in Sources */,
+				2C569D8EE935FABE6DDBD306 /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3169,7 +3225,6 @@
 				4F2FB1772A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
 				4F2FB1652A0047430027AB66 /* dsp.cpp in Sources */,
 				4F2FB1AB2A0047430027AB66 /* lstm.cpp in Sources */,
-				4F2FB1C02A0047430027AB66 /* wavenet.cpp in Sources */,
 				4FFBB91F20863B0E00DDD0E7 /* vstparameters.cpp in Sources */,
 				4FFBB92120863B0E00DDD0E7 /* vstcomponentbase.cpp in Sources */,
 				4FFBB92220863B0E00DDD0E7 /* IPlugVST3_Processor.cpp in Sources */,
@@ -3189,7 +3244,9 @@
 				4FFBB93520863B0E00DDD0E7 /* vstnoteexpressiontypes.cpp in Sources */,
 				13D358AF0E029A17055AA8EC /* conv1d.cpp in Sources */,
 				97A34012AB1AB78C520DA261 /* ring_buffer.cpp in Sources */,
-				3F468B591236D04A5EDE0B0C /* slimmable_wavenet.cpp in Sources */,
+				B0F957279AA079B341F0A6CF /* model.cpp in Sources */,
+				7921BA45672B8829923CBFFE /* slimmable.cpp in Sources */,
+				C27EBF8669A5B61D137C8EAB /* container.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

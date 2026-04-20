@@ -19,6 +19,8 @@ Global
 		Release|x64 = Release|x64
 		Release-Clang-x64-v3|Win32 = Release-Clang-x64-v3|Win32
 		Release-Clang-x64-v3|x64 = Release-Clang-x64-v3|x64
+		Release-Compat|Win32 = Release-Compat|Win32
+		Release-Compat|x64 = Release-Compat|x64		
 		Tracer|Win32 = Tracer|Win32
 		Tracer|x64 = Tracer|x64
 	EndGlobalSection
@@ -35,6 +37,10 @@ Global
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Clang-x64-v3|Win32.Build.0 = Release-Clang-x64-v3|Win32
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Clang-x64-v3|x64.ActiveCfg = Release-Clang-x64-v3|x64
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Clang-x64-v3|x64.Build.0 = Release-Clang-x64-v3|x64
+		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Compat|Win32.ActiveCfg = Release-Compat|Win32
+		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Compat|Win32.Build.0 = Release-Compat|Win32
+		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Compat|x64.ActiveCfg = Release-Compat|x64
+		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Release-Compat|x64.Build.0 = Release-Compat|x64		
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Tracer|Win32.ActiveCfg = Tracer|Win32
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Tracer|Win32.Build.0 = Tracer|Win32
 		{41785AE4-5B70-4A75-880B-4B418B4E13C6}.Tracer|x64.ActiveCfg = Tracer|x64
@@ -51,6 +57,10 @@ Global
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|Win32.Build.0 = Release-Clang-x64-v3|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|x64.ActiveCfg = Release-Clang-x64-v3|x64
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Clang-x64-v3|x64.Build.0 = Release-Clang-x64-v3|x64
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Compat|Win32.ActiveCfg = Release-Compat|Win32
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Compat|Win32.Build.0 = Release-Compat|Win32
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Compat|x64.ActiveCfg = Release-Compat|x64
+		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Release-Compat|x64.Build.0 = Release-Compat|x64		
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Tracer|Win32.ActiveCfg = Tracer|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Tracer|Win32.Build.0 = Tracer|Win32
 		{079FC65A-F0E5-4E97-B318-A16D1D0B89DF}.Tracer|x64.ActiveCfg = Tracer|x64
@@ -64,6 +74,9 @@ Global
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Clang-x64-v3|Win32.ActiveCfg = Release|Win32
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Clang-x64-v3|Win32.Build.0 = Release|Win32
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Clang-x64-v3|x64.ActiveCfg = Release|x64
+		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Compat|Win32.ActiveCfg = Release|Win32
+		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Compat|Win32.Build.0 = Release|Win32
+		{DC4B5920-933D-4C82-B842-F34431D55A93}.Release-Compat|x64.ActiveCfg = Release|x64		
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|Win32.ActiveCfg = Tracer|Win32
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|Win32.Build.0 = Tracer|Win32
 		{DC4B5920-933D-4C82-B842-F34431D55A93}.Tracer|x64.ActiveCfg = Tracer|x64
@@ -80,6 +93,10 @@ Global
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|Win32.Build.0 = Release-Clang-x64-v3|Win32
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|x64.ActiveCfg = Release-Clang-x64-v3|x64
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Clang-x64-v3|x64.Build.0 = Release-Clang-x64-v3|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Compat|Win32.ActiveCfg = Release-Compat|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Compat|Win32.Build.0 = Release-Compat|Win32
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Compat|x64.ActiveCfg = Release-Compat|x64
+		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Release-Compat|x64.Build.0 = Release-Compat|x64		
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|Win32.ActiveCfg = Tracer|Win32
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|Win32.Build.0 = Tracer|Win32
 		{6C4FA6B9-01E2-4B77-9F01-3B8F4B18D5C1}.Tracer|x64.ActiveCfg = Tracer|x64

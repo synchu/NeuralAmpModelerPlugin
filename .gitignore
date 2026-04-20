@@ -14,3 +14,4 @@ mkcert*
 NeuralAmpModeler/*.wav
 NeuralAmpModeler/peaks/
 /NeuralAmpModeler/complex_marshall_model_test.nam
+/NeuralAmpModeler/test.pnam

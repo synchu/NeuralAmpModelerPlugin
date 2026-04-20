@@ -34,6 +34,14 @@
       <Configuration>Tracer</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Compat|Win32">
+      <Configuration>Release-Compat</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Compat|x64">
+      <Configuration>Release-Compat</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{41785AE4-5B70-4A75-880B-4B418B4E13C6}</ProjectGuid>
@@ -75,6 +83,20 @@
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>ClangCL</PlatformToolset>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -99,6 +121,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(SolutionDir)config\NamCompilerOptimizations.props" Condition="Exists('$(SolutionDir)config\NamCompilerOptimizations.props')" />
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
@@ -120,6 +145,14 @@
     <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
   </ImportGroup>
@@ -171,6 +204,19 @@
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">
+    <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
+    <OutDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">
+    <OutDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
+    <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">
     <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
@@ -285,6 +331,48 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>$(APP_DEFS);$(RELEASE_DEFS);$(EXTRA_RELEASE_DEFS);OS_WIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(APP_INC_PATHS);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>$(APP_LIBS);%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>SA_API</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>$(APP_DEFS);$(RELEASE_DEFS);$(EXTRA_RELEASE_DEFS);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(APP_INC_PATHS);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>$(APP_LIBS);%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>SA_API</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
@@ -420,21 +508,30 @@
     <ClInclude Include="..\AudioDSPTools\dsp\version.h" />
     <ClInclude Include="..\AudioDSPTools\dsp\wav.h" />
     <ClInclude Include="..\Colors.h" />
+    <ClInclude Include="..\NAMModelMapper.h" />
+    <ClInclude Include="..\NAMPNAMEditorWindow.h" />
     <ClInclude Include="..\NeuralAmpModeler.h" />
     <ClInclude Include="..\NeuralAmpModelerControls.h" />
     <ClInclude Include="..\NAMLibraryBrowserWindow.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\activations.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\container.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\conv1d.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\convnet.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAM\ring_buffer.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\dsp.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\film.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\gating_activations.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\lstm.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\model_config.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\registry.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\ring_buffer.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\slimmable.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAM\slimmable_wavenet.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\util.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\version.h" />
-    <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet\detail.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet\model.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet\params.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\wavenet\slimmable.h" />
     <ClInclude Include="..\resources\resource.h" />
     <ClInclude Include="..\ToneStack.h" />
     <ClInclude Include="..\NAMLibraryTreeNode.h" />
@@ -461,6 +558,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\iPlug2\IGraphics\Drawing\IGraphicsSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -471,6 +570,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\iPlug2\IGraphics\IControl.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphics.cpp" />
@@ -491,13 +592,15 @@
     <ClCompile Include="..\AudioDSPTools\dsp\NoiseGate.cpp" />
     <ClCompile Include="..\AudioDSPTools\dsp\RecursiveLinearFilter.cpp" />
     <ClCompile Include="..\AudioDSPTools\dsp\wav.cpp" />
+    <ClCompile Include="..\NAMModelMapper.cpp" />
+    <ClCompile Include="..\NAMPNAMEditorWindow.cpp" />
     <ClCompile Include="..\NeuralAmpModeler.cpp" />
     <ClCompile Include="..\NAMLibraryBrowserWindow.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\container.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\ring_buffer.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\slimmable_wavenet.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\dsp.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -507,11 +610,14 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\get_dsp.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\lstm.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\util.cpp" />
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\wavenet.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\wavenet\model.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\wavenet\slimmable.cpp" />
     <ClCompile Include="..\ToneStack.cpp" />
     <ClCompile Include="..\NAMLibraryManager.cpp" />
     <ClCompile Include="..\NAMLibraryTreeView.cpp" />
@@ -531,6 +637,7 @@
     </None>
     <None Include="..\config\NeuralAmpModeler-mac.xcconfig" />
     <None Include="..\NAMLibraryBrowserWindow.mm" />
+    <None Include="..\NAMPNAMEditorWindow.mm" />
     <None Include="NamModelHarness.vcxproj" />
     <None Include="NamModelHarness.vcxproj.filters" />
   </ItemGroup>

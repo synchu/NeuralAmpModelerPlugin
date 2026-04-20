@@ -113,6 +113,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kCalibrateInput)->InitBool(kCalibrateInputParamName.c_str(), kDefaultCalibrateInput);
   GetParam(kInputCalibrationLevel)
     ->InitDouble(kInputCalibrationLevelParamName.c_str(), kDefaultInputCalibrationLevel, -60.0, 60.0, 0.1, "dBu");
+  GetParam(kAmpGain)->InitDouble("Voice", 5.0, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
 
   mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 
@@ -161,24 +162,28 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto titleHeight = 50.0f;
     const auto titleArea = contentArea.GetFromTop(titleHeight);
 
-    // Areas for knobs
+    // Areas for knobs — 7-column grid, slightly taller row to avoid crowding
     const auto knobsPad = 20.0f;
     const auto knobsExtraSpaceBelowTitle = 25.0f;
-    const auto singleKnobPad = -2.0f;
-    const auto knobsArea = contentArea.GetFromTop(NAM_KNOB_HEIGHT)
+    const auto singleKnobPad = 2.0f;   // ~8% smaller than before (was -2.0f → GetPadded(2.0f))
+    const auto knobsArea = contentArea.GetFromTop(NAM_KNOB_HEIGHT)  // slightly taller row
                              .GetReducedFromLeft(knobsPad)
                              .GetReducedFromRight(knobsPad)
                              .GetVShifted(titleHeight + knobsExtraSpaceBelowTitle);
-    const auto inputKnobArea = knobsArea.GetGridCell(0, kInputLevel, 1, numKnobs).GetPadded(-singleKnobPad);
-    const auto noiseGateArea = knobsArea.GetGridCell(0, kNoiseGateThreshold, 1, numKnobs).GetPadded(-singleKnobPad);
-    const auto bassKnobArea = knobsArea.GetGridCell(0, kToneBass, 1, numKnobs).GetPadded(-singleKnobPad);
-    const auto midKnobArea = knobsArea.GetGridCell(0, kToneMid, 1, numKnobs).GetPadded(-singleKnobPad);
-    const auto trebleKnobArea = knobsArea.GetGridCell(0, kToneTreble, 1, numKnobs).GetPadded(-singleKnobPad);
-    const auto outputKnobArea = knobsArea.GetGridCell(0, kOutputLevel, 1, numKnobs).GetPadded(-singleKnobPad);
+
+    const int kKnobCols = 7;
+    const auto inputKnobArea   = knobsArea.GetGridCell(0, 0, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto noiseGateArea   = knobsArea.GetGridCell(0, 1, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto bassKnobArea    = knobsArea.GetGridCell(0, 2, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto midKnobArea     = knobsArea.GetGridCell(0, 3, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto trebleKnobArea  = knobsArea.GetGridCell(0, 4, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto outputKnobArea  = knobsArea.GetGridCell(0, 5, 1, kKnobCols).GetPadded(singleKnobPad);
+    const auto ampGainKnobArea = knobsArea.GetGridCell(0, 6, 1, kKnobCols).GetPadded(singleKnobPad);
 
     const auto ngToggleArea =
       noiseGateArea.GetVShifted(noiseGateArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
-    const auto eqToggleArea = midKnobArea.GetVShifted(midKnobArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
+    const auto eqToggleArea =
+      midKnobArea.GetVShifted(midKnobArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
     const auto outNormToggleArea =
       outputKnobArea.GetVShifted(midKnobArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
 
@@ -189,6 +194,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto modelArea =
       contentArea.GetFromBottom((2.0f * fileHeight)).GetFromTop(fileHeight).GetMidHPadded(fileWidth).GetVShifted(-1);
     const auto modelIconArea = modelArea.GetFromLeft(30).GetTranslated(-40, 10);
+    const auto pnamEditIconArea = IRECT(contentArea.R - 22.f, modelArea.T + 4.f,
+                                        contentArea.R,         modelArea.B - 4.f);
     const auto irArea = modelArea.GetVShifted(irYOffset);
     const auto irSwitchArea = irArea.GetFromLeft(30.0f).GetHShifted(-40.0f).GetScaledAboutCentre(0.6f);
 
@@ -203,14 +210,22 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     auto loadModelCompletionHandler = [&](const WDL_String& fileName, const WDL_String& path) {
       if (fileName.GetLength())
       {
-        const std::string msg = _StageModel(fileName);
-        if (msg.size())
+        std::filesystem::path fp = std::filesystem::u8path(fileName.Get());
+        if (fp.extension() == ".pnam")
         {
-          std::stringstream ss;
-          ss << "Failed to load NAM model. Message:\n\n" << msg;
-          _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+          _LoadPNAMFile(fileName.Get());
         }
-        std::cout << "Loaded: " << fileName.Get() << std::endl;
+        else
+        {
+          const std::string msg = _StageModel(fileName);
+          if (msg.size())
+          {
+            std::stringstream ss;
+            ss << "Failed to load NAM model. Message:\n\n" << msg;
+            _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load model!", kMB_OK);
+          }
+          std::cout << "Loaded: " << fileName.Get() << std::endl;
+        }
       }
     };
 
@@ -235,6 +250,16 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachControl(new WithFileDrop<IVLabelControl>(titleArea, "NEURAL AMP MODELER", titleStyle));
     pGraphics->AttachControl(new WithFileDrop<ISVGControl>(modelIconArea, modelIconSVG));
 
+    // PNAM chain editor icon — right side, symmetric to model icon
+    pGraphics->AttachControl(new NAMTextCircleButtonControl(
+      pnamEditIconArea,
+      [pGraphics](IControl* pCaller) {
+        auto* pPlugin = dynamic_cast<NeuralAmpModeler*>(pCaller->GetDelegate());
+        if (pPlugin) pPlugin->OpenPNAMEditorWindow();
+      }),
+      kCtrlTagPNAMEditorBtn);
+    pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn)->SetDisabled(true);
+
 #ifdef NAM_PICK_DIRECTORY
     const std::string defaultNamFileString = "Select model directory...";
     const std::string defaultIRString = "Select IR directory...";
@@ -243,8 +268,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const std::string defaultIRString = "Select IR...";
 #endif
     pGraphics->AttachControl(new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(),
-                                                       "nam", loadModelCompletionHandler, style, fileSVG, crossSVG,
-                                                       leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),  // CHANGED to libraryIconSVG
+                                                       "nam pnam", loadModelCompletionHandler, style, fileSVG, crossSVG,
+                                                       leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),
                              kCtrlTagModelFileBrowser);
     pGraphics->AttachControl(new WithFileDrop<ISVGSwitchControl>(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
     pGraphics->AttachControl(
@@ -265,6 +290,11 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachControl(
       new NAMKnobControl(trebleKnobArea, kToneTreble, "", style, knobBackgroundBitmap), -1, "EQ_KNOBS");
     pGraphics->AttachControl(new NAMKnobControl(outputKnobArea, kOutputLevel, "", style, knobBackgroundBitmap));
+
+    // Amp Gain knob — always visible, disabled until .pnam is loaded
+    pGraphics->AttachControl(
+      new NAMKnobControl(ampGainKnobArea, kAmpGain, "", style, knobBackgroundBitmap), kCtrlTagAmpGain);
+    pGraphics->GetControlWithTag(kCtrlTagAmpGain)->SetDisabled(true);
 
     // The meters
     pGraphics->AttachControl(new NAMMeterControl(inputMeterArea, meterBackgroundBitmap, style), kCtrlTagInputMeter);
@@ -365,6 +395,13 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
     if (!node || !node->IsModel())
       return;
 
+    // Route .pnam files through the chain loader
+    if (node->path.size() > 5 && node->path.substr(node->path.size() - 5) == ".pnam")
+    {
+      _LoadPNAMFile(node->path);
+      return;
+    }
+
     WDL_String modelPath(node->path.c_str());
 
     const std::string msg = _StageModel(modelPath);
@@ -383,6 +420,63 @@ void NeuralAmpModeler::OpenLibraryBrowserWindow()
 
   void* pParentWindow = GetUI() ? GetUI()->GetWindow() : nullptr;
   mLibraryBrowserWindow->Open(pParentWindow);
+}
+
+void NeuralAmpModeler::OpenPNAMEditorWindow()
+{
+  if (mPNAMEditorWindow && mPNAMEditorWindow->IsOpen())
+  {
+    mPNAMEditorWindow->BringToFront();
+    return;
+  }
+
+  mPNAMEditorWindow = std::make_unique<NAMPNAMEditorWindow>();
+
+  // Pre-load the currently active .pnam file if one is loaded
+  if (mPNAMPath.GetLength())
+    mPNAMEditorWindow->LoadFile(mPNAMPath.Get());
+
+  mPNAMEditorWindow->SetOnSaved([this](const std::string& savedPath) {
+    _LoadPNAMFile(savedPath);
+  });
+
+  // Preview a single slot: load just that NAM and apply its overrides to the knobs
+  mPNAMEditorWindow->SetOnPreviewSlot([this](const ModelMapSlot& slot) {
+    WDL_String namPath(slot.namFilePath.c_str());
+    _StageModel(namPath);
+
+    // Apply optional overrides to plugin parameters so the knobs reflect them
+    if (slot.overrides.outputLevel.has_value())
+      SetParameterValue(kOutputLevel, *slot.overrides.outputLevel);
+    if (slot.overrides.toneBass.has_value())
+      SetParameterValue(kToneBass, *slot.overrides.toneBass);
+    if (slot.overrides.toneMid.has_value())
+      SetParameterValue(kToneMid, *slot.overrides.toneMid);
+    if (slot.overrides.toneTreble.has_value())
+      SetParameterValue(kToneTreble, *slot.overrides.toneTreble);
+
+    // Deactivate the chain mapper so the single model is heard directly
+    mModelMapper.SetActive(false);
+    // Clear boundary ticks since no pnam chain is active
+    if (auto* pGraphics = GetUI())
+      if (auto* pKnob = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+        static_cast<NAMKnobControl*>(pKnob)->SetPNAMBoundaries({});
+    SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->Value(), true);
+    SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->Value(),    true);
+    SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->Value(),     true);
+    SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->Value(),  true);
+   
+  });
+
+  // Preview whole chain: reload from the saved file
+  mPNAMEditorWindow->SetOnPreviewChain([this](const std::string& filePath) {
+    _LoadPNAMFile(filePath);
+  });
+
+  mPNAMEditorWindow->mOnWindowClosed = [this]() {};
+
+  void* pParent = GetUI() ? GetUI()->GetWindow() : nullptr;
+  mPNAMEditorWindow->Open(pParent);
 }
 
 void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames)
@@ -448,6 +542,41 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
   mHighPass.SetParams(highPassParams);
   sample** hpfPointers = mHighPass.Process(irPointers, numChannelsInternal, numFrames);
 
+  // Smooth fade for mapper model switches — applied per-sample to avoid pop
+  if (mOutputFadeDir != 0 || mOutputFadeGain < 1.0f)
+  {
+    const float step = 1.0f / static_cast<float>(kModelFadeSamples);
+    for (size_t s = 0; s < numFrames; s++)
+    {
+      if (mOutputFadeDir == -1)
+      {
+        mOutputFadeGain = std::max(0.0f, mOutputFadeGain - step);
+        if (mOutputFadeGain <= 0.0f && mMapperPendingModel)
+        {
+          // Silent point — swap model here
+          mModel = std::move(mMapperPendingModel);
+          mMapperPendingModel = nullptr;
+          mNewModelLoadedInDSP = true;
+          _UpdateLatency();
+          // Defer gain recalc to next block boundary — calling _SetOutputGain here
+          // changes mOutputGain mid-block and _ProcessOutput retroactively applies
+          // the new gain to pre-swap samples, causing a pop.
+          mPendingGainRecalc = true;
+          mOutputFadeDir = 1;  // start fade in
+        }
+      }
+      else if (mOutputFadeDir == 1)
+      {
+        mOutputFadeGain = std::min(1.0f, mOutputFadeGain + step);
+        if (mOutputFadeGain >= 1.0f)
+          mOutputFadeDir = 0;
+      }
+
+      for (size_t c = 0, nc = numChannelsInternal; c < nc; c++)
+        hpfPointers[c][s] *= mOutputFadeGain;
+    }
+  }
+
   // restore previous floating point state
   std::feupdateenv(&fe_state);
 
@@ -495,7 +624,70 @@ void NeuralAmpModeler::OnIdle()
       mModelCleared = false;
     }
   }
-}
+
+  // Activate the model mapper once background preloading has finished.
+  if (mPNAMLoadPending.load())
+  {
+    mPNAMLoadPending.store(false);
+
+    mModelMapper.SetActive(true);
+
+    // Show Amp Gain knob (Input knob stays visible)
+    if (auto* pGraphics = GetUI())
+    {
+      if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+        pCtrl->SetDisabled(false);
+      if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
+        pCtrl->SetDisabled(false);
+
+      // Push slot-boundary tick positions to the Amp Gain knob
+      const auto& slots = mModelMapper.GetSlots();
+      std::vector<float> boundaries;
+      boundaries.reserve(slots.size() * 2);
+      for (const auto& slot : slots)
+      {
+        // Collect interior boundaries only (skip 0.0 and 10.0 endpoints)
+        if (slot.ampGainMin > 0.0)
+          boundaries.push_back(static_cast<float>(slot.ampGainMin / 10.0));
+        if (slot.ampGainMax < 10.0)
+          boundaries.push_back(static_cast<float>(slot.ampGainMax / 10.0));
+      }
+      // Deduplicate (adjacent slots share a boundary value)
+      std::sort(boundaries.begin(), boundaries.end());
+      boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
+
+      if (auto* pKnob = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+        static_cast<NAMKnobControl*>(pKnob)->SetPNAMBoundaries(std::move(boundaries));
+    }
+
+    WDL_String displayStr(mPNAMPendingDisplayName.c_str());
+    SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel,
+                               displayStr.GetLength(), displayStr.Get());
+
+    // Use Amp Gain param for initial slot selection
+    const double ampGain = GetParam(kAmpGain)->Value();
+    auto initialModel = mModelMapper.EvaluateInputGain(ampGain);
+    if (initialModel)
+    {
+      mStagedModel = initialModel;
+
+      auto overrides = mModelMapper.GetActiveOverrides();
+      if (overrides.has_value())
+      {
+        if (overrides->outputLevel.has_value()) GetParam(kOutputLevel)->Set(*overrides->outputLevel);
+        if (overrides->toneBass.has_value())    GetParam(kToneBass)->Set(*overrides->toneBass);
+        if (overrides->toneMid.has_value())     GetParam(kToneMid)->Set(*overrides->toneMid);
+        if (overrides->toneTreble.has_value())  GetParam(kToneTreble)->Set(*overrides->toneTreble);
+
+        SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), false);
+        SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->GetNormalized(),    false);
+        SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->GetNormalized(),     false);
+        SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->GetNormalized(),  false);
+        _SetOutputGain();
+      }
+    }
+  }  
+}    
 
 bool NeuralAmpModeler::InitializeLibraryManager()
 {
@@ -659,12 +851,22 @@ void NeuralAmpModeler::_AllocateIOPointers(const size_t nChans)
 
 void NeuralAmpModeler::_ApplyDSPStaging()
 {
+  // Deferred gain recalc from a mid-block mapper model swap (previous block)
+  if (mPendingGainRecalc)
+  {
+    _SetInputGain();
+    _SetOutputGain();
+    mPendingGainRecalc = false;
+  }
+
   // Remove marked modules
   if (mShouldRemoveModel)
   {
     mModel = nullptr;
     mNAMPath.Set("");
-    mShouldRemoveModel = false;
+    mPNAMPath.Set("");   // ← add this
+    mModelMapper.SetActive(false);
+    mModelMapper.ClearSlots();
     mModelCleared = true;
     _UpdateLatency();
     _SetInputGain();
@@ -799,6 +1001,23 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
   WDL_String previousNAMPath = mNAMPath;
   try
   {
+    // Deactivate any active chain — bare .nam load takes over
+    if (mModelMapper.IsActive())
+    {
+      mModelMapper.SetActive(false);
+      mModelMapper.ClearSlots();
+      mPNAMPath.Set("");
+
+      // Simply hide the Amp Gain knob
+      if (auto* pGraphics = GetUI())
+      {
+        if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+          pCtrl->SetDisabled(true);
+        if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
+          pCtrl->SetDisabled(true);
+      }
+    }
+
     auto dspPath = std::filesystem::u8path(modelPath.Get());
     std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
     std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), GetSampleRate());
@@ -810,11 +1029,8 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
   catch (std::runtime_error& e)
   {
     SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadFailed);
-
     if (mStagedModel != nullptr)
-    {
       mStagedModel = nullptr;
-    }
     mNAMPath = previousNAMPath;
     std::cerr << "Failed to read DSP module" << std::endl;
     std::cerr << e.what() << std::endl;
@@ -1026,7 +1242,9 @@ bool NeuralAmpModeler::SerializeState(IByteChunk& chunk) const
   chunk.PutStr(version.Get());
   chunk.PutStr(mNAMPath.Get());
   chunk.PutStr(mIRPath.Get());
-  return SerializeParams(chunk);
+  bool ok = SerializeParams(chunk); // all param doubles first
+  chunk.PutStr(mPNAMPath.Get()); // pnam path appended after params
+  return ok;
 }
 
 int NeuralAmpModeler::UnserializeState(const IByteChunk& chunk, int startPos)
@@ -1066,9 +1284,24 @@ void NeuralAmpModeler::OnUIOpen()
       SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadFailed);
   }
 
+    // Restore .pnam chain if one was serialized
+  if (mPNAMPath.GetLength() && !mModelMapper.IsActive() && !mModelMapper.IsPreloading())
+  {
+    _LoadPNAMFile(mPNAMPath.Get());
+  }
+
   if (mModel != nullptr)
   {
     _UpdateControlsFromModel();
+  }
+
+  // Restore Amp Gain knob visibility based on mapper state
+  if (auto* pGraphics = GetUI())
+  {
+    if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+      pCtrl->SetDisabled(!mModelMapper.IsActive());
+    if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
+      pCtrl->SetDisabled(!mModelMapper.IsActive());
   }
 }
 
@@ -1078,12 +1311,43 @@ void NeuralAmpModeler::OnParamChange(int paramIdx)
   {
     case kCalibrateInput:
     case kInputCalibrationLevel:
-    case kInputLevel: _SetInputGain(); break;
     case kOutputLevel:
     case kOutputMode: _SetOutputGain(); break;
     case kToneBass: mToneStack->SetParam("bass", GetParam(paramIdx)->Value()); break;
     case kToneMid: mToneStack->SetParam("middle", GetParam(paramIdx)->Value()); break;
     case kToneTreble: mToneStack->SetParam("treble", GetParam(paramIdx)->Value()); break;
+    case kInputLevel: _SetInputGain(); break;
+    case kAmpGain:
+    {
+      if (mModelMapper.IsActive())
+      {
+        const double ampGain = GetParam(kAmpGain)->Value();
+        auto newModel = mModelMapper.EvaluateInputGain(ampGain);
+        if (newModel)
+        {
+          // Don't stage directly — fade out first to avoid pop
+          mMapperPendingModel = newModel;
+          mOutputFadeDir = -1;
+
+          // Stage overrides immediately (gain/tone params don't pop)
+          auto overrides = mModelMapper.GetActiveOverrides();
+          if (overrides.has_value())
+          {
+            if (overrides->outputLevel.has_value()) GetParam(kOutputLevel)->Set(*overrides->outputLevel);
+            if (overrides->toneBass.has_value())    GetParam(kToneBass)->Set(*overrides->toneBass);
+            if (overrides->toneMid.has_value())     GetParam(kToneMid)->Set(*overrides->toneMid);
+            if (overrides->toneTreble.has_value())  GetParam(kToneTreble)->Set(*overrides->toneTreble);
+
+            SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), false);
+            SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->GetNormalized(),    false);
+            SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->GetNormalized(),     false);
+            SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->GetNormalized(),  false);
+            _SetOutputGain();
+          }
+        }
+      }
+      break;
+    }
     default: break;
   }
 }
@@ -1155,6 +1419,11 @@ void NeuralAmpModeler::HandleFileDrop(const char* str)
   WDL_String ss;
   ss.Append(str);
 
+  if (filename.extension() == ".pnam")
+  {
+    _LoadPNAMFile(str);
+    return;
+  }
   if (filename.extension() == ".nam")
   {
     _StageModel(ss);
@@ -1164,3 +1433,74 @@ void NeuralAmpModeler::HandleFileDrop(const char* str)
     _StageIR(ss);
   }
 }
+
+void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
+{
+  // If a preload is already running, ignore.
+  if (mModelMapper.IsPreloading())
+    return;
+
+  // Build a resolver that shows a message box for each missing .nam file.
+  // Runs on the UI thread so ShowMessageBox is safe.
+  auto resolver = [this](const std::string& missingPath, int slotIndex) -> std::optional<std::string>
+  {
+    std::stringstream ss;
+    ss << "Model file for slot " << (slotIndex + 1) << " was not found:\n\n"
+       << missingPath << "\n\n"
+       << "Skip this slot and continue loading?";
+    const auto result = _ShowMessageBox(GetUI(), ss.str().c_str(), "Model File Missing", kMB_YESNO);
+    if (result == kYES)
+      return std::string{}; // skip slot
+    return std::nullopt;    // abort
+  };
+
+  mModelMapper.ClearSlots();
+
+  // Synchronous phase: parse JSON and resolve missing files (may show dialogs).
+  // Pass preload=false so heavy model loading happens off the UI thread below.
+  PNAMLoadResult parseResult = mModelMapper.LoadFromFile(pnamPath, GetSampleRate(), GetBlockSize(), resolver, false);
+
+  if (!parseResult.success)
+  {
+    std::stringstream ss;
+    ss << "Failed to load .pnam file:\n\n" << parseResult.errorMessage;
+    _ShowMessageBox(GetUI(), ss.str().c_str(), "Failed to load chain", kMB_OK);
+    return;
+  }
+
+  // Warn about skipped files now (still on UI thread, before async).
+  if (!parseResult.skippedFiles.empty())
+  {
+    std::stringstream ss;
+    ss << parseResult.skippedFiles.size() << " slot(s) were skipped due to missing files.\n"
+       << "The remaining slots will be loaded in the background.";
+    _ShowMessageBox(GetUI(), ss.str().c_str(), "Chain Loaded with Warnings", kMB_OK);
+  }
+
+  // Store path and prepare display name for OnIdle to use after load completes.
+  mPNAMPath = WDL_String(pnamPath.c_str());
+  std::filesystem::path p(pnamPath);
+  mPNAMPendingDisplayName = "[Chain] " + p.stem().string();
+
+  // Show a "loading" label immediately so the UI gives feedback.
+  const std::string loadingLabel = mPNAMPendingDisplayName + " (loading...)";
+  WDL_String loadingStr(loadingLabel.c_str());
+  SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel,
+                             loadingStr.GetLength(), loadingStr.Get());
+
+  // Asynchronous phase: load NAM files on a background thread.
+  // OnIdle will pick up mPNAMLoadPending and activate the mapper.
+  mModelMapper.PreloadAllAsync(GetSampleRate(), GetBlockSize(), [this](int loadedSlots) {
+    mPNAMLoadedSlots.store(loadedSlots);
+    mPNAMLoadPending.store(true); // signal OnIdle — written last as the memory barrier
+  });
+}
+
+
+
+
+
+
+
+
+
