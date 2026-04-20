@@ -213,8 +213,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   win.releasedWhenClosed = NO;
   if (@available(macOS 10.14, *))
     win.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
-  [win setLevel:NSFloatingWindowLevel];
-  [win setHidesOnDeactivate:NO];
+  // Do NOT set NSFloatingWindowLevel — it hides close button and keeps window on top of all apps
   [win setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace];
 
   self = [super initWithWindow:win];
@@ -1172,7 +1171,11 @@ void NAMPNAMEditorWindow::Open(void* pParentWindow)
                                      currentFilePath:&mCurrentFilePath
                                                dirty:&mDirty
                                             fontSize:mFontSize
-                                        fontSizePtr:&mFontSize];   // ← add this
+                                        fontSizePtr:&mFontSize];
+
+    NSWindow* parentWin = nil;
+    if (pParentWindow)
+      parentWin = ((__bridge NSView*)pParentWindow).window;
 
     // Restore saved window position
     if (mHasSavedBounds)
@@ -1186,32 +1189,39 @@ void NAMPNAMEditorWindow::Open(void* pParentWindow)
       if (onScreen)
         [ctrl.window setFrame:frame display:NO];
     }
-    else if (pParentWindow)
+    else if (parentWin)
     {
-      if (NSWindow* parentWin = ((__bridge NSView*)pParentWindow).window)
-      {
-        NSRect pf = parentWin.frame;
-        [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
-                                         pf.origin.y, mWindowW, mWindowH)
-                      display:NO];
-      }
+      NSRect pf = parentWin.frame;
+      [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
+                                       pf.origin.y, mWindowW, mWindowH)
+                    display:NO];
     }
 
     ctrl.onWindowClosed = [this]() {
-      // Save bounds before closing
-      NSRect frame = ((__bridge NAMPNAMEditorController*)mpWindowController).window.frame;
-      NSScreen* scr = [NSScreen mainScreen];
-      mWindowX = (int)frame.origin.x;
-      mWindowY = (int)(NSMaxY(scr.frame) - NSMaxY(frame));
-      mWindowW = (int)frame.size.width;
-      mWindowH = (int)frame.size.height;
-      mHasSavedBounds = true;
+      if (mpWindowController)
+      {
+        NAMPNAMEditorController* c = (__bridge NAMPNAMEditorController*)mpWindowController;
+        // Detach from parent before close cleans up
+        if (c.window.parentWindow)
+          [c.window.parentWindow removeChildWindow:c.window];
+      }
+      // Save bounds
+      if (mpWindowController)
+      {
+        NSRect frame = ((__bridge NAMPNAMEditorController*)mpWindowController).window.frame;
+        NSScreen* scr = [NSScreen mainScreen];
+        mWindowX = (int)frame.origin.x;
+        mWindowY = (int)(NSMaxY(scr.frame) - NSMaxY(frame));
+        mWindowW = (int)frame.size.width;
+        mWindowH = (int)frame.size.height;
+        mHasSavedBounds = true;
+      }
       SaveSettings();
       mIsOpen = false;
       if (mOnWindowClosed) mOnWindowClosed();
     };
-    ctrl.onSaved       = mOnSaved;
-    ctrl.onPreviewSlot = mOnPreviewSlot;
+    ctrl.onSaved        = mOnSaved;
+    ctrl.onPreviewSlot  = mOnPreviewSlot;
     ctrl.onPreviewChain = mOnPreviewChain;
 
     if (!mSlots.empty())
@@ -1223,6 +1233,12 @@ void NAMPNAMEditorWindow::Open(void* pParentWindow)
 
     mpWindowController = (__bridge_retained void*)ctrl;
     [ctrl showWindow:nil];
+
+    // Attach as child so it follows the parent window in z-order
+    // (moves behind/in-front of parent together, hides when parent miniaturises)
+    if (parentWin)
+      [parentWin addChildWindow:ctrl.window ordered:NSWindowAbove];
+
     mIsOpen = true;
   }
 }
@@ -1237,6 +1253,8 @@ void NAMPNAMEditorWindow::Close()
     {
       NAMPNAMEditorController* ctrl = (__bridge_transfer NAMPNAMEditorController*)mpWindowController;
       mpWindowController = nullptr;
+      if (ctrl.window.parentWindow)
+        [ctrl.window.parentWindow removeChildWindow:ctrl.window];
       [ctrl close];
     }
   }
