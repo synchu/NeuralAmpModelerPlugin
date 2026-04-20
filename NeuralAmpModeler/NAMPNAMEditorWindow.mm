@@ -59,7 +59,7 @@ namespace
 //  Forward declaration
 // ============================================================
 @class NAMPNAMEditorController;
-static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots);
+//static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots);
 
 // ============================================================
 //  Helper: styled controls
