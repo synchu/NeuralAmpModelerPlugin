@@ -4,6 +4,15 @@
 #include "NeuralAmpModeler.h" // ResamplingNAM
 #include "json.hpp"
 
+#include <cstdio>
+#if defined(_WIN32)
+#  include <Windows.h>
+#  define NAM_MAPPER_LOG(fmt, ...) \
+     do { char _d[512]; snprintf(_d, sizeof(_d), fmt, ##__VA_ARGS__); OutputDebugStringA(_d); } while (0)
+#else
+#  define NAM_MAPPER_LOG(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+#endif
+
 using json = nlohmann::json;
 
 // ---------------------------------------------------------------------------
@@ -155,23 +164,17 @@ int NAMModelMapper::PreloadAll(double sampleRate, int blockSize)
         resampling = std::make_shared<ResamplingNAM>(std::move(rawModel), sampleRate);
         resampling->Reset(sampleRate, blockSize);
 
-        char dbg[512];
-        snprintf(dbg, sizeof(dbg), "[ModelMapper] Preloaded slot %d: %s\n", item.index, item.namFilePath.c_str());
-        OutputDebugStringA(dbg);
+        NAM_MAPPER_LOG("[ModelMapper] Preloaded slot %d: %s\n", item.index, item.namFilePath.c_str());
         loaded.fetch_add(1);
       }
       catch (const std::exception& e)
       {
-        char dbg[512];
-        snprintf(dbg, sizeof(dbg), "[ModelMapper] FAILED slot %d (%s): %s\n", item.index, item.namFilePath.c_str(), e.what());
-        OutputDebugStringA(dbg);
+        NAM_MAPPER_LOG("[ModelMapper] FAILED slot %d (%s): %s\n", item.index, item.namFilePath.c_str(), e.what());
         resampling = nullptr;
       }
       catch (...)
       {
-        char dbg[512];
-        snprintf(dbg, sizeof(dbg), "[ModelMapper] UNKNOWN EXCEPTION slot %d: %s\n", item.index, item.namFilePath.c_str());
-        OutputDebugStringA(dbg);
+        NAM_MAPPER_LOG("[ModelMapper] UNKNOWN EXCEPTION slot %d: %s\n", item.index, item.namFilePath.c_str());
         resampling = nullptr;
       }
 
@@ -198,7 +201,7 @@ void NAMModelMapper::PreloadAllAsync(double sampleRate, int blockSize, std::func
 
   mPreloading.store(true);
   mPreloadThread = std::thread([this, sampleRate, blockSize, onComplete = std::move(onComplete)]() {
-    OutputDebugStringA("[ModelMapper] PreloadAllAsync thread STARTED\n");
+    NAM_MAPPER_LOG("[ModelMapper] PreloadAllAsync thread STARTED\n");
     int loaded = 0;
     try
     {
@@ -206,15 +209,13 @@ void NAMModelMapper::PreloadAllAsync(double sampleRate, int blockSize, std::func
     }
     catch (...) 
     {
-      OutputDebugStringA("[ModelMapper] PreloadAll threw unexpected exception\n");
+      NAM_MAPPER_LOG("[ModelMapper] PreloadAll threw unexpected exception\n");
     }
     mPreloading.store(false);
-    char dbg[128];
-    snprintf(dbg, sizeof(dbg), "[ModelMapper] PreloadAllAsync thread DONE, loaded=%d, firing callback\n", loaded);
-    OutputDebugStringA(dbg);
+    NAM_MAPPER_LOG("[ModelMapper] PreloadAllAsync thread DONE, loaded=%d, firing callback\n", loaded);
     if (onComplete)
       onComplete(loaded);
-    OutputDebugStringA("[ModelMapper] PreloadAllAsync callback RETURNED\n");
+    NAM_MAPPER_LOG("[ModelMapper] PreloadAllAsync callback RETURNED\n");
   });
 }
 

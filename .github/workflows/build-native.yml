@@ -101,6 +101,9 @@ jobs:
             ../NAMLibraryBrowserWindow.mm
             ../NAMLibraryBrowserPanel.cpp
             ../NAMLibraryTreeView.cpp
+            ../NAMModelMapper.cpp
+            ../NAMPNAMEditorWindow.cpp
+            ../NAMPNAMEditorWindow.mm
           ].each do |rel|
             name = File.basename(rel)
 
