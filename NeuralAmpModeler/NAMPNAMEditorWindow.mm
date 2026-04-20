@@ -56,10 +56,25 @@ namespace
 }
 
 // ============================================================
+//  Flipped view for top-down layout in scroll views
+// ============================================================
+@interface NSFlippedView : NSView
+@end
+
+@implementation NSFlippedView
+- (BOOL)isFlipped { return YES; }
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  if (self) self.translatesAutoresizingMaskIntoConstraints = NO;
+  return self;
+}
+@end
+
+// ============================================================
 //  Forward declaration
 // ============================================================
 @class NAMPNAMEditorController;
-//static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots);
+
 
 // ============================================================
 //  Helper: styled controls
@@ -1325,20 +1340,7 @@ void NAMPNAMEditorWindow::SaveSettings()
 }
 
 
-// ============================================================
-//  Flipped view for top-down layout in scroll views
-// ============================================================
-@interface NSFlippedView : NSView
-@end
 
-@implementation NSFlippedView
-- (BOOL)isFlipped { return YES; }
-- (instancetype)initWithFrame:(NSRect)frame {
-  self = [super initWithFrame:frame];
-  if (self) self.translatesAutoresizingMaskIntoConstraints = NO;
-  return self;
-}
-@end
 
 
 #endif // OS_MAC
