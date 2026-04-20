@@ -515,6 +515,24 @@
 		FC4DC0F81482911D2CBFB0EC /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DCB8A31262D866F790A5BCB4 /* slimmable.cpp */; };
 		FCED81D72082C58F0155DB30 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 		FF173D18AB1B46B857A598A3 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
+		8F9750ED60A4D2145DE8EFDE /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		1AC0334A641D01CB6B117C6F /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		23F12A38355124FC541A29B8 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		7B593E4758DBAB7F44106034 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		5BA459C48D4B99F85AF38CF1 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		00B11DD1427BC21DE19A3F0B /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		C4CE9DB1ABAB30E45185BADE /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		8D093A239A11AFDE0ED1B28D /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		C37E2AF247E189098D0D164D /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		4B94C6943E9BC89A8C46BBAE /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		0D9E1322B331D98285EE33E1 /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		5FA1F98F3DB90FF11882C139 /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		FB63E6F6A39EFAF2EEE499B2 /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		F078F3DF594A74196D53697F /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		4F992BFF62511B6AAA7B3B2A /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		A5AAC273513F2724A1104934 /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		11CE065E2ACA3F79925CEBFF /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
+		EE3E5ECF17AA3C9B20C8CD48 /* NAMPNAMEditorWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1098,6 +1116,8 @@
 		DCB8A31262D866F790A5BCB4 /* slimmable.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = slimmable.cpp; path = slimmable.cpp; sourceTree = "<group>"; };
 		EA06A11CB62C27023A94D050 /* model.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = model.cpp; sourceTree = "<group>"; };
 		ED0E023704FBF8DEE3BEDEAE /* conv1d.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = conv1d.h; path = conv1d.h; sourceTree = "<group>"; };
+		5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = NAMLibraryBrowserWindow.mm; path = ../NAMLibraryBrowserWindow.mm; sourceTree = "<group>"; };
+		91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = NAMPNAMEditorWindow.mm; path = ../NAMPNAMEditorWindow.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1182,6 +1202,8 @@
 				4F9979232A066F8B0066545C /* NeuralAmpModelerControls.h */,
 				AA341E1B2B9E5A530069C260 /* ToneStack.cpp */,
 				AA341E1C2B9E5A530069C260 /* ToneStack.h */,
+				91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */,
+				5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */,
 				4F9313232315CA1100DB2383 /* README.md */,
 				089C167CFE841241C02AAC07 /* Resources */,
 				32C88E010371C26100C91783 /* Other Sources */,
@@ -2814,6 +2836,8 @@
 				25D7BB72A82B96C37E91C377 /* model.cpp in Sources */,
 				9125BB775A5D8C4AAE37A48E /* slimmable.cpp in Sources */,
 				FCED81D72082C58F0155DB30 /* container.cpp in Sources */,
+							8F9750ED60A4D2145DE8EFDE /* NAMLibraryBrowserWindow.mm in Sources */,
+							4B94C6943E9BC89A8C46BBAE /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2883,6 +2907,8 @@
 				A948DA64A07D2ABC36BF474B /* model.cpp in Sources */,
 				9A250C763937BBB210E95D5C /* slimmable.cpp in Sources */,
 				121CB341D802D15830113366 /* container.cpp in Sources */,
+							1AC0334A641D01CB6B117C6F /* NAMLibraryBrowserWindow.mm in Sources */,
+							0D9E1322B331D98285EE33E1 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2941,6 +2967,8 @@
 				2D607DF523B2091F3B4F6955 /* model.cpp in Sources */,
 				FC4DC0F81482911D2CBFB0EC /* slimmable.cpp in Sources */,
 				FF173D18AB1B46B857A598A3 /* container.cpp in Sources */,
+							23F12A38355124FC541A29B8 /* NAMLibraryBrowserWindow.mm in Sources */,
+							5FA1F98F3DB90FF11882C139 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2986,6 +3014,8 @@
 				F7E3C34D5B239FD501128770 /* model.cpp in Sources */,
 				EFAC0DA601E0FD8A11032189 /* slimmable.cpp in Sources */,
 				B6E072561D9D3F8CEBB3A442 /* container.cpp in Sources */,
+							7B593E4758DBAB7F44106034 /* NAMLibraryBrowserWindow.mm in Sources */,
+							FB63E6F6A39EFAF2EEE499B2 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3059,6 +3089,8 @@
 				3A26085BC4E3D0B1C376D8A4 /* model.cpp in Sources */,
 				41E801933CDBEE30CA4FEC67 /* slimmable.cpp in Sources */,
 				5091257AEDF545C00E8F3669 /* container.cpp in Sources */,
+							5BA459C48D4B99F85AF38CF1 /* NAMLibraryBrowserWindow.mm in Sources */,
+							F078F3DF594A74196D53697F /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3104,6 +3136,8 @@
 				DC11DA39C0B2D9233FFBA4B7 /* model.cpp in Sources */,
 				B7515DADE10095FADB375ACA /* slimmable.cpp in Sources */,
 				23F63FC25D3081D7849F4BF8 /* container.cpp in Sources */,
+							00B11DD1427BC21DE19A3F0B /* NAMLibraryBrowserWindow.mm in Sources */,
+							4F992BFF62511B6AAA7B3B2A /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3127,6 +3161,8 @@
 				4F472103209B294400A0A0A8 /* IPlugVST3_Controller.cpp in Sources */,
 				4F78BE2D22E7412300AD537E /* IGraphicsNanoVG_src.m in Sources */,
 				4FC3EFCB2086C27800BD11FA /* NeuralAmpModeler.cpp in Sources */,
+							C4CE9DB1ABAB30E45185BADE /* NAMLibraryBrowserWindow.mm in Sources */,
+							A5AAC273513F2724A1104934 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3185,6 +3221,8 @@
 				85E51F08B1F3A5AEF1BA2310 /* model.cpp in Sources */,
 				A10714F71C5FF79E64682E21 /* slimmable.cpp in Sources */,
 				2C569D8EE935FABE6DDBD306 /* container.cpp in Sources */,
+							8D093A239A11AFDE0ED1B28D /* NAMLibraryBrowserWindow.mm in Sources */,
+							11CE065E2ACA3F79925CEBFF /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3247,6 +3285,8 @@
 				B0F957279AA079B341F0A6CF /* model.cpp in Sources */,
 				7921BA45672B8829923CBFFE /* slimmable.cpp in Sources */,
 				C27EBF8669A5B61D137C8EAB /* container.cpp in Sources */,
+							C37E2AF247E189098D0D164D /* NAMLibraryBrowserWindow.mm in Sources */,
+							EE3E5ECF17AA3C9B20C8CD48 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
