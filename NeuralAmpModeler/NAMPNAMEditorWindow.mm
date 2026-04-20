@@ -43,6 +43,16 @@ namespace
   NSColor* kTextClr()  { return [NSColor colorWithCalibratedWhite:220/255.f alpha:1]; }
   NSColor* kBtnBg()    { return [NSColor colorWithCalibratedRed:60/255.f green:60/255.f blue:60/255.f alpha:1]; }
   NSColor* kAccent()   { return [NSColor colorWithCalibratedRed:0/255.f green:120/255.f blue:215/255.f alpha:1]; }
+
+  std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots)
+  {
+    std::string warn;
+    for (int i = 0; i < (int)slots.size(); ++i)
+      for (int j = i + 1; j < (int)slots.size(); ++j)
+        if (slots[i].ampGainMax > slots[j].ampGainMin && slots[j].ampGainMax > slots[i].ampGainMin)
+          warn += "Slot " + std::to_string(i + 1) + " and slot " + std::to_string(j + 1) + " overlap.\n";
+    return warn;
+  }
 }
 
 // ============================================================
@@ -1189,17 +1199,5 @@ void NAMPNAMEditorWindow::SaveSettings()
   if (!lastPath.empty()) file << "LastPNAMPath=" << lastPath << "\n";
 }
 
-// ============================================================
-//  PNAM chain validation
-// ============================================================
-static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots)
-{
-  std::string warn;
-  for (int i = 0; i < (int)slots.size(); ++i)
-    for (int j = i + 1; j < (int)slots.size(); ++j)
-      if (slots[i].ampGainMax > slots[j].ampGainMin && slots[j].ampGainMax > slots[i].ampGainMin)
-        warn += "Slot " + std::to_string(i + 1) + " and slot " + std::to_string(j + 1) + " overlap.\n";
-  return warn;
-}
 
 #endif // OS_MAC
