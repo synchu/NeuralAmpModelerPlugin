@@ -233,11 +233,13 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 {
   const int fs = self.currentFontSize;
   NSFont* font = [NSFont systemFontOfSize:fs];
+  NSFont* boldFont = [NSFont boldSystemFontOfSize:fs];
 
   // ---- Toolbar row ----
   _filePathLabel = MakeLabel(@"(new file)");
   _filePathLabel.font = font;
   _filePathLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+  [_filePathLabel setContentCompressionResistancePriority:200 forOrientation:NSLayoutConstraintOrientationHorizontal];
   [cv addSubview:_filePathLabel];
 
   _newBtn     = MakeButton(@"New",        self, @selector(onNew:));
@@ -269,40 +271,48 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   scroll.autohidesScrollers = YES;
   scroll.drawsBackground = YES;
   scroll.backgroundColor = kDarkBg();
+  scroll.borderType = NSBezelBorder;
 
   _slotTable = [NSTableView new];
   _slotTable.dataSource = self;
   _slotTable.delegate = self;
   _slotTable.backgroundColor = kDarkBg();
-  _slotTable.rowHeight = fs + 8;
+  _slotTable.rowHeight = fs + 10;
   _slotTable.usesAlternatingRowBackgroundColors = NO;
-  _slotTable.gridStyleMask = NSTableViewSolidVerticalGridLineMask;
-  _slotTable.gridColor = [NSColor colorWithCalibratedWhite:55/255.f alpha:1];
+  _slotTable.gridStyleMask = NSTableViewSolidHorizontalGridLineMask | NSTableViewSolidVerticalGridLineMask;
+  _slotTable.gridColor = [NSColor colorWithCalibratedWhite:80/255.f alpha:1];
   _slotTable.allowsMultipleSelection = NO;
+  _slotTable.intercellSpacing = NSMakeSize(6, 4);
   _slotTable.target = self;
   _slotTable.action = @selector(slotTableClicked:);
-  // Register for drops
   [_slotTable registerForDraggedTypes:@[NSFilenamesPboardType]];
 
-  for (NSArray* colDef in @[@[@"#", @"40"], @[@"Min", @"60"], @[@"Max", @"60"], @[@"Model", @"180"]])
+  // Style the header
+  _slotTable.headerView.wantsLayer = YES;
+
+  for (NSArray* colDef in @[@[@"#", @"36"], @[@"Min", @"64"], @[@"Max", @"64"], @[@"Model", @"200"]])
   {
     NSTableColumn* col = [[NSTableColumn alloc] initWithIdentifier:colDef[0]];
     col.title = colDef[0];
     col.width = [colDef[1] floatValue];
+    col.minWidth = [colDef[1] floatValue] * 0.6;
     col.editable = NO;
-    NSTableHeaderCell* hc = col.headerCell;
-    hc.textColor = kTextClr();
+    // Last column expands
+    if ([colDef[0] isEqualToString:@"Model"])
+      col.resizingMask = NSTableColumnAutoresizingMask;
+    else
+      col.resizingMask = NSTableColumnUserResizingMask;
     [_slotTable addTableColumn:col];
   }
 
   scroll.documentView = _slotTable;
   [leftPanel addSubview:scroll];
 
-  _addBtn       = MakeButton(@"+ Add",           self, @selector(onAddSlot:));
-  _removeBtn    = MakeButton(@"− Remove",         self, @selector(onRemoveSlot:));
-  _upBtn        = MakeButton(@"▲ Up",             self, @selector(onMoveUp:));
-  _downBtn      = MakeButton(@"▼ Down",           self, @selector(onMoveDown:));
-  _distributeBtn = MakeButton(@"Distribute Gain 0→10", self, @selector(onDistribute:));
+  _addBtn        = MakeButton(@"+ Add",                  self, @selector(onAddSlot:));
+  _removeBtn     = MakeButton(@"− Remove",               self, @selector(onRemoveSlot:));
+  _upBtn         = MakeButton(@"▲ Up",                   self, @selector(onMoveUp:));
+  _downBtn       = MakeButton(@"▼ Down",                 self, @selector(onMoveDown:));
+  _distributeBtn = MakeButton(@"Distribute Gain 0→10",   self, @selector(onDistribute:));
   for (NSButton* b in @[_addBtn, _removeBtn, _upBtn, _downBtn, _distributeBtn])
   {
     b.font = font;
@@ -310,48 +320,54 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   }
 
   // Left layout
-  NSDictionary* lv = NSDictionaryOfVariableBindings(scroll, _addBtn, _removeBtn, _upBtn, _downBtn, _distributeBtn);
-  [leftPanel addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[scroll]|" options:0 metrics:nil views:lv]];
-  [leftPanel addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[_addBtn]-4-[_removeBtn]-4-[_upBtn]-4-[_downBtn]" options:0 metrics:nil views:lv]];
-  [leftPanel addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[_distributeBtn]|" options:0 metrics:nil views:lv]];
-  [leftPanel addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[scroll]-4-[_addBtn]-4-[_distributeBtn]-8-|" options:0 metrics:nil views:lv]];
   [NSLayoutConstraint activateConstraints:@[
-    [_removeBtn.topAnchor constraintEqualToAnchor:_addBtn.topAnchor],
-    [_upBtn.topAnchor constraintEqualToAnchor:_addBtn.topAnchor],
-    [_downBtn.topAnchor constraintEqualToAnchor:_addBtn.topAnchor],
+    [scroll.topAnchor constraintEqualToAnchor:leftPanel.topAnchor],
+    [scroll.leadingAnchor constraintEqualToAnchor:leftPanel.leadingAnchor],
+    [scroll.trailingAnchor constraintEqualToAnchor:leftPanel.trailingAnchor],
+
+    [_addBtn.topAnchor constraintEqualToAnchor:scroll.bottomAnchor constant:6],
+    [_addBtn.leadingAnchor constraintEqualToAnchor:leftPanel.leadingAnchor],
+    [_removeBtn.leadingAnchor constraintEqualToAnchor:_addBtn.trailingAnchor constant:4],
+    [_removeBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
+    [_upBtn.leadingAnchor constraintEqualToAnchor:_removeBtn.trailingAnchor constant:4],
+    [_upBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
+    [_downBtn.leadingAnchor constraintEqualToAnchor:_upBtn.trailingAnchor constant:4],
+    [_downBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
+
+    [_distributeBtn.topAnchor constraintEqualToAnchor:_addBtn.bottomAnchor constant:6],
+    [_distributeBtn.leadingAnchor constraintEqualToAnchor:leftPanel.leadingAnchor],
+    [_distributeBtn.trailingAnchor constraintEqualToAnchor:leftPanel.trailingAnchor],
+    [_distributeBtn.bottomAnchor constraintEqualToAnchor:leftPanel.bottomAnchor constant:-8],
   ]];
 
-  // ---- Right panel ----
-  NSView* rightPanel = [NSScrollView new];
-  NSScrollView* rightScroll = (NSScrollView*)rightPanel;
+  // ---- Right panel (scrollable) ----
+  NSScrollView* rightScroll = [NSScrollView new];
   rightScroll.translatesAutoresizingMaskIntoConstraints = NO;
+  rightScroll.hasVerticalScroller = YES;
+  rightScroll.autohidesScrollers = YES;
   rightScroll.drawsBackground = YES;
   rightScroll.backgroundColor = kDarkBg();
-  NSView* rContent = [NSView new];
+  rightScroll.borderType = NSNoBorder;
+
+  // Use a flipped view so content lays out top-down
+  NSView* rContent = [[NSFlippedView alloc] initWithFrame:NSZeroRect];
   rContent.translatesAutoresizingMaskIntoConstraints = NO;
   rightScroll.documentView = rContent;
 
-  auto addRow = [&](NSString* labelStr, NSTextField* edit, NSButton* checkbox) -> void {
-    if (checkbox)
-    {
-      checkbox.font = font;
-      [rContent addSubview:checkbox];
-    }
-    else
-    {
-      NSTextField* lbl = MakeLabel(labelStr);
-      lbl.font = font;
-      [rContent addSubview:lbl];
-    }
-    edit.font = font;
-    [rContent addSubview:edit];
-  };
+  // Pin rContent edges to the scroll view's clip view so it sizes properly
+  NSClipView* clipView = rightScroll.contentView;
+  [NSLayoutConstraint activateConstraints:@[
+    [rContent.topAnchor constraintEqualToAnchor:clipView.topAnchor],
+    [rContent.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
+    [rContent.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
+    // Don't pin bottom — let content define its own height for scrolling
+  ]];
 
+  // Create all edit-panel controls
   _gainMinEdit   = MakeEdit(@"0.00");
   _gainMaxEdit   = MakeEdit(@"10.00");
   _namPathEdit   = MakeEdit(@"");
   _browseBtn     = MakeButton(@"Browse…", self, @selector(onBrowseNAM:));
-  _browseBtn.font = font;
   _ovOutputCheck = MakeCheckbox(@"Output Level (dB):", self, @selector(onOverrideToggle:));
   _ovOutputEdit  = MakeEdit(@"0.00");
   _ovBassCheck   = MakeCheckbox(@"Bass (0–10):", self, @selector(onOverrideToggle:));
@@ -364,90 +380,187 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   _previewSlotBtn  = MakeButton(@"▶ Preview Slot",  self, @selector(onPreviewSlot:));
   _previewChainBtn = MakeButton(@"▶ Preview Chain", self, @selector(onPreviewChain:));
 
-  NSTextField* selLbl   = MakeLabel(@"Selected Slot:");
-  NSTextField* gainLbl  = MakeLabel(@"Gain Min (0–10):");
-  NSTextField* gainMaxLbl = MakeLabel(@"Max:");
-  NSTextField* namLbl   = MakeLabel(@"NAM File:");
-  NSTextField* ovLbl    = MakeLabel(@"Overrides (optional):");
-  selLbl.font = gainLbl.font = gainMaxLbl.font = namLbl.font = ovLbl.font = font;
-  _applyBtn.font = _previewSlotBtn.font = _previewChainBtn.font = font;
-  _namPathEdit.font = font;
-  _browseBtn.font = font;
+  // Section labels
+  NSTextField* selLbl     = MakeLabel(@"Selected Slot");        selLbl.font = boldFont;
+  NSTextField* gainMinLbl = MakeLabel(@"Gain Min (0–10):");     gainMinLbl.font = font;
+  NSTextField* gainMaxLbl = MakeLabel(@"Gain Max (0–10):");     gainMaxLbl.font = font;
+  NSTextField* namLbl     = MakeLabel(@"NAM File:");            namLbl.font = font;
+  NSTextField* ovLbl      = MakeLabel(@"Overrides (optional)"); ovLbl.font = boldFont;
 
-  for (NSView* v in @[selLbl, gainLbl, gainMaxLbl, namLbl, ovLbl,
-                      _gainMinEdit, _gainMaxEdit, _namPathEdit, _browseBtn,
+  // Separator lines
+  NSBox* sep1 = [NSBox new]; sep1.translatesAutoresizingMaskIntoConstraints = NO;
+  sep1.boxType = NSBoxSeparator;
+  NSBox* sep2 = [NSBox new]; sep2.translatesAutoresizingMaskIntoConstraints = NO;
+  sep2.boxType = NSBoxSeparator;
+
+  // Set fonts on all editable controls
+  for (NSControl* c in @[_gainMinEdit, _gainMaxEdit, _namPathEdit, _browseBtn,
+                          _ovOutputCheck, _ovOutputEdit, _ovBassCheck, _ovBassEdit,
+                          _ovMidCheck, _ovMidEdit, _ovTrebleCheck, _ovTrebleEdit,
+                          _applyBtn, _previewSlotBtn, _previewChainBtn])
+    c.font = font;
+
+  // Add all subviews to rContent
+  for (NSView* v in @[selLbl, sep1, gainMinLbl, _gainMinEdit, gainMaxLbl, _gainMaxEdit,
+                      namLbl, _namPathEdit, _browseBtn,
+                      sep2, ovLbl,
                       _ovOutputCheck, _ovOutputEdit, _ovBassCheck, _ovBassEdit,
                       _ovMidCheck, _ovMidEdit, _ovTrebleCheck, _ovTrebleEdit,
                       _applyBtn, _previewSlotBtn, _previewChainBtn])
     [rContent addSubview:v];
 
-  // Layout right panel with visual format
-  const int lw = 180, ew = 90;
-  NSDictionary* rv = NSDictionaryOfVariableBindings(
-    selLbl, gainLbl, gainMaxLbl, namLbl, ovLbl,
-    _gainMinEdit, _gainMaxEdit, _namPathEdit, _browseBtn,
-    _ovOutputCheck, _ovOutputEdit, _ovBassCheck, _ovBassEdit,
-    _ovMidCheck, _ovMidEdit, _ovTrebleCheck, _ovTrebleEdit,
-    _applyBtn, _previewSlotBtn, _previewChainBtn);
-  NSDictionary* metrics = @{@"lw": @(lw), @"ew": @(ew), @"m": @8};
+  // ---- Right panel layout using explicit anchors ----
+  const CGFloat m = 12, rowGap = 10, labelW = 170, editW = 90;
 
-  NSMutableArray* cs = [NSMutableArray array];
-  auto vf = [&](NSString* fmt) {
-    [cs addObjectsFromArray:[NSLayoutConstraint constraintsWithVisualFormat:fmt options:0 metrics:metrics views:rv]];
-  };
+  NSMutableArray<NSLayoutConstraint*>* rc = [NSMutableArray array];
 
-  vf(@"V:|-m-[selLbl]-m-[gainLbl]-m-[namLbl]-m-[_namPathEdit]-m-[ovLbl]-m-[_ovOutputCheck]-m-[_ovBassCheck]-m-[_ovMidCheck]-m-[_ovTrebleCheck]-m-[_applyBtn]-m-[_previewSlotBtn]-m-|");
-  vf(@"H:|-m-[selLbl]-|");
-  vf(@"H:|-m-[gainLbl(lw)]-4-[_gainMinEdit(ew)]-8-[gainMaxLbl]-4-[_gainMaxEdit(ew)]");
-  vf(@"H:|-m-[namLbl]-|");
-  vf(@"H:|-m-[_namPathEdit]-4-[_browseBtn(80)]|");
-  vf(@"H:|-m-[ovLbl]-|");
-  vf(@"H:|-m-[_ovOutputCheck(lw)]-4-[_ovOutputEdit(ew)]");
-  vf(@"H:|-m-[_ovBassCheck(lw)]-4-[_ovBassEdit(ew)]");
-  vf(@"H:|-m-[_ovMidCheck(lw)]-4-[_ovMidEdit(ew)]");
-  vf(@"H:|-m-[_ovTrebleCheck(lw)]-4-[_ovTrebleEdit(ew)]");
-  vf(@"H:|-m-[_applyBtn(180)]");
-  vf(@"H:|-m-[_previewSlotBtn]-4-[_previewChainBtn]");
-
-  [cs addObjectsFromArray:@[
-    [gainLbl.centerYAnchor constraintEqualToAnchor:_gainMinEdit.centerYAnchor],
-    [gainMaxLbl.centerYAnchor constraintEqualToAnchor:_gainMinEdit.centerYAnchor],
-    [_gainMaxEdit.centerYAnchor constraintEqualToAnchor:_gainMinEdit.centerYAnchor],
-    [_previewChainBtn.topAnchor constraintEqualToAnchor:_previewSlotBtn.topAnchor],
-    [_browseBtn.centerYAnchor constraintEqualToAnchor:_namPathEdit.centerYAnchor],
-    [_ovOutputEdit.centerYAnchor constraintEqualToAnchor:_ovOutputCheck.centerYAnchor],
-    [_ovBassEdit.centerYAnchor constraintEqualToAnchor:_ovBassCheck.centerYAnchor],
-    [_ovMidEdit.centerYAnchor constraintEqualToAnchor:_ovMidCheck.centerYAnchor],
-    [_ovTrebleEdit.centerYAnchor constraintEqualToAnchor:_ovTrebleCheck.centerYAnchor],
-    [rContent.widthAnchor constraintGreaterThanOrEqualToConstant:340],
+  // Row 1: "Selected Slot" header
+  [rc addObjectsFromArray:@[
+    [selLbl.topAnchor constraintEqualToAnchor:rContent.topAnchor constant:m],
+    [selLbl.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [selLbl.trailingAnchor constraintEqualToAnchor:rContent.trailingAnchor constant:-m],
   ]];
-  [NSLayoutConstraint activateConstraints:cs];
 
-  // Add to split view
+  // Separator
+  [rc addObjectsFromArray:@[
+    [sep1.topAnchor constraintEqualToAnchor:selLbl.bottomAnchor constant:6],
+    [sep1.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [sep1.trailingAnchor constraintEqualToAnchor:rContent.trailingAnchor constant:-m],
+  ]];
+
+  // Gain Min row
+  [rc addObjectsFromArray:@[
+    [gainMinLbl.topAnchor constraintEqualToAnchor:sep1.bottomAnchor constant:rowGap],
+    [gainMinLbl.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [gainMinLbl.widthAnchor constraintEqualToConstant:labelW],
+    [_gainMinEdit.centerYAnchor constraintEqualToAnchor:gainMinLbl.centerYAnchor],
+    [_gainMinEdit.leadingAnchor constraintEqualToAnchor:gainMinLbl.trailingAnchor constant:4],
+    [_gainMinEdit.widthAnchor constraintEqualToConstant:editW],
+  ]];
+
+  // Gain Max row
+  [rc addObjectsFromArray:@[
+    [gainMaxLbl.topAnchor constraintEqualToAnchor:gainMinLbl.bottomAnchor constant:rowGap],
+    [gainMaxLbl.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [gainMaxLbl.widthAnchor constraintEqualToConstant:labelW],
+    [_gainMaxEdit.centerYAnchor constraintEqualToAnchor:gainMaxLbl.centerYAnchor],
+    [_gainMaxEdit.leadingAnchor constraintEqualToAnchor:gainMaxLbl.trailingAnchor constant:4],
+    [_gainMaxEdit.widthAnchor constraintEqualToConstant:editW],
+  ]];
+
+  // NAM File row
+  [rc addObjectsFromArray:@[
+    [namLbl.topAnchor constraintEqualToAnchor:gainMaxLbl.bottomAnchor constant:rowGap],
+    [namLbl.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [_namPathEdit.topAnchor constraintEqualToAnchor:namLbl.bottomAnchor constant:4],
+    [_namPathEdit.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [_namPathEdit.trailingAnchor constraintEqualToAnchor:_browseBtn.leadingAnchor constant:-4],
+    [_browseBtn.centerYAnchor constraintEqualToAnchor:_namPathEdit.centerYAnchor],
+    [_browseBtn.trailingAnchor constraintEqualToAnchor:rContent.trailingAnchor constant:-m],
+    [_browseBtn.widthAnchor constraintEqualToConstant:80],
+  ]];
+
+  // Separator 2
+  [rc addObjectsFromArray:@[
+    [sep2.topAnchor constraintEqualToAnchor:_namPathEdit.bottomAnchor constant:rowGap + 4],
+    [sep2.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [sep2.trailingAnchor constraintEqualToAnchor:rContent.trailingAnchor constant:-m],
+  ]];
+
+  // "Overrides" header
+  [rc addObjectsFromArray:@[
+    [ovLbl.topAnchor constraintEqualToAnchor:sep2.bottomAnchor constant:6],
+    [ovLbl.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [ovLbl.trailingAnchor constraintEqualToAnchor:rContent.trailingAnchor constant:-m],
+  ]];
+
+  // Override rows: checkbox + edit field
+  NSView* prevAnchor = ovLbl;
+  NSArray<NSArray*>* ovRows = @[
+    @[_ovOutputCheck, _ovOutputEdit],
+    @[_ovBassCheck,   _ovBassEdit],
+    @[_ovMidCheck,    _ovMidEdit],
+    @[_ovTrebleCheck, _ovTrebleEdit],
+  ];
+  for (NSArray* row in ovRows)
+  {
+    NSButton* cb = row[0];
+    NSTextField* tf = row[1];
+    [rc addObjectsFromArray:@[
+      [cb.topAnchor constraintEqualToAnchor:prevAnchor.bottomAnchor constant:rowGap],
+      [cb.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+      [cb.widthAnchor constraintEqualToConstant:labelW],
+      [tf.centerYAnchor constraintEqualToAnchor:cb.centerYAnchor],
+      [tf.leadingAnchor constraintEqualToAnchor:cb.trailingAnchor constant:4],
+      [tf.widthAnchor constraintEqualToConstant:editW],
+    ]];
+    prevAnchor = cb;
+  }
+
+  // Apply button
+  [rc addObjectsFromArray:@[
+    [_applyBtn.topAnchor constraintEqualToAnchor:prevAnchor.bottomAnchor constant:rowGap + 6],
+    [_applyBtn.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [_applyBtn.widthAnchor constraintEqualToConstant:180],
+  ]];
+
+  // Preview buttons
+  [rc addObjectsFromArray:@[
+    [_previewSlotBtn.topAnchor constraintEqualToAnchor:_applyBtn.bottomAnchor constant:rowGap],
+    [_previewSlotBtn.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
+    [_previewChainBtn.leadingAnchor constraintEqualToAnchor:_previewSlotBtn.trailingAnchor constant:4],
+    [_previewChainBtn.centerYAnchor constraintEqualToAnchor:_previewSlotBtn.centerYAnchor],
+    // Pin bottom so scroll content has a defined height
+    [_previewChainBtn.bottomAnchor constraintLessThanOrEqualToAnchor:rContent.bottomAnchor constant:-m],
+    [_previewSlotBtn.bottomAnchor constraintLessThanOrEqualToAnchor:rContent.bottomAnchor constant:-m],
+  ]];
+
+  // Minimum width for right content
+  [rc addObject:[rContent.widthAnchor constraintGreaterThanOrEqualToConstant:360]];
+
+  [NSLayoutConstraint activateConstraints:rc];
+
+  // Add panels to split view
   [split addSubview:leftPanel];
   [split addSubview:rightScroll];
   [split setHoldingPriority:NSLayoutPriorityDefaultLow forSubviewAtIndex:0];
 
-  // Root layout
-  NSDictionary* tv = NSDictionaryOfVariableBindings(
-    split, _filePathLabel, _newBtn, _openBtn, _saveBtn, _saveAsBtn, _fontDecBtn, _fontIncBtn);
-  NSDictionary* tm = @{@"m": @8, @"bw": @90, @"fbw": @40};
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"H:|-m-[_filePathLabel]-m-[_newBtn(bw)]-4-[_openBtn(bw)]-4-[_saveBtn(bw)]-4-[_saveAsBtn(bw)]-4-[_fontDecBtn(fbw)]-4-[_fontIncBtn(fbw)]-m-|"
-    options:0 metrics:tm views:tv]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-m-[_newBtn]-m-[split]-m-|"
-    options:0 metrics:tm views:tv]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-m-[split]-m-|"
-    options:0 metrics:tm views:tv]];
-  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-m-[_filePathLabel]"
-    options:0 metrics:tm views:tv]];
+  // ---- Root layout (toolbar + split) ----
   [NSLayoutConstraint activateConstraints:@[
+    // Toolbar horizontal: path label ... buttons
+    [_filePathLabel.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:8],
+    [_newBtn.leadingAnchor constraintGreaterThanOrEqualToAnchor:_filePathLabel.trailingAnchor constant:8],
+    [_openBtn.leadingAnchor constraintEqualToAnchor:_newBtn.trailingAnchor constant:4],
+    [_saveBtn.leadingAnchor constraintEqualToAnchor:_openBtn.trailingAnchor constant:4],
+    [_saveAsBtn.leadingAnchor constraintEqualToAnchor:_saveBtn.trailingAnchor constant:4],
+    [_fontDecBtn.leadingAnchor constraintEqualToAnchor:_saveAsBtn.trailingAnchor constant:4],
+    [_fontIncBtn.leadingAnchor constraintEqualToAnchor:_fontDecBtn.trailingAnchor constant:4],
+    [_fontIncBtn.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-8],
+
+    // Fixed widths for toolbar buttons
+    [_newBtn.widthAnchor constraintEqualToConstant:70],
+    [_openBtn.widthAnchor constraintEqualToConstant:70],
+    [_saveBtn.widthAnchor constraintEqualToConstant:70],
+    [_saveAsBtn.widthAnchor constraintEqualToConstant:80],
+    [_fontDecBtn.widthAnchor constraintEqualToConstant:36],
+    [_fontIncBtn.widthAnchor constraintEqualToConstant:36],
+
+    // Toolbar vertical: all buttons same row
+    [_newBtn.topAnchor constraintEqualToAnchor:cv.topAnchor constant:8],
     [_filePathLabel.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+    [_openBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+    [_saveBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+    [_saveAsBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+    [_fontDecBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+    [_fontIncBtn.centerYAnchor constraintEqualToAnchor:_newBtn.centerYAnchor],
+
+    // Split view below toolbar, filling remainder
+    [split.topAnchor constraintEqualToAnchor:_newBtn.bottomAnchor constant:8],
+    [split.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:8],
+    [split.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-8],
+    [split.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-8],
   ]];
 
-  // Set initial splitter position
   [split setPosition:340 ofDividerAtIndex:0];
 }
 
@@ -469,6 +582,17 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     return ToNS(stem.empty() ? "(none)" : stem);
   }
   return @"";
+}
+
+- (void)tableView:(NSTableView*)tv willDisplayCell:(id)cell forTableColumn:(NSTableColumn*)col row:(NSInteger)row
+{
+  if ([cell isKindOfClass:[NSTextFieldCell class]])
+  {
+    NSTextFieldCell* tc = (NSTextFieldCell*)cell;
+    tc.textColor = kTextClr();
+    tc.font = [NSFont systemFontOfSize:self.currentFontSize];
+    tc.drawsBackground = NO;
+  }
 }
 
 - (void)tableViewSelectionDidChange:(NSNotification*)note
@@ -1199,6 +1323,22 @@ void NAMPNAMEditorWindow::SaveSettings()
   const std::string& lastPath = mCurrentFilePath.empty() ? mLastOpenedPNAMPath : mCurrentFilePath;
   if (!lastPath.empty()) file << "LastPNAMPath=" << lastPath << "\n";
 }
+
+
+// ============================================================
+//  Flipped view for top-down layout in scroll views
+// ============================================================
+@interface NSFlippedView : NSView
+@end
+
+@implementation NSFlippedView
+- (BOOL)isFlipped { return YES; }
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  if (self) self.translatesAutoresizingMaskIntoConstraints = NO;
+  return self;
+}
+@end
 
 
 #endif // OS_MAC
