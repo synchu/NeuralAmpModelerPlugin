@@ -34,7 +34,7 @@
       <Configuration>Tracer</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-	    <ProjectConfiguration Include="Release-Compat|Win32">
+    <ProjectConfiguration Include="Release-Compat|Win32">
       <Configuration>Release-Compat</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
@@ -83,7 +83,7 @@
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -148,7 +148,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
   </ImportGroup>
-    <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="PropertySheets">
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(SolutionDir)\config\NeuralAmpModeler-win.props" />
   </ImportGroup>
@@ -207,7 +207,7 @@
     <IntDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\int\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
     <OutDir>$(SolutionDir)build-win\app\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">
@@ -351,7 +351,7 @@
       <PreprocessorDefinitions>SA_API</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
-    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
@@ -508,6 +508,8 @@
     <ClInclude Include="..\AudioDSPTools\dsp\version.h" />
     <ClInclude Include="..\AudioDSPTools\dsp\wav.h" />
     <ClInclude Include="..\Colors.h" />
+    <ClInclude Include="..\NAMModelMapper.h" />
+    <ClInclude Include="..\NAMPNAMEditorWindow.h" />
     <ClInclude Include="..\NeuralAmpModeler.h" />
     <ClInclude Include="..\NeuralAmpModelerControls.h" />
     <ClInclude Include="..\NAMLibraryBrowserWindow.h" />
@@ -556,9 +558,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">true</ExcludedFromBuild>
-	  <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">true</ExcludedFromBuild>
-	</ClCompile>  
+    </ClCompile>
     <ClCompile Include="..\..\iPlug2\IGraphics\Drawing\IGraphicsSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Tracer|Win32'">true</ExcludedFromBuild>
@@ -568,7 +570,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Clang-x64-v3|x64'">true</ExcludedFromBuild>
-	  <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\iPlug2\IGraphics\IControl.cpp" />
@@ -590,9 +592,11 @@
     <ClCompile Include="..\AudioDSPTools\dsp\NoiseGate.cpp" />
     <ClCompile Include="..\AudioDSPTools\dsp\RecursiveLinearFilter.cpp" />
     <ClCompile Include="..\AudioDSPTools\dsp\wav.cpp" />
+    <ClCompile Include="..\NAMModelMapper.cpp" />
+    <ClCompile Include="..\NAMPNAMEditorWindow.cpp" />
     <ClCompile Include="..\NeuralAmpModeler.cpp" />
     <ClCompile Include="..\NAMLibraryBrowserWindow.cpp" />
-       <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp" />
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\activations.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\container.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\conv1d.cpp" />
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp" />
@@ -633,6 +637,7 @@
     </None>
     <None Include="..\config\NeuralAmpModeler-mac.xcconfig" />
     <None Include="..\NAMLibraryBrowserWindow.mm" />
+    <None Include="..\NAMPNAMEditorWindow.mm" />
     <None Include="NamModelHarness.vcxproj" />
     <None Include="NamModelHarness.vcxproj.filters" />
   </ItemGroup>

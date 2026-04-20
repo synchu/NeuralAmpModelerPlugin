@@ -23,16 +23,12 @@
 void NeuralAmpModeler::_UnserializeApplyConfig(nlohmann::json& config)
 {
   auto getParamByName = [&](std::string& name) {
-    // Could use a map but eh
     for (int i = 0; i < kNumParams; i++)
     {
       iplug::IParam* param = GetParam(i);
       if (strcmp(param->GetName(), name.c_str()) == 0)
-      {
         return param;
-      }
     }
-    // else
     return (iplug::IParam*)nullptr;
   };
   TRACE
@@ -57,14 +53,18 @@ void NeuralAmpModeler::_UnserializeApplyConfig(nlohmann::json& config)
   mNAMPath.Set(static_cast<std::string>(config["NAMPath"]).c_str());
   mIRPath.Set(static_cast<std::string>(config["IRPath"]).c_str());
 
+  // Restore .pnam path if present (added in current version)
+  if (config.contains("PNAMPath"))
+  {
+    const std::string pnamPath = config["PNAMPath"];
+    mPNAMPath.Set(pnamPath.c_str());
+    // Actual chain loading is deferred to OnUIOpen
+  }
+
   if (mNAMPath.GetLength())
-  {
     _StageModel(mNAMPath);
-  }
   if (mIRPath.GetLength())
-  {
     _StageIR(mIRPath);
-  }
 }
 
 // Unserialize NAM Path, IR path, then named keys
@@ -120,6 +120,13 @@ int _GetConfigFrom_0_7_12(const iplug::IByteChunk& chunk, int startPos, nlohmann
                                       "OutputMode"};
 
   int pos = _UnserializePathsAndExpectedKeys(chunk, startPos, config, paramNames);
+
+  // Read the trailing PNAMPath appended by SerializeState after SerializeParams
+  WDL_String pnamPath;
+  pos = chunk.GetStr(pnamPath, pos);
+  if (pnamPath.GetLength())
+    config["PNAMPath"] = std::string(pnamPath.Get());
+
   // Then update:
   _UpdateConfigFrom_0_7_12(config);
   return pos;
@@ -276,3 +283,4 @@ int NeuralAmpModeler::_UnserializeStateWithUnknownVersion(const iplug::IByteChun
   _UnserializeApplyConfig(config);
   return pos;
 }
+

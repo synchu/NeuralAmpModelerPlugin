@@ -134,8 +134,7 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphicsEditorDelegate.cpp">
       <Filter>IGraphics</Filter>
     </ClCompile>
-    
-       <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp">
+    <ClCompile Include="..\NeuralAmpModelerCore\NAM\convnet.cpp">
       <Filter>NAM</Filter>
     </ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\container.cpp">
@@ -188,6 +187,8 @@
     <ClCompile Include="..\NAMLibraryTreeView.cpp" />
     <ClCompile Include="..\NAMLibraryBrowserPanel.cpp" />
     <ClCompile Include="..\NAMLibraryBrowserWindow.cpp" />
+    <ClCompile Include="..\NAMModelMapper.cpp" />
+    <ClCompile Include="..\NAMPNAMEditorWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../config.h" />
@@ -518,6 +519,9 @@
     <ClInclude Include="..\NAMLibraryTreeView.h" />
     <ClInclude Include="..\NAMLibraryBrowserPanel.h" />
     <ClInclude Include="..\NAMLibraryBrowserWindow.h" />
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\activations.h" />
+    <ClInclude Include="..\NAMModelMapper.h" />
+    <ClInclude Include="..\NAMPNAMEditorWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">
@@ -580,7 +584,7 @@
     <Filter Include="NAM">
       <UniqueIdentifier>{3d65ee8b-86ee-4713-a5ec-d73919c6419c}</UniqueIdentifier>
     </Filter>
-	<Filter Include="NAM\wavenet">
+    <Filter Include="NAM\wavenet">
       <UniqueIdentifier>{8ea79bd2-d153-4bfc-8cd4-911c71bcd84d}</UniqueIdentifier>
     </Filter>
     <Filter Include="dsp">
@@ -618,5 +622,6 @@
       <Filter>config</Filter>
     </None>
     <None Include="..\NAMLibraryBrowserWindow.mm" />
+    <None Include="..\NAMPNAMEditorWindow.mm" />
   </ItemGroup>
 </Project>

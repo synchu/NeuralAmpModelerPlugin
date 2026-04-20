@@ -36,7 +36,13 @@ struct NAMLibraryTreeNode
   int depth = 0;
   
   // Helpers
-  bool IsModel() const { return !path.empty() && path.size() > 4 && path.substr(path.size() - 4) == ".nam"; }
+  bool IsModel() const
+  {
+    if (path.empty()) return false;
+    if (path.size() > 4 && path.substr(path.size() - 4) == ".nam") return true;
+    if (path.size() > 5 && path.substr(path.size() - 5) == ".pnam") return true;
+    return false;
+  }
   bool IsFolder() const { return path.empty(); }
   std::string GetDisplayName() const
   {

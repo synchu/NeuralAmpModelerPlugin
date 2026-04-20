@@ -5,7 +5,6 @@
 #include "AudioDSPTools/dsp/NoiseGate.h"
 #include "AudioDSPTools/dsp/dsp.h"
 #include "AudioDSPTools/dsp/wav.h"
-#include "AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
 
 #include <filesystem>
 
@@ -13,10 +12,13 @@
 #include "ToneStack.h"
 #include "NAMLibraryManager.h"
 #include "NAMLibraryBrowserWindow.h"
+#include "NAMPNAMEditorWindow.h"
+#include "NAMModelMapper.h"
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"
 
+#include "AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
 
 const int kNumPresets = 1;
 // The plugin is mono inside
@@ -49,6 +51,7 @@ enum EParams
   kCalibrateInput,
   kInputCalibrationLevel,
   kOutputMode,
+  kAmpGain,      // NEW — visible only when .pnam is active
   kNumParams
 };
 
@@ -64,6 +67,8 @@ enum ECtrlTags
   kCtrlTagOutputMode,
   kCtrlTagCalibrateInput,
   kCtrlTagInputCalibrationLevel,
+  kCtrlTagAmpGain,
+  kCtrlTagPNAMEditorBtn,   // NEW — chain editor icon button
   kNumCtrlTags
 };
 
@@ -77,13 +82,14 @@ enum EMsgTags
   kMsgTagLoadFailed,
   kMsgTagLoadedModel,
   kMsgTagLoadedIR,
+  kMsgTagSetPNAMBoundaries,  // DSP -> UI: float[] of normalised boundary positions for Amp Gain knob
   kNumMsgTags
 };
 
 // Get the sample rate of a NAM model.
 // Sometimes, the model doesn't know its own sample rate; this wrapper guesses 48k based on the way that most
 // people have used NAM in the past.
-double GetNAMSampleRate(const std::unique_ptr<nam::DSP>& model)
+inline double GetNAMSampleRate(const std::unique_ptr<nam::DSP>& model)
 {
   // Some models are from when we didn't have sample rate in the model.
   // For those, this wraps with the assumption that they're 48k models, which is probably true.
@@ -211,6 +217,8 @@ public:
   std::shared_ptr<NAMLibraryTreeNode> GetLibraryRootNode() const { return mLibraryRootNode; }
   NAMLibraryManager& GetLibraryManager() { return mLibraryManager; }
   void OpenLibraryBrowserWindow();
+  void OpenPNAMEditorWindow();          // NEW
+
   // Per-instance library browser UI state
   std::string mLibraryBrowserSearchQuery;
   std::string mLibraryBrowserSelectedTag;
@@ -306,11 +314,11 @@ private:
   dsp::noise_gate::Trigger mNoiseGateTrigger;
   dsp::noise_gate::Gain mNoiseGateGain;
   // The model actually being used:
-  std::unique_ptr<ResamplingNAM> mModel;
+  std::shared_ptr<ResamplingNAM> mModel;
   // And the IR
   std::unique_ptr<dsp::ImpulseResponse> mIR;
   // Manages switching what DSP is being used.
-  std::unique_ptr<ResamplingNAM> mStagedModel;
+  std::shared_ptr<ResamplingNAM> mStagedModel;
   std::unique_ptr<dsp::ImpulseResponse> mStagedIR;
   // Flags to take away the modules at a safe time.
   std::atomic<bool> mShouldRemoveModel = false;
@@ -341,8 +349,32 @@ private:
   NAMLibraryManager mLibraryManager;
   std::shared_ptr<NAMLibraryTreeNode> mLibraryRootNode;
   std::unique_ptr<NAMLibraryBrowserWindow> mLibraryBrowserWindow;
+  std::unique_ptr<NAMPNAMEditorWindow>     mPNAMEditorWindow;    // NEW
 
   // Used to auto-refresh metadata when NAM Model Manager updates data.json
   std::string mLibraryDataJsonPath;
   std::filesystem::file_time_type mLibraryDataJsonWriteTime{};
+
+  // Model mapper for gain-based model switching
+  
+  NAMModelMapper mModelMapper;
+
+  // Loads a .pnam chain config file, preloads all models, activates the mapper.
+  // Call from the UI thread only (may show dialogs for missing files).
+  void _LoadPNAMFile(const std::string& pnamPath);
+  
+  // Path to the active .pnam chain config (empty when mapper is not active)
+  WDL_String mPNAMPath;
+
+  // --- PNAM async load state ---
+  std::atomic<bool> mPNAMLoadPending{false};
+  std::atomic<int>  mPNAMLoadedSlots{0};
+  std::string       mPNAMPendingDisplayName; // written/read on UI thread only
+
+  // Smooth crossfade for mapper-driven model switches (avoids pop on Amp Gain knob)
+  std::shared_ptr<ResamplingNAM> mMapperPendingModel;
+  float  mOutputFadeGain = 1.0f;
+  int    mOutputFadeDir  = 0;    // -1 = fading out, +1 = fading in, 0 = idle
+  bool   mPendingGainRecalc = false; // deferred _SetInputGain/_SetOutputGain after model swap
+  static constexpr int kModelFadeSamples = 256;  // ~5ms at 48kHz
 };
