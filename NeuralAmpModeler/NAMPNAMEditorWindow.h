@@ -156,6 +156,7 @@ private:
 
   void OnDropFiles(HDROP hDrop);
 
+    std::vector<int> GetSelectedSlotIndices() const; // all selected rows
   LRESULT HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

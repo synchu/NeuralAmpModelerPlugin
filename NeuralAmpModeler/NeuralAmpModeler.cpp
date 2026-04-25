@@ -679,14 +679,95 @@ void NeuralAmpModeler::OnIdle()
         if (overrides->toneMid.has_value())     GetParam(kToneMid)->Set(*overrides->toneMid);
         if (overrides->toneTreble.has_value())  GetParam(kToneTreble)->Set(*overrides->toneTreble);
 
-        SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), false);
-        SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->GetNormalized(),    false);
-        SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->GetNormalized(),     false);
-        SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->GetNormalized(),  false);
+        SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), true);
+        SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->GetNormalized(),    true);
+        SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->GetNormalized(),     true);
+        SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->GetNormalized(),  true);
         _SetOutputGain();
       }
     }
-  }  
+  } 
+
+  // --- Voice knob: slot counter (A) + tooltip + browser label (D) ---
+  if (auto* pGraphics = GetUI())
+  {
+    auto* pKnob = static_cast<NAMKnobControl*>(pGraphics->GetControlWithTag(kCtrlTagAmpGain));
+    if (!pKnob) return;
+
+    if (mModelMapper.IsActive())
+    {
+      const int  slotIdx    = mModelMapper.GetActiveSlotIndex();
+      const auto& slots     = mModelMapper.GetSlots();
+      const int  totalSlots = static_cast<int>(slots.size());
+      const bool hovered    = pKnob->IsMouseOver();
+      const bool slotChanged = (slotIdx != mLastTooltipSlotIndex);
+
+      // Build slot stem once for reuse
+      std::string stem;
+      if (slotIdx >= 0 && slotIdx < totalSlots)
+        stem = std::filesystem::path(slots[slotIdx].namFilePath).stem().string();
+
+      if (slotChanged)
+      {
+        mLastTooltipSlotIndex = slotIdx;
+
+        // Tooltip
+        const std::string tip = (!stem.empty())
+          ? "Slot " + std::to_string(slotIdx + 1) + ": " + stem
+          : "Open PNAM Chain Editor";
+        //pKnob->SetTooltip(tip.c_str());
+
+        // Knob counter
+        pKnob->SetSlotInfo(slotIdx >= 0 ? slotIdx + 1 : -1, totalSlots);
+        pKnob->SetDirty(false);
+      }
+
+      // Browser label: show slot name while rotating OR hovering, restore otherwise
+      const bool shouldShowSlotName = (slotChanged || hovered) && !stem.empty();
+
+      if (shouldShowSlotName && !mBrowserShowingSlotName)
+      {
+        const std::string label = "\u25B6 " + stem;
+        WDL_String msg(label.c_str());
+        SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagSetBrowserLabel,
+                                   msg.GetLength() + 1, msg.Get());
+        mBrowserShowingSlotName = true;
+      }
+      else if (shouldShowSlotName && slotChanged)
+      {
+        // Already showing — but slot changed while rotating, update to new name
+        const std::string label = "\u25B6 " + stem;
+        WDL_String msg(label.c_str());
+        SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagSetBrowserLabel,
+                                   msg.GetLength() + 1, msg.Get());
+      }
+      else if (!shouldShowSlotName && mBrowserShowingSlotName)
+      {
+        // Not rotating, not hovering — restore chain name
+        SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagRestoreBrowserLabel, 1, "");
+        mBrowserShowingSlotName = false;
+      }
+    }
+    else
+    {
+      // PNAM deactivated
+      if (mLastTooltipSlotIndex != -2)
+      {
+        mLastTooltipSlotIndex = -2;
+        pKnob->SetTooltip("Open PNAM Chain Editor");
+        pKnob->SetSlotInfo(-1, 0);
+        pKnob->SetDirty(false);
+      }
+      if (mBrowserShowingSlotName)
+      {
+        SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagRestoreBrowserLabel, 1, "");
+        mBrowserShowingSlotName = false;
+      }
+      mLastKnobHoverState = false;
+    }
+  }   
+
+
 }    
 
 bool NeuralAmpModeler::InitializeLibraryManager()
@@ -1338,10 +1419,10 @@ void NeuralAmpModeler::OnParamChange(int paramIdx)
             if (overrides->toneMid.has_value())     GetParam(kToneMid)->Set(*overrides->toneMid);
             if (overrides->toneTreble.has_value())  GetParam(kToneTreble)->Set(*overrides->toneTreble);
 
-            SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), false);
-            SendParameterValueFromDelegate(kToneBass,    GetParam(kToneBass)->GetNormalized(),    false);
-            SendParameterValueFromDelegate(kToneMid,     GetParam(kToneMid)->GetNormalized(),     false);
-            SendParameterValueFromDelegate(kToneTreble,  GetParam(kToneTreble)->GetNormalized(),  false);
+            SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), true);
+            SendParameterValueFromDelegate(kToneBass, GetParam(kToneBass)->GetNormalized(),       true);
+            SendParameterValueFromDelegate(kToneMid, GetParam(kToneMid)->GetNormalized(),         true);
+            SendParameterValueFromDelegate(kToneTreble, GetParam(kToneTreble)->GetNormalized(),   true);
             _SetOutputGain();
           }
         }
@@ -1495,6 +1576,7 @@ void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
     mPNAMLoadPending.store(true); // signal OnIdle — written last as the memory barrier
   });
 }
+
 
 
 

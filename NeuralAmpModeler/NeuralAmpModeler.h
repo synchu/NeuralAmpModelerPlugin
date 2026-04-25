@@ -83,6 +83,8 @@ enum EMsgTags
   kMsgTagLoadedModel,
   kMsgTagLoadedIR,
   kMsgTagSetPNAMBoundaries,  // DSP -> UI: float[] of normalised boundary positions for Amp Gain knob
+  kMsgTagSetBrowserLabel,    // DSP -> UI: temporarily override model browser label (hover)
+  kMsgTagRestoreBrowserLabel,// DSP -> UI: restore model browser label to chain name
   kNumMsgTags
 };
 
@@ -377,4 +379,9 @@ private:
   int    mOutputFadeDir  = 0;    // -1 = fading out, +1 = fading in, 0 = idle
   bool   mPendingGainRecalc = false; // deferred _SetInputGain/_SetOutputGain after model swap
   static constexpr int kModelFadeSamples = 256;  // ~5ms at 48kHz
+
+  // Tracks which slot's name is currently shown on the voice button tooltip
+  int  mLastTooltipSlotIndex   = -2;
+  bool mLastKnobHoverState     = false;
+  bool mBrowserShowingSlotName = false;
 };

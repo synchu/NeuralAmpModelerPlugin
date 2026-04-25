@@ -322,7 +322,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   _slotTable.usesAlternatingRowBackgroundColors = NO;
   _slotTable.gridStyleMask = NSTableViewSolidHorizontalGridLineMask | NSTableViewSolidVerticalGridLineMask;
   _slotTable.gridColor = [NSColor colorWithCalibratedWhite:80/255.f alpha:1];
-  _slotTable.allowsMultipleSelection = NO;
+  _slotTable.allowsMultipleSelection = YES;
   _slotTable.intercellSpacing = NSMakeSize(6, 4);
   _slotTable.target = self;
   _slotTable.action = @selector(slotTableClicked:);
@@ -370,7 +370,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     [_addBtn.leadingAnchor constraintEqualToAnchor:leftPanel.leadingAnchor],
     [_removeBtn.leadingAnchor constraintEqualToAnchor:_addBtn.trailingAnchor constant:4],
     [_removeBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
-    [_upBtn.leadingAnchor constraintEqualToAnchor:_removeBtn.trailingAnchor constant:4],
+    [_upBtn.leadingAnchor constraintEqualToAnchor:_removeBtn.trailingAnchor constant:4]
     [_upBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
     [_downBtn.leadingAnchor constraintEqualToAnchor:_upBtn.trailingAnchor constant:4],
     [_downBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
@@ -535,6 +535,11 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
       [tf.leadingAnchor constraintEqualToAnchor:cb.trailingAnchor constant:4],
       [tf.widthAnchor constraintEqualToConstant:editW],
     ]];
+
+    // Align multi-line checkboxes to the top
+    if ([cb.title containsString:@"\n"])
+      [rc addObject:[cb.topAnchor constraintEqualToAnchor:prevAnchor.bottomAnchor constant:rowGap + 2]];
+
     prevAnchor = cb;
   }
 
@@ -542,7 +547,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   [rc addObjectsFromArray:@[
     [_applyBtn.topAnchor constraintEqualToAnchor:prevAnchor.bottomAnchor constant:rowGap + 6],
     [_applyBtn.leadingAnchor constraintEqualToAnchor:rContent.leadingAnchor constant:m],
-    [_applyBtn.widthAnchor constraintEqualToConstant:180],
+    [_applyBtn.widthAnchor constraintEqualToConstant:280],
   ]];
 
   // Preview buttons
@@ -643,16 +648,27 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
 - (void)tableViewSelectionDidChange:(NSNotification*)note
 {
-  NSInteger sel = _slotTable.selectedRow;
-  if (sel >= 0 && sel < (NSInteger)self.slots->size())
-  {
-    [self updateEditPanelFromSlot:(int)sel];
-    [self setEditPanelEnabled:YES];
-  }
-  else
+  NSIndexSet* sel = _slotTable.selectedRowIndexes;
+
+  if (sel.count == 0)
   {
     [self setEditPanelEnabled:NO];
+    _applyBtn.title = @"Apply to Slot ✓";
+    return;
   }
+
+  // Load the focused (clicked) row into the edit panel
+  NSInteger focused = _slotTable.clickedRow;
+  if (focused < 0 || ![sel containsIndex:(NSUInteger)focused])
+    focused = (NSInteger)sel.firstIndex;
+
+  if (focused >= 0 && focused < (NSInteger)self.slots->size())
+  {
+    [self updateEditPanelFromSlot:(int)focused];
+    [self setEditPanelEnabled:YES];
+  }
+
+  _applyBtn.title = (sel.count > 1) ? @"Apply to Selected ✓" : @"Apply to Slot ✓";
 }
 
 - (void)slotTableClicked:(id)sender { /* handled via selection change */ }
@@ -998,23 +1014,72 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
 - (void)onMoveUp:(id)s
 {
-  NSInteger idx = _slotTable.selectedRow;
-  if (idx <= 0 || idx >= (NSInteger)self.slots->size()) return;
-  std::swap((*self.slots)[idx], (*self.slots)[idx - 1]);
+  NSIndexSet* sel = _slotTable.selectedRowIndexes;
+  if (sel.count == 0) return;
+
+  // If the topmost selected row is already at 0 there is nowhere to go
+  if (sel.firstIndex == 0) return;
+
+  // Collect sorted indices and swap each with the row above (ascending order)
+  NSMutableArray<NSNumber*>* indices = [NSMutableArray array];
+  [sel enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL* stop) {
+    [indices addObject:@(idx)];
+  }];
+  // indices are already ascending from enumerateIndexesUsingBlock
+
+  for (NSNumber* n in indices)
+  {
+    NSUInteger idx = n.unsignedIntegerValue;
+    if (idx > 0 && idx < self.slots->size())
+      std::swap((*self.slots)[idx], (*self.slots)[idx - 1]);
+  }
+
   *self.dirty = true;
   [self refreshSlotTable];
-  [self selectSlotIndex:(int)idx - 1];
+
+  // Re-select rows in new positions
+  NSMutableIndexSet* newSel = [NSMutableIndexSet indexSet];
+  [sel enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL* stop) {
+    [newSel addIndex:idx - 1];
+  }];
+  [_slotTable selectRowIndexes:newSel byExtendingSelection:NO];
+  [_slotTable scrollRowToVisible:(NSInteger)newSel.firstIndex];
   [self updateTitleBar];
 }
 
 - (void)onMoveDown:(id)s
 {
-  NSInteger idx = _slotTable.selectedRow;
-  if (idx < 0 || idx >= (NSInteger)self.slots->size() - 1) return;
-  std::swap((*self.slots)[idx], (*self.slots)[idx + 1]);
+  NSIndexSet* sel = _slotTable.selectedRowIndexes;
+  if (sel.count == 0) return;
+
+  const NSUInteger lastSlot = self.slots->size() - 1;
+  // If the bottommost selected row is already at the end there is nowhere to go
+  if (sel.lastIndex >= lastSlot) return;
+
+  // Collect sorted indices; swap in reverse (descending) order so earlier swaps
+  // don't overwrite positions that will be moved later
+  NSMutableArray<NSNumber*>* indices = [NSMutableArray array];
+  [sel enumerateIndexesWithOptions:NSEnumerationReverse usingBlock:^(NSUInteger idx, BOOL* stop) {
+    [indices addObject:@(idx)];
+  }];
+
+  for (NSNumber* n in indices)
+  {
+    NSUInteger idx = n.unsignedIntegerValue;
+    if (idx < self.slots->size() - 1)
+      std::swap((*self.slots)[idx], (*self.slots)[idx + 1]);
+  }
+
   *self.dirty = true;
   [self refreshSlotTable];
-  [self selectSlotIndex:(int)idx + 1];
+
+  // Re-select rows in new positions
+  NSMutableIndexSet* newSel = [NSMutableIndexSet indexSet];
+  [sel enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL* stop) {
+    [newSel addIndex:idx + 1];
+  }];
+  [_slotTable selectRowIndexes:newSel byExtendingSelection:NO];
+  [_slotTable scrollRowToVisible:(NSInteger)newSel.lastIndex];
   [self updateTitleBar];
 }
 
@@ -1046,12 +1111,40 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
 - (void)onApplySlot:(id)s
 {
-  NSInteger idx = _slotTable.selectedRow;
-  if (idx < 0 || idx >= (NSInteger)self.slots->size()) return;
-  (*self.slots)[(size_t)idx] = [self readEditPanelToSlot];
+  NSIndexSet* sel = _slotTable.selectedRowIndexes;
+  if (sel.count == 0) return;
+
+  if (sel.count == 1)
+  {
+    // Single selection: write all fields as before
+    NSInteger idx = (NSInteger)sel.firstIndex;
+    if (idx < 0 || idx >= (NSInteger)self.slots->size()) return;
+    (*self.slots)[(size_t)idx] = [self readEditPanelToSlot];
+  }
+  else
+  {
+    // Multi-selection: apply only the override fields to every selected slot
+    std::optional<double> outputLevel, toneBass, toneMid, toneTreble;
+    if (_ovOutputCheck.state == NSControlStateValueOn) outputLevel = ParseDouble(_ovOutputEdit, 0.0);
+    if (_ovBassCheck.state   == NSControlStateValueOn) toneBass    = ParseDouble(_ovBassEdit,   5.0);
+    if (_ovMidCheck.state    == NSControlStateValueOn) toneMid     = ParseDouble(_ovMidEdit,    5.0);
+    if (_ovTrebleCheck.state == NSControlStateValueOn) toneTreble  = ParseDouble(_ovTrebleEdit, 5.0);
+
+    [sel enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL* stop) {
+      if (idx >= self.slots->size()) return;
+      (*self.slots)[idx].overrides.outputLevel = outputLevel;
+      (*self.slots)[idx].overrides.toneBass    = toneBass;
+      (*self.slots)[idx].overrides.toneMid     = toneMid;
+      (*self.slots)[idx].overrides.toneTreble  = toneTreble;
+    }];
+  }
+
   *self.dirty = true;
   [self refreshSlotTable];
-  [self selectSlotIndex:(int)idx];
+
+  // Restore the selection after reload
+  [_slotTable selectRowIndexes:sel byExtendingSelection:NO];
+  [_slotTable scrollRowToVisible:(NSInteger)sel.firstIndex];
   [self updateTitleBar];
 }
 

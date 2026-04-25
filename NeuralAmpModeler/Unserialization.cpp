@@ -117,7 +117,8 @@ int _GetConfigFrom_0_7_12(const iplug::IByteChunk& chunk, int startPos, nlohmann
                                       "IRToggle",
                                       "CalibrateInput",
                                       "InputCalibrationLevel",
-                                      "OutputMode"};
+                                      "OutputMode",
+                                      "Voice"};  // kAmpGain — added; must stay last to match EParams order
 
   int pos = _UnserializePathsAndExpectedKeys(chunk, startPos, config, paramNames);
 

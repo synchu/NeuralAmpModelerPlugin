@@ -86,7 +86,6 @@ public:
 
     g.DrawEllipse(col, mRECT, nullptr, 1.5f);
 
-    // Three horizontal bars drawn as primitives — cross-platform, no font needed
     const float cx  = mRECT.MW();
     const float cy  = mRECT.MH();
     const float hw  = mRECT.W() * 0.27f;
@@ -117,6 +116,18 @@ public:
     SetDirty(false);
   }
 
+  // Called from OnIdle to update the "2/5" counter drawn inside the knob.
+  // Pass active=-1 to clear (no PNAM active).
+  void SetSlotInfo(int active, int total)
+  {
+    if (active == mActiveSlot && total == mTotalSlots) return;
+    mActiveSlot  = active;
+    mTotalSlots  = total;
+    SetDirty(false);
+  }
+
+  bool IsMouseOver() const { return mMouseIsOver; }
+
   void DrawWidget(IGraphics& g) override
   {
     float widgetRadius = GetRadius() * 0.73;
@@ -130,8 +141,8 @@ public:
     if (!mPNAMBoundaries.empty())
     {
       const float kPi = 3.14159265f;
-      const float r0 = widgetRadius * 1.06f;  // inner tick radius
-      const float r1 = widgetRadius * 1.22f;  // outer tick radius
+      const float r0 = widgetRadius * 1.06f;
+      const float r1 = widgetRadius * 1.22f;
       const IColor tickColor = PluginColors::NAM_THEMECOLOR.WithOpacity(0.85f);
       for (float b : mPNAMBoundaries)
       {
@@ -154,10 +165,59 @@ public:
                                                {COLOR_TRANSPARENT, 1.0f}}),
                {}, &mBlend);
     g.DrawCircle(COLOR_BLACK.WithOpacity(0.5f), data[1][0], data[1][1], 3, &mBlend);
+
+    // ---- Hover tooltip: active slot NAM name ----
+    if (mMouseIsOver && mTooltip.GetLength())
+    {
+      const IText tipText(12.f, COLOR_WHITE, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+      const float pad  = 6.f;
+      const float tipH = 18.f;
+
+      IRECT measured(0, 0, 400, tipH);
+      g.MeasureText(tipText, mTooltip.Get(), measured);
+      const float tipW = measured.W() + pad * 2.f;
+
+      const IRECT gb = g.GetBounds();
+      float tipL = mRECT.MW() - tipW * 0.5f;
+      float tipT = mRECT.T - tipH - 4.f;
+      tipL = std::max(tipL, gb.L + 2.f);
+      tipL = std::min(tipL, gb.R - tipW - 2.f);
+      if (tipT < gb.T + 2.f)
+        tipT = mRECT.B + 4.f;
+
+      const IRECT tipRect(tipL, tipT, tipL + tipW, tipT + tipH);
+      g.FillRoundRect(IColor(220, 30, 30, 30), tipRect, 3.f);
+      g.DrawRoundRect(IColor(180, 100, 100, 100), tipRect, 3.f, nullptr, 1.f);
+      g.DrawText(tipText, mTooltip.Get(), tipRect);
+    }
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    WithFileDrop<IVKnobControl>::Draw(g);
+
+    if (mActiveSlot >= 0 && mTotalSlots > 0)
+    {
+      const std::string slotStr = std::to_string(mActiveSlot) + "/" + std::to_string(mTotalSlots);
+      const IText slotText(12.f, COLOR_WHITE, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+
+      const auto knobRect = mWidgetBounds.GetCentredInside(mWidgetBounds.W(), mWidgetBounds.W());
+      const float cx = knobRect.MW();
+      const float cy = knobRect.MH();
+
+      const float pillW = 34.f;
+      const float pillH = 16.f;
+      const IRECT pillRect(cx - pillW * 0.5f, cy - pillH * 0.5f,
+                           cx + pillW * 0.5f, cy + pillH * 0.5f);
+
+      g.DrawText(slotText, slotStr.c_str(), pillRect);
+    }
   }
 
 private:
   std::vector<float> mPNAMBoundaries; // normalised [0,1] slot boundaries; empty = no pnam active
+  int mActiveSlot  = -1; // 1-based active slot index; -1 = no PNAM active
+  int mTotalSlots  =  0;
 };
 
 class NAMSwitchControl : public WithFileDrop<IVSlideSwitchControl>, public IBitmapBase
@@ -562,7 +622,24 @@ public:
           // No directory — this is a display-only label (e.g. a .pnam chain name).
           // Just update the label directly; don't touch the file navigation list.
           mFileNameControl->SetLabelAndTooltip(fileName.Get());
+          // Cache this as the "resting" label so hover-restore knows what to return to
+          mRestingLabel.Set(fileName.Get());
         }
+        break;
+      }
+      // Option D: hover on Voice knob — temporarily show active slot name in model browser
+      case kMsgTagSetBrowserLabel:
+      {
+        // Ellipsize to the same limit as regular model names so it never
+        // overflows into the library browser icon button area
+        WDL_String label(reinterpret_cast<const char*>(pData));
+        mFileNameControl->SetLabelAndTooltipEllipsizing(label, 40);
+        break;
+      }
+      // Option D: mouse-out from Voice knob — restore chain name
+      case kMsgTagRestoreBrowserLabel:
+      {
+        mFileNameControl->SetLabelAndTooltip(mRestingLabel.Get());
         break;
       }
       default: break;
@@ -579,11 +656,11 @@ private:
     return;
   }
 
-  // MOVED ALL MEMBER VARIABLES HERE - BEFORE THEY'RE USED
   int mClearMsgTag;
   WDL_String mDefaultLabelStr;
+  WDL_String mRestingLabel;      // last chain/model display name, for hover-restore
   IFileDialogCompletionHandlerFunc mCompletionHandlerFunc;
-  WDL_String mDialogExtension;   // file-open dialog filter (e.g. "nam pnam")
+  WDL_String mDialogExtension;
   IVStyle mStyle;
   NAMFileNameControl* mFileNameControl = nullptr;
   IBitmap mBitmap;
@@ -1019,5 +1096,6 @@ private:
     IText mText;
   };
 };
+
 
 

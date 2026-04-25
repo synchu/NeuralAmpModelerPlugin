@@ -194,8 +194,6 @@ static std::string ResolvePath(const std::string& stored, const std::string& bas
 }
 
 
-// ---- Constructor / Destructor ----
-
 NAMPNAMEditorWindow::NAMPNAMEditorWindow() = default;
 
 NAMPNAMEditorWindow::~NAMPNAMEditorWindow()
@@ -494,7 +492,7 @@ void NAMPNAMEditorWindow::InitializeControls()
   mHwndSlotsLbl = MakeLabel(mHwnd, L"Slots:", 0, 0, 0, 0, mHFont);
 
   mHwndSlotList = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
-    WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+    WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
     0, 0, 0, 0,
     mHwnd, reinterpret_cast<HMENU>(IDC_SLOT_LIST), GetModuleHandleW(nullptr), nullptr);
   ListView_SetExtendedListViewStyle(mHwndSlotList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
@@ -693,7 +691,7 @@ void NAMPNAMEditorWindow::ResizeControls(int w, int h)
   dw(mHwndOvTrebleCheck, rx, ov4Y + 4, ovLabelW, kLabelH);
   dw(mHwndOvTrebleEdit,  ovEditX, ov4Y, ovEditW, kCtrlH);
 
-  dw(mHwndApplyBtn,        rx,             applyY,   180, kBtnH);
+  dw(mHwndApplyBtn,        rx,             applyY,   240, kBtnH);
 
   // Preview row
   int previewBtnW = std::max(60, (rw - 8) / 2);
@@ -749,7 +747,21 @@ void NAMPNAMEditorWindow::RefreshSlotList()
 int NAMPNAMEditorWindow::GetSelectedSlotIndex() const
 {
   if (!mHwndSlotList) return -1;
-  return ListView_GetNextItem(mHwndSlotList, -1, LVNI_SELECTED);
+  // Return the focused+selected item; fall back to any selected item.
+  int idx = ListView_GetNextItem(mHwndSlotList, -1, LVNI_FOCUSED | LVNI_SELECTED);
+  if (idx < 0)
+    idx = ListView_GetNextItem(mHwndSlotList, -1, LVNI_SELECTED);
+  return idx;
+}
+
+std::vector<int> NAMPNAMEditorWindow::GetSelectedSlotIndices() const
+{
+  std::vector<int> indices;
+  if (!mHwndSlotList) return indices;
+  int idx = -1;
+  while ((idx = ListView_GetNextItem(mHwndSlotList, idx, LVNI_SELECTED)) != -1)
+    indices.push_back(idx);
+  return indices;
 }
 
 void NAMPNAMEditorWindow::SelectSlotIndex(int idx)
@@ -848,11 +860,27 @@ void NAMPNAMEditorWindow::SetEditPanelEnabled(bool enabled)
 
 void NAMPNAMEditorWindow::OnSelectionChanged()
 {
-  int idx = GetSelectedSlotIndex();
-  if (idx >= 0 && idx < static_cast<int>(mSlots.size()))
-  { UpdateEditPanelFromSlot(idx); SetEditPanelEnabled(true); }
+  const int focused = GetSelectedSlotIndex();
+
+  if (focused >= 0 && focused < static_cast<int>(mSlots.size()))
+  {
+    UpdateEditPanelFromSlot(focused);
+    SetEditPanelEnabled(true);
+  }
   else
-  { SetEditPanelEnabled(false); }
+  {
+    SetEditPanelEnabled(false);
+  }
+
+  // Update Apply button label so the user knows what will happen
+  const auto selCount = GetSelectedSlotIndices().size();
+  if (mHwndApplyBtn)
+  {
+    if (selCount > 1)
+      SetWindowTextW(mHwndApplyBtn, L"Apply to Selected \u2713");
+    else
+      SetWindowTextW(mHwndApplyBtn, L"Apply to Slot \u2713");
+  }
 }
 
 void NAMPNAMEditorWindow::OnAddSlot()
@@ -885,23 +913,56 @@ void NAMPNAMEditorWindow::OnRemoveSlot()
 
 void NAMPNAMEditorWindow::OnMoveUp()
 {
-  int idx = GetSelectedSlotIndex();
-  if (idx <= 0 || idx >= static_cast<int>(mSlots.size())) return;
-  std::swap(mSlots[idx], mSlots[idx - 1]);
+  auto indices = GetSelectedSlotIndices();
+  if (indices.empty()) return;
+  std::sort(indices.begin(), indices.end());
+
+  // If the topmost selected row is already at 0 there is nowhere to go
+  if (indices.front() == 0) return;
+
+  // Swap each selected row with the one above it (ascending order is correct here)
+  for (const int idx : indices)
+    std::swap(mSlots[idx], mSlots[idx - 1]);
+
   mDirty = true;
   RefreshSlotList();
-  SelectSlotIndex(idx - 1);
+
+  // Re-select the rows in their new positions
+  for (const int idx : indices)
+    ListView_SetItemState(mHwndSlotList, idx - 1, LVIS_SELECTED, LVIS_SELECTED);
+
+  const int newFocus = indices.front() - 1;
+  ListView_SetItemState(mHwndSlotList, newFocus, LVIS_FOCUSED, LVIS_FOCUSED);
+  ListView_EnsureVisible(mHwndSlotList, newFocus, FALSE);
   UpdateTitleBar();
 }
 
 void NAMPNAMEditorWindow::OnMoveDown()
 {
-  int idx = GetSelectedSlotIndex();
-  if (idx < 0 || idx >= static_cast<int>(mSlots.size()) - 1) return;
-  std::swap(mSlots[idx], mSlots[idx + 1]);
+  auto indices = GetSelectedSlotIndices();
+  if (indices.empty()) return;
+  std::sort(indices.begin(), indices.end());
+
+  // If the bottommost selected row is already at the end there is nowhere to go
+  if (indices.back() >= static_cast<int>(mSlots.size()) - 1) return;
+
+  // Swap in reverse order so lower rows don't overwrite higher swaps
+  for (int i = static_cast<int>(indices.size()) - 1; i >= 0; --i)
+  {
+    const int idx = indices[i];
+    std::swap(mSlots[idx], mSlots[idx + 1]);
+  }
+
   mDirty = true;
   RefreshSlotList();
-  SelectSlotIndex(idx + 1);
+
+  // Re-select the rows in their new positions
+  for (const int idx : indices)
+    ListView_SetItemState(mHwndSlotList, idx + 1, LVIS_SELECTED, LVIS_SELECTED);
+
+  const int newFocus = indices.back() + 1;
+  ListView_SetItemState(mHwndSlotList, newFocus, LVIS_FOCUSED, LVIS_FOCUSED);
+  ListView_EnsureVisible(mHwndSlotList, newFocus, FALSE);
   UpdateTitleBar();
 }
 
@@ -921,12 +982,51 @@ void NAMPNAMEditorWindow::OnBrowseNAM()
 
 void NAMPNAMEditorWindow::OnApplySlot()
 {
-  int idx = GetSelectedSlotIndex();
-  if (idx < 0 || idx >= static_cast<int>(mSlots.size())) return;
-  mSlots[idx] = ReadEditPanelToSlot();
+  const auto indices = GetSelectedSlotIndices();
+  if (indices.empty()) return;
+
+  if (indices.size() == 1)
+  {
+    // Single selection: apply all edit-panel fields as before
+    const int idx = indices[0];
+    if (idx < 0 || idx >= static_cast<int>(mSlots.size())) return;
+    mSlots[idx] = ReadEditPanelToSlot();
+  }
+  else
+  {
+    // Multi-selection: apply only the override fields to every selected slot
+    std::optional<double> outputLevel, toneBass, toneMid, toneTreble;
+    if (Button_GetCheck(mHwndOvOutputCheck) == BST_CHECKED)
+      outputLevel = ParseDouble(mHwndOvOutputEdit, 0.0);
+    if (Button_GetCheck(mHwndOvBassCheck) == BST_CHECKED)
+      toneBass = ParseDouble(mHwndOvBassEdit, 5.0);
+    if (Button_GetCheck(mHwndOvMidCheck) == BST_CHECKED)
+      toneMid = ParseDouble(mHwndOvMidEdit, 5.0);
+    if (Button_GetCheck(mHwndOvTrebleCheck) == BST_CHECKED)
+      toneTreble = ParseDouble(mHwndOvTrebleEdit, 5.0);
+
+    for (const int idx : indices)
+    {
+      if (idx < 0 || idx >= static_cast<int>(mSlots.size())) continue;
+      mSlots[idx].overrides.outputLevel = outputLevel;
+      mSlots[idx].overrides.toneBass    = toneBass;
+      mSlots[idx].overrides.toneMid     = toneMid;
+      mSlots[idx].overrides.toneTreble  = toneTreble;
+    }
+  }
+
   mDirty = true;
   RefreshSlotList();
-  SelectSlotIndex(idx);
+
+  // Restore selection after the list refresh
+  for (const int idx : indices)
+    ListView_SetItemState(mHwndSlotList, idx, LVIS_SELECTED, LVIS_SELECTED);
+  if (!indices.empty())
+  {
+    ListView_SetItemState(mHwndSlotList, indices.front(), LVIS_FOCUSED, LVIS_FOCUSED);
+    ListView_EnsureVisible(mHwndSlotList, indices.front(), FALSE);
+  }
+
   UpdateTitleBar();
 }
 
@@ -1334,8 +1434,6 @@ void NAMPNAMEditorWindow::SaveSettings()
 } // end of SaveSettings()
 
 
-
-// ---- Message handler ----
 LRESULT NAMPNAMEditorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 {
   switch (msg)
