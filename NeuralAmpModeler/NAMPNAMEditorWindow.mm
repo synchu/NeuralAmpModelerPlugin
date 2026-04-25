@@ -516,13 +516,14 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   ]];
 
   // Override rows: checkbox + edit field
+    // Override rows: checkbox + edit field
   NSView* prevAnchor = ovLbl;
-  NSArray<NSArray*>* ovRows = @{
+  NSArray<NSArray*>* ovRows = @[
     @[_ovOutputCheck, _ovOutputEdit],
     @[_ovBassCheck,   _ovBassEdit],
     @[_ovMidCheck,    _ovMidEdit],
     @[_ovTrebleCheck, _ovTrebleEdit],
-  };
+  ];
   for (NSArray* row in ovRows)
   {
     NSButton* cb = row[0];
