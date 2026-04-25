@@ -370,7 +370,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
     [_addBtn.leadingAnchor constraintEqualToAnchor:leftPanel.leadingAnchor],
     [_removeBtn.leadingAnchor constraintEqualToAnchor:_addBtn.trailingAnchor constant:4],
     [_removeBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
-    [_upBtn.leadingAnchor constraintEqualToAnchor:_removeBtn.trailingAnchor constant:4]
+    [_upBtn.leadingAnchor constraintEqualToAnchor:_removeBtn.trailingAnchor constant:4],  // comma added
     [_upBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
     [_downBtn.leadingAnchor constraintEqualToAnchor:_upBtn.trailingAnchor constant:4],
     [_downBtn.centerYAnchor constraintEqualToAnchor:_addBtn.centerYAnchor],
@@ -517,12 +517,12 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
 
   // Override rows: checkbox + edit field
   NSView* prevAnchor = ovLbl;
-  NSArray<NSArray*>* ovRows = @[
+  NSArray<NSArray*>* ovRows = @{
     @[_ovOutputCheck, _ovOutputEdit],
     @[_ovBassCheck,   _ovBassEdit],
     @[_ovMidCheck,    _ovMidEdit],
     @[_ovTrebleCheck, _ovTrebleEdit],
-  ];
+  };
   for (NSArray* row in ovRows)
   {
     NSButton* cb = row[0];
