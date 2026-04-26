@@ -353,7 +353,7 @@ static NSButton* MakeCheckbox(NSString* title, id target, SEL action)
   _removeBtn     = MakeButton(@"− Remove",               self, @selector(onRemoveSlot:));
   _upBtn         = MakeButton(@"▲ Up",                   self, @selector(onMoveUp:));
   _downBtn       = MakeButton(@"▼ Down",                 self, @selector(onMoveDown:));
-  _distributeBtn = MakeButton(@"Distribute Gain 0→10",   self, @selector(onDistribute:));
+  _distributeBtn = MakeButton(@"Distribute 0→10",   self, @selector(onDistribute:));
   for (NSButton* b in @[_addBtn, _removeBtn, _upBtn, _downBtn, _distributeBtn])
   {
     b.font = font;

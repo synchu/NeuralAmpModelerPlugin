@@ -145,7 +145,7 @@ private:
         continue;
       // Last slot: inclusive upper bound (catches gain == 10.0).
       // All others: exclusive upper bound so the boundary value belongs to the
-      // next slot, and any tiny gap produced by Distribute Gain is filled.
+      // next slot, and any tiny gap produced by Distribute is filled.
       const bool belowMax = (i == n - 1) ? (gain <= mSlots[i].ampGainMax)
                                           : (gain < mSlots[i].ampGainMax + 0.01);
       if (belowMax)

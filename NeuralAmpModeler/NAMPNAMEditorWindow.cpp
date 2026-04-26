@@ -512,7 +512,7 @@ void NAMPNAMEditorWindow::InitializeControls()
   mHwndRemoveBtn = MakeButton(mHwnd, IDC_REMOVE_SLOT, L"- Remove",    0, 0, 0, 0, mHFont);
   mHwndUpBtn     = MakeButton(mHwnd, IDC_MOVE_UP,     L"\u25B2 Up",   0, 0, 0, 0, mHFont);
   mHwndDownBtn   = MakeButton(mHwnd, IDC_MOVE_DOWN,   L"\u25BC Down", 0, 0, 0, 0, mHFont);
-  mHwndDistributeBtn = MakeButton(mHwnd, IDC_DISTRIBUTE_GAIN, L"Distribute Gain 0\u219210", 0, 0, 0, 0, mHFont);
+  mHwndDistributeBtn = MakeButton(mHwnd, IDC_DISTRIBUTE_GAIN, L"Distribute 0\u219210", 0, 0, 0, 0, mHFont);
 
   mHwndVSep = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_ETCHEDVERT,
     0, 0, 0, 0, mHwnd, nullptr, GetModuleHandleW(nullptr), nullptr);
