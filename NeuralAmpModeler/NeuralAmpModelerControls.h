@@ -120,9 +120,8 @@ public:
   // Pass active=-1 to clear (no PNAM active).
   void SetSlotInfo(int active, int total)
   {
-    if (active == mActiveSlot && total == mTotalSlots) return;
-    mActiveSlot  = active;
-    mTotalSlots  = total;
+    mActiveSlot = active;
+    mTotalSlots = total;
     SetDirty(false);
   }
 
@@ -475,8 +474,7 @@ public:
     auto clearFileFunc = [&](IControl* pCaller) {
       pCaller->GetDelegate()->SendArbitraryMsgFromUI(mClearMsgTag);
       mFileNameControl->SetLabelAndTooltip(mDefaultLabelStr.Get());
-      // FIXME disabling output mode...
-      //      pCaller->GetUI()->GetControlWithTag(kCtrlTagOutputMode)->SetDisabled(false);
+      mRestingLabel.Set(mDefaultLabelStr.Get()); // reset so hover-restore uses default, not old chain name
     };
 
     auto chooseFileFunc = [&, loadFileFunc](IControl* pCaller) {
@@ -1097,6 +1095,7 @@ private:
     IText mText;
   };
 };
+
 
 
 

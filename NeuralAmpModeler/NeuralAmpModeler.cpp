@@ -259,6 +259,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       }),
       kCtrlTagPNAMEditorBtn);
     pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn)->SetDisabled(true);
+    pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn)->SetTooltip("Open PNAM Chain Editor");
 
 #ifdef NAM_PICK_DIRECTORY
     const std::string defaultNamFileString = "Select model directory...";
@@ -621,6 +622,22 @@ void NeuralAmpModeler::OnIdle()
     if (auto* pGraphics = GetUI())
     {
       static_cast<NAMSettingsPageControl*>(pGraphics->GetControlWithTag(kCtrlTagSettingsBox))->ClearModelInfo();
+
+      // Disable Voice knob and PNAM editor button, reset knob counter
+      if (auto* pKnob = static_cast<NAMKnobControl*>(pGraphics->GetControlWithTag(kCtrlTagAmpGain)))
+      {
+        pKnob->SetDisabled(true);
+        pKnob->SetSlotInfo(-1, 0);
+        pKnob->SetPNAMBoundaries({});
+        pKnob->SetTooltip("");
+        pKnob->SetDirty(false);
+      }
+      if (auto* pBtn = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
+      {
+        pBtn->SetDisabled(true);
+        pBtn->SetDirty(false);
+      }
+
       mModelCleared = false;
     }
   }
@@ -945,10 +962,15 @@ void NeuralAmpModeler::_ApplyDSPStaging()
   {
     mModel = nullptr;
     mNAMPath.Set("");
-    mPNAMPath.Set("");   // ← add this
+    mPNAMPath.Set("");
     mModelMapper.SetActive(false);
     mModelMapper.ClearSlots();
     mModelCleared = true;
+    mShouldRemoveModel = false;
+    // Reset OnIdle tracking so next PNAM load starts fresh
+    mLastTooltipSlotIndex = -2;
+    mBrowserShowingSlotName = false;
+    mLastKnobHoverState = false;
     _UpdateLatency();
     _SetInputGain();
     _SetOutputGain();
@@ -1576,6 +1598,15 @@ void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
     mPNAMLoadPending.store(true); // signal OnIdle — written last as the memory barrier
   });
 }
+
+
+
+
+
+
+
+
+
 
 
 
