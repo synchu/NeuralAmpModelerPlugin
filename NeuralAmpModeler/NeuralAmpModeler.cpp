@@ -269,13 +269,16 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const std::string defaultIRString = "Select IR...";
 #endif
     pGraphics->AttachControl(new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(),
-                                                       "nam pnam", loadModelCompletionHandler, style, fileSVG, crossSVG,
+                                                       "nam pnam", "nam",   // dialog filter, scan extension
+                                                       loadModelCompletionHandler, style, fileSVG, crossSVG,
                                                        leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),
                              kCtrlTagModelFileBrowser);
-    pGraphics->AttachControl(new WithFileDrop<ISVGSwitchControl>(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
+
     pGraphics->AttachControl(
-      new NAMFileBrowserControl(irArea, kMsgTagClearIR, defaultIRString.c_str(), "wav", loadIRCompletionHandler, style,
-                                fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG, fileBackgroundBitmap),  // Use fileSVG as placeholder for IR browser
+      new NAMFileBrowserControl(irArea, kMsgTagClearIR, defaultIRString.c_str(),
+                                "wav", "wav",         // dialog filter, scan extension
+                                loadIRCompletionHandler, style,
+                                fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG, fileBackgroundBitmap),
       kCtrlTagIRFileBrowser);
     pGraphics->AttachControl(
       new NAMSwitchControl(ngToggleArea, kNoiseGateActive, "Noise Gate", style, switchHandleBitmap));

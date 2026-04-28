@@ -358,16 +358,18 @@ public:
 class NAMFileBrowserControl : public WithFileDrop<IDirBrowseControlBase>
 {
 public:
-  NAMFileBrowserControl(const IRECT& bounds, int clearMsgTag, const char* labelStr, const char* fileExtension,
+  NAMFileBrowserControl(const IRECT& bounds, int clearMsgTag, const char* labelStr,
+                    const char* fileExtension,       // dialog filter  e.g. "nam pnam" or "wav"
+                    const char* scanExtension,       // directory scan extension e.g. "nam" or "wav"
                     IFileDialogCompletionHandlerFunc ch, const IVStyle& style, const ISVG& loadSVG,
-                    const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG, 
+                    const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG,
                     const ISVG& librarySVG,
                     const IBitmap& bitmap)
-  : WithFileDrop<IDirBrowseControlBase>(bounds, "nam", false, false)  // "nam" only for ScanDirectory
+  : WithFileDrop<IDirBrowseControlBase>(bounds, scanExtension, false, false)
   , mClearMsgTag(clearMsgTag)
   , mDefaultLabelStr(labelStr)
   , mCompletionHandlerFunc(ch)
-  , mDialogExtension(fileExtension)   // file-open dialog filter (e.g. "nam pnam")
+  , mDialogExtension(fileExtension)
   , mStyle(style.WithDrawFrame(false))
   , mBitmap(bitmap)
   , mLoadSVG(loadSVG)
@@ -426,7 +428,7 @@ public:
       WDL_String path;
       GetSelectedFileDirectory(path);
 #ifdef NAM_PICK_DIRECTORY
-      pCaller->GetUI()->PromptForDirectory(path, [&](const WDL_String& fileName, const WDL_String& path) {
+      pCaller->GetUI()->PromptForDirectory(path, [this](const WDL_String& fileName, const WDL_String& path) {
         if (path.GetLength())
         {
           ClearPathList();
@@ -438,34 +440,34 @@ public:
       });
 #else
       pCaller->GetUI()->PromptForFile(
-        fileName, path, EFileAction::Open, mDialogExtension.Get(), [&](const WDL_String& fileName, const WDL_String& path) {
-          if (fileName.GetLength())
-          {
-            // If the dialog didn't return a directory (e.g. UNC/network paths),
-            // derive it from the selected file path.
-            const char* pathStr = path.Get();
-            WDL_String derivedPath;
-            if (!pathStr || !pathStr[0])
-            {
-              std::filesystem::path fp = std::filesystem::u8path(fileName.Get());
-              std::string parentStr = fp.parent_path().string();
-              derivedPath.Set(parentStr.c_str());
-              pathStr = derivedPath.Get();
-            }
+        fileName, path, EFileAction::Open, mDialogExtension.Get(),
+        [this](const WDL_String& fileName, const WDL_String& path) {
+          if (!fileName.GetLength())
+            return;
 
-            ClearPathList();
-            if (pathStr && pathStr[0])
-            {
-              AddPath(pathStr, "");
-              SetupMenu();
-              SetSelectedFile(fileName.Get());
-              LoadFileAtCurrentIndex();
-            }
-            else
-            {
-              // No directory available — call the completion handler directly.
-              mCompletionHandlerFunc(fileName, path);
-            }
+          // Derive directory from file path if dialog didn't return one
+          WDL_String derivedPath;
+          const char* pathStr = path.Get();
+          if (!pathStr || !pathStr[0])
+          {
+            std::string parentStr = std::filesystem::u8path(fileName.Get()).parent_path().string();
+            derivedPath.Set(parentStr.c_str());
+            pathStr = derivedPath.Get();
+          }
+
+          ClearPathList();
+          if (pathStr && pathStr[0])
+          {
+            AddPath(pathStr, "");
+            SetupMenu();
+            SetSelectedFile(fileName.Get());
+            LoadFileAtCurrentIndex();
+          }
+          else
+          {
+            const size_t maxChars = strstr(mDialogExtension.Get(), "nam") ? 35 : 45;
+            mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
+            mCompletionHandlerFunc(fileName, path);
           }
         });
 #endif
@@ -500,7 +502,14 @@ public:
     const auto clearButtonBounds = padded.ReduceFromRight(buttonWidth);
     const auto leftButtonBounds = padded.ReduceFromLeft(buttonWidth);
     const auto rightButtonBounds = padded.ReduceFromLeft(buttonWidth);
-    const auto libraryButtonBounds = padded.ReduceFromLeft(buttonWidth);
+    // Library button only for model browser — use mDialogExtension, NOT mExtension
+    // (mExtension is hardcoded "nam" in the base class constructor for both browsers)
+    const bool isModelBrowser = strstr(mDialogExtension.Get(), "nam") != nullptr;
+
+    IRECT libraryButtonBounds;
+    if (isModelBrowser)
+      libraryButtonBounds = padded.ReduceFromLeft(buttonWidth);
+
     const auto fileNameButtonBounds = padded;
 
     AddChildControl(new NAMSquareButtonControl(loadFileButtonBounds, DefaultClickActionFunc, mLoadSVG))
@@ -509,60 +518,14 @@ public:
       ->SetAnimationEndActionFunction(prevFileFunc);
     AddChildControl(new NAMSquareButtonControl(rightButtonBounds, DefaultClickActionFunc, mRightSVG))
       ->SetAnimationEndActionFunction(nextFileFunc);
-    
-    // Only add library browser button for model browser (not IR browser)
-    if (strstr(mExtension.Get(), "nam") != nullptr)
+
+    if (isModelBrowser)
     {
       AddChildControl(new NAMSquareButtonControl(libraryButtonBounds, [this](IControl* pCaller) {
-        auto* pPlugin = PLUG();
-        
-        // Use new separate window approach
-        pPlugin->OpenLibraryBrowserWindow();
-        
-        /* OLD APPROACH: Modal panel overlay (kept for reference)
-        auto rootNode = pPlugin->GetLibraryRootNode();
-        
-        if (!rootNode)
-        {
-          pCaller->GetUI()->ShowMessageBox(
-            "NAM library not loaded.\n\nMake sure you have nam-model-manager installed.",
-            "Library Not Found", kMB_OK);
-          return;
-        }
-        
-        // Make the library browser fill most of the plugin window
-        const IRECT& pluginBounds = pCaller->GetUI()->GetBounds();
-        const float modalPadding = 40.0f;
-        IRECT modalBounds = pluginBounds.GetPadded(-modalPadding);
-        
-        auto* pBrowserPanel = new NAMLibraryBrowserPanel(
-          modalBounds,
-          &pPlugin->GetLibraryManager(),
-          rootNode,
-          mStyle
-        );
-        
-        pBrowserPanel->SetOnModelSelected([this, pCaller](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-          if (model && model->IsModel())
-          {
-            WDL_String modelPath(model->path.c_str());
-            mFileNameControl->SetLabelAndTooltipEllipsizing(WDL_String(model->name.c_str()));
-            mCompletionHandlerFunc(modelPath, WDL_String());
-            
-            // Close the browser panel after selection
-            pCaller->GetUI()->ForAllControlsFunc([](IControl* pControl) {
-              if (auto* panel = dynamic_cast<NAMLibraryBrowserPanel*>(pControl)) {
-                pControl->GetUI()->RemoveControl(pControl);
-              }
-            });
-          }
-        });
-        
-        pCaller->GetUI()->AttachControl(pBrowserPanel);
-        */
+        PLUG()->OpenLibraryBrowserWindow();
       }, mLibrarySVG))->SetTooltip("Browse NAM Library");
     }
-    
+
     AddChildControl(mFileNameControl = new NAMFileNameControl(fileNameButtonBounds, mDefaultLabelStr.Get(), mStyle))
       ->SetAnimationEndActionFunction(chooseFileFunc);
     AddChildControl(new NAMSquareButtonControl(clearButtonBounds, DefaultClickActionFunc, mClearSVG))
@@ -578,7 +541,7 @@ public:
       WDL_String fileName, path;
       GetSelectedFile(fileName);
 
-      const size_t maxChars = (strstr(mExtension.Get(), "nam") != nullptr) ? 35 : 45;
+      const size_t maxChars = strstr(mDialogExtension.Get(), "nam") ? 35 : 45;
       mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
 
       mCompletionHandlerFunc(fileName, path);
@@ -1095,7 +1058,3 @@ private:
     IText mText;
   };
 };
-
-
-
-
