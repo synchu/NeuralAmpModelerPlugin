@@ -1376,6 +1376,11 @@ void NeuralAmpModeler::OnUIOpen()
 
   InitializeLibraryManager();
 
+  // Reset hover-tracking so OnIdle treats first tick as a slot change
+  mLastTooltipSlotIndex = -2;
+  mBrowserShowingSlotName = false;
+  mLastKnobHoverState = false;
+
   if (mNAMPath.GetLength())
   {
     SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel, mNAMPath.GetLength(), mNAMPath.Get());
@@ -1390,10 +1395,49 @@ void NeuralAmpModeler::OnUIOpen()
       SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadFailed);
   }
 
-    // Restore .pnam chain if one was serialized
   if (mPNAMPath.GetLength() && !mModelMapper.IsActive() && !mModelMapper.IsPreloading())
   {
+    // First open after deserialization — load the chain from disk.
     _LoadPNAMFile(mPNAMPath.Get());
+  }
+  else if (mPNAMPath.GetLength() && mModelMapper.IsActive())
+  {
+    // UI was closed and reopened while the mapper is already running.
+    // The controls are brand-new instances; restore their state without
+    // re-loading anything from disk.
+
+    // 1. Send the chain display name with no directory path so the file-browser
+    //    control takes the "display-only" branch and sets mRestingLabel correctly.
+    const std::string displayName = "[Chain] " + std::filesystem::path(mPNAMPath.Get()).stem().string();
+    WDL_String displayStr(displayName.c_str());
+    SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel,
+                               displayStr.GetLength(), displayStr.Get());
+
+    // 2. Enable the Voice knob and editor button.
+    if (auto* pGraphics = GetUI())
+    {
+      if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagAmpGain))
+        pCtrl->SetDisabled(false);
+      if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
+        pCtrl->SetDisabled(false);
+
+      // 3. Rebuild and push slot-boundary tick marks to the fresh knob instance.
+      const auto& slots = mModelMapper.GetSlots();
+      std::vector<float> boundaries;
+      boundaries.reserve(slots.size() * 2);
+      for (const auto& slot : slots)
+      {
+        if (slot.ampGainMin > 0.0)
+          boundaries.push_back(static_cast<float>(slot.ampGainMin / 10.0));
+        if (slot.ampGainMax < 10.0)
+          boundaries.push_back(static_cast<float>(slot.ampGainMax / 10.0));
+      }
+      std::sort(boundaries.begin(), boundaries.end());
+      boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
+
+      if (auto* pKnob = static_cast<NAMKnobControl*>(pGraphics->GetControlWithTag(kCtrlTagAmpGain)))
+        pKnob->SetPNAMBoundaries(std::move(boundaries));
+    }
   }
 
   if (mModel != nullptr)
