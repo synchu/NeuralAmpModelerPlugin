@@ -1,5 +1,5 @@
-**NOTE: This is the NAM Plugin fork with added Chain definitions, drag and drop, Library Browser and multiple compile capabilities!!! 
-Releases contain also NAM Model Manager featuring NAM models tagging, management and drag and drop capabilities, as well as tone3000.com connectivity - direct browsing and download of models**
+**NOTE: This is the NAM Plugin fork with added Chain definitions, drag and drop, Library Browser and multiple compile optimizations! 
+Releases also contain NAM Model Manager featuring NAM models tagging, management and drag and drop capabilities, as well as tone3000.com connectivity - direct browsing and download of models**
 
 **See the latest release and notes for more details.**
 
