@@ -97,7 +97,7 @@ private:
   IActionFunction mDismiss;
 };
 
-class NAMTextCircleButtonControl : public IVKnobControl, public IBitmapBase
+class NAMTextCircleButtonControl : public IButtonControlBase
 {
 public:
   NAMTextCircleButtonControl(const IRECT& bounds, IActionFunction af)
@@ -383,16 +383,33 @@ public:
   }
 };
 
+// URL control for the "Get" models/irs links
+class NAMGetButtonControl : public NAMSquareButtonControl
+{
+public:
+  NAMGetButtonControl(const IRECT& bounds, const char* label, const char* url, const ISVG& globeSVG)
+  : NAMSquareButtonControl(
+      bounds,
+      [url](IControl* pCaller) {
+        WDL_String fullURL(url);
+        pCaller->GetUI()->OpenURL(fullURL.Get());
+      },
+      globeSVG)
+  {
+    SetTooltip(label);
+  }
+};
+
 class NAMFileBrowserControl : public WithFileDrop<IDirBrowseControlBase>
 {
 public:
   NAMFileBrowserControl(const IRECT& bounds, int clearMsgTag, const char* labelStr,
-                    const char* fileExtension,       // dialog filter  e.g. "nam pnam" or "wav"
-                    const char* scanExtension,       // directory scan extension e.g. "nam" or "wav"
+                    const char* fileExtension,
+                    const char* scanExtension,
                     IFileDialogCompletionHandlerFunc ch, const IVStyle& style, const ISVG& loadSVG,
-                    const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG,
-                    const ISVG& librarySVG,
-                    const IBitmap& bitmap)
+                    const ISVG& clearSVG, const ISVG& leftSVG, const ISVG& rightSVG,                    
+                    const ISVG& librarySVG, const IBitmap& bitmap, const ISVG& globeSVG,
+                    const char* getButtonLabel,const char* getButtonURL)
   : WithFileDrop<IDirBrowseControlBase>(bounds, scanExtension, false, false)
   , mClearMsgTag(clearMsgTag)
   , mDefaultLabelStr(labelStr)
@@ -404,11 +421,11 @@ public:
   , mClearSVG(clearSVG)
   , mLeftSVG(leftSVG)
   , mRightSVG(rightSVG)
+  , mLibrarySVG(librarySVG)
   , mGlobeSVG(globeSVG)
   , mGetButtonLabel(getButtonLabel)
   , mGetButtonURL(getButtonURL)
-  , mBrowserState(NAMBrowserState::Empty)
-  , mLibrarySVG(librarySVG)
+  , mBrowserState(NAMBrowserState::Empty)  
   {
     mIgnoreMouse = true;
   }
@@ -595,12 +612,12 @@ public:
     switch (msgTag)
     {
       case kMsgTagLoadFailed:
-        {
-          std::string label(std::string("(FAILED) ") + std::string(mFileNameControl->GetLabelStr()));
-          mFileNameControl->SetLabelAndTooltip(label.c_str());
-          SetBrowserState(NAMBrowserState::Empty);
-        }
-        break;
+      {
+        std::string label(std::string("(FAILED) ") + std::string(mFileNameControl->GetLabelStr()));
+        mFileNameControl->SetLabelAndTooltip(label.c_str());
+        SetBrowserState(NAMBrowserState::Empty);
+      }
+      break;
       case kMsgTagLoadedModel:
       case kMsgTagLoadedIR:
       {
@@ -629,6 +646,7 @@ public:
           // Cache this as the "resting" label so hover-restore knows what to return to
           mRestingLabel.Set(fileName.Get());
         }
+        SetBrowserState(NAMBrowserState::Loaded);
         break;
       }
       // Option D: hover on Voice knob — temporarily show active slot name in model browser
@@ -646,14 +664,7 @@ public:
         mFileNameControl->SetLabelAndTooltip(mRestingLabel.Get());
         break;
       }
-        ClearPathList();
-        AddPath(directory.Get(), "");
-        SetupMenu();
-        SetSelectedFile(fileName.Get());
-        mFileNameControl->SetLabelAndTooltipEllipsizing(fileName);
-        SetBrowserState(NAMBrowserState::Loaded);
-      }
-      break;
+
       default: break;
     }
   }
@@ -688,16 +699,13 @@ private:
 
   int mClearMsgTag;
   WDL_String mDefaultLabelStr;
-  WDL_String mRestingLabel;      // last chain/model display name, for hover-restore
+  WDL_String mRestingLabel;
   IFileDialogCompletionHandlerFunc mCompletionHandlerFunc;
   WDL_String mDialogExtension;
   IVStyle mStyle;
   NAMFileNameControl* mFileNameControl = nullptr;
   IBitmap mBitmap;
   ISVG mGlobeSVG;
-  int mClearMsgTag;
-
-  // new members for the "Get" button
   const char* mGetButtonLabel;
   const char* mGetButtonURL;
   NAMBrowserState mBrowserState;

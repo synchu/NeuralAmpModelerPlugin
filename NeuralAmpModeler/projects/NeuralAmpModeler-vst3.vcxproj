@@ -630,21 +630,6 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release-Compat|Win32'">$(IntDir)%(RelativeDir)</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release-Compat|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\get_dsp.cpp">
-      <Filter>NAM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\lstm.cpp">
-      <Filter>NAM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\util.cpp">
-      <Filter>NAM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\wavenet\model.cpp">
-      <Filter>NAM\wavenet</Filter>
-    </ClCompile>
-    <ClCompile Include="..\NeuralAmpModelerCore\NAM\wavenet\slimmable.cpp">
-      <Filter>NAM\wavenet</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\lstm.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\ring_buffer.cpp" />

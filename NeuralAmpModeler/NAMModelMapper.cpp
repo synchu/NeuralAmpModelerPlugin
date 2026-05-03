@@ -1,6 +1,6 @@
 #include "NAMModelMapper.h"
 #include "../iPlug2/IPlug/IPlugConstants.h"  
-#include "NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "../NeuralAmpModelerCore/NAM/get_dsp.h"
 #include "NeuralAmpModeler.h" // ResamplingNAM
 #include "json.hpp"
 

@@ -11,7 +11,7 @@
 #include <thread>
 #include <atomic>
 
-#include "NeuralAmpModelerCore/NAM/dsp.h"
+#include "../NeuralAmpModelerCore/NAM/dsp.h"
 
 class ResamplingNAM;
 

@@ -275,11 +275,11 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 #endif
     // Getting started page listing additional resources
     const char* const getUrl = "https://www.neuralampmodeler.com/users#comp-marb84o5";
-    pGraphics->AttachControl(
-      new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(), "nam",
+    /* pGraphics->AttachControl(
+      new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(), "nam pnam", "nam",
                                 loadModelCompletionHandler, style, fileSVG, crossSVG, leftArrowSVG, rightArrowSVG,
-                                fileBackgroundBitmap, globeSVG, "Get NAM Models", getUrl),
-      kCtrlTagModelFileBrowser);
+                                libraryIconSVG, fileBackgroundBitmap, globeSVG, "Get NAM Models", getUrl),
+      kCtrlTagModelFileBrowser);*/
 
     auto hideSlimOverlay = [](IControl* pCaller) {
       IGraphics* ui = pCaller->GetUI();
@@ -308,14 +308,14 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachControl(new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(),
                                                        "nam pnam", "nam",   // dialog filter, scan extension
                                                        loadModelCompletionHandler, style, fileSVG, crossSVG,
-                                                       leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap),
+                                                       leftArrowSVG, rightArrowSVG, libraryIconSVG, fileBackgroundBitmap, globeSVG, "Get NAM Models", getUrl),
                              kCtrlTagModelFileBrowser);
 
     pGraphics->AttachControl(
       new NAMFileBrowserControl(irArea, kMsgTagClearIR, defaultIRString.c_str(),
                                 "wav", "wav",         // dialog filter, scan extension
-                                loadIRCompletionHandler, style,
-                                fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG, fileBackgroundBitmap),
+                                loadIRCompletionHandler, style, fileSVG, crossSVG, leftArrowSVG, rightArrowSVG, fileSVG,
+                                fileBackgroundBitmap,globeSVG, "Get NAM Models", getUrl),
       kCtrlTagIRFileBrowser);
     pGraphics->AttachControl(
       new NAMSwitchControl(ngToggleArea, kNoiseGateActive, "Noise Gate", style, switchHandleBitmap));

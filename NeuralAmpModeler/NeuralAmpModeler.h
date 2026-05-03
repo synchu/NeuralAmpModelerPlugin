@@ -4,7 +4,7 @@
 #include "../AudioDSPTools/dsp/NoiseGate.h"
 #include "../AudioDSPTools/dsp/dsp.h"
 #include "../AudioDSPTools/dsp/wav.h"
-#include "../AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
+
 #include "../NeuralAmpModelerCore/NAM/dsp.h"
 #include "../NeuralAmpModelerCore/NAM/slimmable.h"
 
@@ -20,7 +20,7 @@
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"
 
-#include "AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
+#include "../../AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
 
 const int kNumPresets = 1;
 // The plugin is mono inside
