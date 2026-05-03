@@ -2,9 +2,11 @@
 
 ## Overview
 
-**Neural Amp Modeler (NAM)** is a guitar/bass amp and effects modeler that runs
+**Neural Amp Modeler (NAM) fork** is a guitar/bass amp and effects modeler that runs
 neural network captures of real hardware — amplifiers, pedals, and entire
 signal chains — at low CPU cost with high accuracy.
+
+This plugin fork adds a number of additional features, such as creating Chains, model and IR files drag and drop capabilities, Library Browser and others.
 
 It is available as:
 
