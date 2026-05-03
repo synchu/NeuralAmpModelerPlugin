@@ -15,8 +15,8 @@
 #endif
 
 #include "Colors.h"
-#include "NeuralAmpModelerCore/NAM/activations.h"
-#include "NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "../NeuralAmpModelerCore/NAM/activations.h"
+#include "../NeuralAmpModelerCore/NAM/get_dsp.h"
 #include "NAMLibraryBrowserWindow.h"
 // clang-format off
 // These includes need to happen in this order or else the latter won't know
@@ -113,6 +113,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kCalibrateInput)->InitBool(kCalibrateInputParamName.c_str(), kDefaultCalibrateInput);
   GetParam(kInputCalibrationLevel)
     ->InitDouble(kInputCalibrationLevelParamName.c_str(), kDefaultInputCalibrationLevel, -60.0, 60.0, 0.1, "dBu");
+  GetParam(kSlim)->InitDouble("Slim", 1.0, 0.0, 1.0, 0.01);
   GetParam(kAmpGain)->InitDouble("Voice", 5.0, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
 
   mNoiseGateTrigger.AddListener(&mNoiseGateGain);
@@ -140,12 +141,14 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 
     const auto gearSVG = pGraphics->LoadSVG(GEAR_FN);
     const auto fileSVG = pGraphics->LoadSVG(FILE_FN);
+    const auto globeSVG = pGraphics->LoadSVG(GLOBE_ICON_FN);
     const auto crossSVG = pGraphics->LoadSVG(CLOSE_BUTTON_FN);
     const auto rightArrowSVG = pGraphics->LoadSVG(RIGHT_ARROW_FN);
     const auto leftArrowSVG = pGraphics->LoadSVG(LEFT_ARROW_FN);
     const auto modelIconSVG = pGraphics->LoadSVG(MODEL_ICON_FN);
     const auto irIconOnSVG = pGraphics->LoadSVG(IR_ICON_ON_FN);
     const auto irIconOffSVG = pGraphics->LoadSVG(IR_ICON_OFF_FN);
+    const auto slimIconSVG = pGraphics->LoadSVG(SLIMMABLE_ICON_FN);
     const auto libraryIconSVG = pGraphics->LoadSVG(LIBRARY_ICON_FN);  
 
     const auto backgroundBitmap = pGraphics->LoadBitmap(BACKGROUND_FN);
@@ -193,6 +196,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto irYOffset = 38.0f;
     const auto modelArea =
       contentArea.GetFromBottom((2.0f * fileHeight)).GetFromTop(fileHeight).GetMidHPadded(fileWidth).GetVShifted(-1);
+    const auto slimIconArea =
+      IRECT(modelArea.R + 6.f, modelArea.MH() - 14.f, modelArea.R + 6.f + 2.f * 28.f, modelArea.MH() + 14.f);
     const auto modelIconArea = modelArea.GetFromLeft(30).GetTranslated(-40, 10);
     const auto pnamEditIconArea = IRECT(contentArea.R - 22.f, modelArea.T + 4.f,
                                         contentArea.R,         modelArea.B - 4.f);
@@ -268,6 +273,38 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const std::string defaultNamFileString = "Select model...";
     const std::string defaultIRString = "Select IR...";
 #endif
+    // Getting started page listing additional resources
+    const char* const getUrl = "https://www.neuralampmodeler.com/users#comp-marb84o5";
+    pGraphics->AttachControl(
+      new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(), "nam",
+                                loadModelCompletionHandler, style, fileSVG, crossSVG, leftArrowSVG, rightArrowSVG,
+                                fileBackgroundBitmap, globeSVG, "Get NAM Models", getUrl),
+      kCtrlTagModelFileBrowser);
+
+    auto hideSlimOverlay = [](IControl* pCaller) {
+      IGraphics* ui = pCaller->GetUI();
+      if (auto* backdrop = ui->GetControlWithTag(kCtrlTagSlimOverlayBackdrop))
+        backdrop->Hide(true);
+      if (auto* knob = ui->GetControlWithTag(kCtrlTagSlimKnob))
+        knob->Hide(true);
+      ui->SetAllControlsDirty();
+    };
+    auto showSlimOverlay = [](IControl* pCaller) {
+      IGraphics* ui = pCaller->GetUI();
+      if (auto* backdrop = ui->GetControlWithTag(kCtrlTagSlimOverlayBackdrop))
+        backdrop->Hide(false);
+      if (auto* knob = ui->GetControlWithTag(kCtrlTagSlimKnob))
+        knob->Hide(false);
+      ui->SetAllControlsDirty();
+    };
+
+    pGraphics
+      ->AttachControl(
+        new NAMSquareButtonControl(slimIconArea, DefaultClickActionFunc, slimIconSVG), kCtrlTagSlimmableIcon)
+      ->SetAnimationEndActionFunction(showSlimOverlay)
+      ->Hide(true);
+
+    pGraphics->AttachControl(new ISVGSwitchControl(irSwitchArea, {irIconOffSVG, irIconOnSVG}, kIRToggle));
     pGraphics->AttachControl(new NAMFileBrowserControl(modelArea, kMsgTagClearModel, defaultNamFileString.c_str(),
                                                        "nam pnam", "nam",   // dialog filter, scan extension
                                                        loadModelCompletionHandler, style, fileSVG, crossSVG,
@@ -316,6 +353,13 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       ->AttachControl(new NAMSettingsPageControl(b, backgroundBitmap, inputLevelBackgroundBitmap, switchHandleBitmap,
                                                  crossSVG, style, radioButtonStyle),
                       kCtrlTagSettingsBox)
+      ->Hide(true);
+
+    const auto slimKnobArea = b.GetCentredInside(100.f, NAM_KNOB_HEIGHT + 24.f);
+    pGraphics->AttachControl(new NAMSlimOverlayBackdropControl(b, hideSlimOverlay), kCtrlTagSlimOverlayBackdrop)
+      ->Hide(true);
+    pGraphics
+      ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
       ->Hide(true);
 
     pGraphics->ForAllControlsFunc([](IControl* pControl) {
@@ -533,7 +577,7 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
     noiseGateActive ? mNoiseGateGain.Process(mOutputPointers, numChannelsInternal, numFrames) : mOutputPointers;
 
   sample** toneStackOutPointers = (toneStackActive && mToneStack != nullptr)
-                                    ? mToneStack->Process(gateGainOutput, numChannelsInternal, numFrames)
+                                    ? mToneStack->Process(gateGainOutput, numChannelsInternal, nFrames)
                                     : gateGainOutput;
 
   sample** irPointers = toneStackOutPointers;
@@ -1102,6 +1146,19 @@ void NeuralAmpModeler::_SetOutputGain()
   mOutputGain = DBToAmp(gainDB);
 }
 
+void NeuralAmpModeler::_ApplySlimParamToLoadedNAMs()
+{
+  const double v = GetParam(kSlim)->Value();
+  auto apply = [v](ResamplingNAM* p) {
+    if (p == nullptr)
+      return;
+    if (nam::SlimmableModel* s = p->GetSlimmableModel())
+      s->SetSlimmableSize(v);
+  };
+  apply(mModel.get());
+  apply(mStagedModel.get());
+}
+
 std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
 {
   WDL_String previousNAMPath = mNAMPath;
@@ -1126,8 +1183,24 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
 
     auto dspPath = std::filesystem::u8path(modelPath.Get());
     std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
+
+    // Check that the model has 1 input and 1 output channel
+    if (model->NumInputChannels() != 1)
+    {
+      throw std::runtime_error("Model must have 1 input channel, but has " + std::to_string(model->NumInputChannels()));
+    }
+    if (model->NumOutputChannels() != 1)
+    {
+      throw std::runtime_error("Model must have 1 output channel, but has "
+                               + std::to_string(model->NumOutputChannels()));
+    }
+
     std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), GetSampleRate());
     temp->Reset(GetSampleRate(), GetBlockSize());
+    if (nam::SlimmableModel* slimmable = temp->GetSlimmableModel())
+    {
+      slimmable->SetSlimmableSize(GetParam(kSlim)->Value());
+    }
     mStagedModel = std::move(temp);
     mNAMPath = modelPath;
     SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel, mNAMPath.GetLength(), mNAMPath.Get());
@@ -1312,6 +1385,12 @@ void NeuralAmpModeler::_UpdateControlsFromModel()
       auto* c = static_cast<OutputModeControl*>(pGraphics->GetControlWithTag(kCtrlTagOutputMode));
       c->SetNormalizedDisable(!mModel->HasLoudness());
       c->SetCalibratedDisable(!mModel->HasOutputLevel());
+    }
+
+    if (auto* pSlimIcon = pGraphics->GetControlWithTag(kCtrlTagSlimmableIcon))
+    {
+      const bool show = mModel->GetSlimmableModel() != nullptr;
+      pSlimIcon->Hide(!show);
     }
   }
 }

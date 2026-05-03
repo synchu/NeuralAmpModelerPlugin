@@ -1,10 +1,12 @@
 #pragma once
 
-#include "NeuralAmpModelerCore/NAM/dsp.h"
-#include "AudioDSPTools/dsp/ImpulseResponse.h"
-#include "AudioDSPTools/dsp/NoiseGate.h"
-#include "AudioDSPTools/dsp/dsp.h"
-#include "AudioDSPTools/dsp/wav.h"
+#include "../AudioDSPTools/dsp/ImpulseResponse.h"
+#include "../AudioDSPTools/dsp/NoiseGate.h"
+#include "../AudioDSPTools/dsp/dsp.h"
+#include "../AudioDSPTools/dsp/wav.h"
+#include "../AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
+#include "../NeuralAmpModelerCore/NAM/dsp.h"
+#include "../NeuralAmpModelerCore/NAM/slimmable.h"
 
 #include <filesystem>
 
@@ -51,6 +53,7 @@ enum EParams
   kCalibrateInput,
   kInputCalibrationLevel,
   kOutputMode,
+  kSlim,
   kAmpGain,      // NEW — visible only when .pnam is active
   kNumParams
 };
@@ -67,6 +70,9 @@ enum ECtrlTags
   kCtrlTagOutputMode,
   kCtrlTagCalibrateInput,
   kCtrlTagInputCalibrationLevel,
+  kCtrlTagSlimmableIcon,
+  kCtrlTagSlimOverlayBackdrop,
+  kCtrlTagSlimKnob,
   kCtrlTagAmpGain,
   kCtrlTagPNAMEditorBtn,   // NEW — chain editor icon button
   kNumCtrlTags
@@ -107,7 +113,7 @@ class ResamplingNAM : public nam::DSP
 public:
   // Resampling wrapper around the NAM models
   ResamplingNAM(std::unique_ptr<nam::DSP> encapsulated, const double expected_sample_rate)
-  : nam::DSP(1, 1, expected_sample_rate)
+  : nam::DSP(encapsulated->NumInputChannels(), encapsulated->NumOutputChannels(), expected_sample_rate)
   , mEncapsulated(std::move(encapsulated))
   , mResampler(GetNAMSampleRate(mEncapsulated))
   {
@@ -178,6 +184,12 @@ public:
 
   // So that we can let the world know if we're resampling (useful for debugging)
   double GetEncapsulatedSampleRate() const { return GetNAMSampleRate(mEncapsulated); };
+
+  nam::SlimmableModel* GetSlimmableModel() { return dynamic_cast<nam::SlimmableModel*>(mEncapsulated.get()); }
+  const nam::SlimmableModel* GetSlimmableModel() const
+  {
+    return dynamic_cast<const nam::SlimmableModel*>(mEncapsulated.get());
+  }
 
 private:
   bool NeedToResample() const { return GetExpectedSampleRate() != GetEncapsulatedSampleRate(); };
@@ -272,6 +284,7 @@ private:
 
   void _SetInputGain();
   void _SetOutputGain();
+  void _ApplySlimParamToLoadedNAMs();
 
   // See: Unserialization.cpp
   void _UnserializeApplyConfig(nlohmann::json& config);

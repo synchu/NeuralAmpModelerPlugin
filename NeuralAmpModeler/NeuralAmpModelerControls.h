@@ -27,6 +27,12 @@ public:
   }
 };
 
+enum class NAMBrowserState
+{
+  Empty, // when no file loaded, show "Get" button
+  Loaded // when file loaded, show "Clear" button
+};
+
 // Where the corner button on the plugin (settings, close settings) goes
 // :param rect: Rect for the whole plugin's UI
 IRECT CornerButtonArea(const IRECT& rect)
@@ -69,7 +75,29 @@ public:
   }
 };
 
-class NAMTextCircleButtonControl : public IButtonControlBase
+/// Full-window dim layer; click dismisses (used for Slim overlay).
+class NAMSlimOverlayBackdropControl : public IControl
+{
+public:
+  NAMSlimOverlayBackdropControl(const IRECT& bounds, IActionFunction dismiss)
+  : IControl(bounds, dismiss)
+  , mDismiss(dismiss)
+  {
+  }
+
+  void Draw(IGraphics& g) override { g.FillRect(COLOR_BLACK.WithOpacity(0.45f), mRECT); }
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override
+  {
+    if (mDismiss)
+      mDismiss(this);
+  }
+
+private:
+  IActionFunction mDismiss;
+};
+
+class NAMTextCircleButtonControl : public IVKnobControl, public IBitmapBase
 {
 public:
   NAMTextCircleButtonControl(const IRECT& bounds, IActionFunction af)
@@ -376,6 +404,10 @@ public:
   , mClearSVG(clearSVG)
   , mLeftSVG(leftSVG)
   , mRightSVG(rightSVG)
+  , mGlobeSVG(globeSVG)
+  , mGetButtonLabel(getButtonLabel)
+  , mGetButtonURL(getButtonURL)
+  , mBrowserState(NAMBrowserState::Empty)
   , mLibrarySVG(librarySVG)
   {
     mIgnoreMouse = true;
@@ -477,6 +509,9 @@ public:
       pCaller->GetDelegate()->SendArbitraryMsgFromUI(mClearMsgTag);
       mFileNameControl->SetLabelAndTooltip(mDefaultLabelStr.Get());
       mRestingLabel.Set(mDefaultLabelStr.Get()); // reset so hover-restore uses default, not old chain name
+      SetBrowserState(NAMBrowserState::Empty);
+      // FIXME disabling output mode...
+      //      pCaller->GetUI()->GetControlWithTag(kCtrlTagOutputMode)->SetDisabled(false);
     };
 
     auto chooseFileFunc = [&, loadFileFunc](IControl* pCaller) {
@@ -499,7 +534,7 @@ public:
     IRECT padded = mRECT.GetPadded(-6.f).GetHPadded(-2.f);
     const auto buttonWidth = padded.H();
     const auto loadFileButtonBounds = padded.ReduceFromLeft(buttonWidth);
-    const auto clearButtonBounds = padded.ReduceFromRight(buttonWidth);
+    const auto clearAndGetButtonBounds = padded.ReduceFromRight(buttonWidth);
     const auto leftButtonBounds = padded.ReduceFromLeft(buttonWidth);
     const auto rightButtonBounds = padded.ReduceFromLeft(buttonWidth);
     // Library button only for model browser — use mDialogExtension, NOT mExtension
@@ -528,10 +563,17 @@ public:
 
     AddChildControl(mFileNameControl = new NAMFileNameControl(fileNameButtonBounds, mDefaultLabelStr.Get(), mStyle))
       ->SetAnimationEndActionFunction(chooseFileFunc);
-    AddChildControl(new NAMSquareButtonControl(clearButtonBounds, DefaultClickActionFunc, mClearSVG))
-      ->SetAnimationEndActionFunction(clearFileFunc);
 
-    mFileNameControl->SetLabelAndTooltip(mDefaultLabelStr.Get());
+    // creates both right-side controls but only show one based on state
+    mClearButton = new NAMSquareButtonControl(clearAndGetButtonBounds, DefaultClickActionFunc, mClearSVG);
+    mClearButton->SetAnimationEndActionFunction(clearFileFunc);
+    AddChildControl(mClearButton);
+
+    mGetButton = new NAMGetButtonControl(clearAndGetButtonBounds, mGetButtonLabel, mGetButtonURL, mGlobeSVG);
+    AddChildControl(mGetButton);
+
+    // initialize control visibility
+    SetBrowserState(NAMBrowserState::Empty);
   }
 
   void LoadFileAtCurrentIndex()
@@ -556,6 +598,7 @@ public:
         {
           std::string label(std::string("(FAILED) ") + std::string(mFileNameControl->GetLabelStr()));
           mFileNameControl->SetLabelAndTooltip(label.c_str());
+          SetBrowserState(NAMBrowserState::Empty);
         }
         break;
       case kMsgTagLoadedModel:
@@ -603,6 +646,14 @@ public:
         mFileNameControl->SetLabelAndTooltip(mRestingLabel.Get());
         break;
       }
+        ClearPathList();
+        AddPath(directory.Get(), "");
+        SetupMenu();
+        SetSelectedFile(fileName.Get());
+        mFileNameControl->SetLabelAndTooltipEllipsizing(fileName);
+        SetBrowserState(NAMBrowserState::Loaded);
+      }
+      break;
       default: break;
     }
   }
@@ -617,6 +668,24 @@ private:
     return;
   }
 
+  // set the state of the browser and the visibility of the "Get" vs. "Clear" buttons
+  void SetBrowserState(NAMBrowserState newState)
+  {
+    mBrowserState = newState;
+
+    switch (mBrowserState)
+    {
+      case NAMBrowserState::Empty:
+        mClearButton->Hide(true);
+        mGetButton->Hide(false);
+        break;
+      case NAMBrowserState::Loaded:
+        mClearButton->Hide(false);
+        mGetButton->Hide(true);
+        break;
+    }
+  }
+
   int mClearMsgTag;
   WDL_String mDefaultLabelStr;
   WDL_String mRestingLabel;      // last chain/model display name, for hover-restore
@@ -625,6 +694,15 @@ private:
   IVStyle mStyle;
   NAMFileNameControl* mFileNameControl = nullptr;
   IBitmap mBitmap;
+  ISVG mGlobeSVG;
+  int mClearMsgTag;
+
+  // new members for the "Get" button
+  const char* mGetButtonLabel;
+  const char* mGetButtonURL;
+  NAMBrowserState mBrowserState;
+  NAMSquareButtonControl* mClearButton = nullptr;
+  NAMGetButtonControl* mGetButton = nullptr;
   ISVG mLoadSVG;
   ISVG mClearSVG;
   ISVG mLeftSVG;
@@ -719,7 +797,7 @@ class ModelInfoControl : public IContainerBaseWithNamedChildren
 public:
   ModelInfoControl(const IRECT& bounds, const IVStyle& style)
   : IContainerBaseWithNamedChildren(bounds)
-  , mStyle(style){};
+  , mStyle(style) {};
 
   void ClearModelInfo()
   {
@@ -1008,7 +1086,8 @@ private:
     {
       IControl::SetValueFromDelegate(normalizedValue, valIdx);
       const std::string s = ConvertToString(normalizedValue);
-      OnTextEntryCompletion(s.c_str(), valIdx);
+      SetStr(s.c_str());
+      SetDirty(false);
     };
 
   private:
@@ -1031,7 +1110,7 @@ private:
     AboutControl(const IRECT& bounds, const IVStyle& style, const IText& text)
     : IContainerBase(bounds)
     , mStyle(style)
-    , mText(text){};
+    , mText(text) {};
 
     void OnAttached() override
     {

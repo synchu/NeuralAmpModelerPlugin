@@ -70,10 +70,7 @@ fi
 #   ARCHIVE_NAME=`python3 ${SCRIPTS}/get_archive_name.py ${PLUGIN_NAME} mac full`
 # fi
 
-VST2=$(grep VST2_PATH "$XCCONFIG")
-VST2=$HOME${VST2//\VST2_PATH = \$(HOME)}/$PLUGIN_NAME.vst
-
-VST3=$(grep VST3_PATH "$XCCONFIG")
+VST3=`echo | grep VST3_PATH $XCCONFIG`
 VST3=$HOME${VST3//\VST3_PATH = \$(HOME)}/$PLUGIN_NAME.vst3
 
 AU=$(grep AU_PATH "$XCCONFIG")
@@ -95,11 +92,10 @@ CERT_ID=${CERT_ID//\CERTIFICATE_ID = /}
 DEV_ID_APP_STR="Developer ID Application: ${CERT_ID}"
 DEV_ID_INST_STR="Developer ID Installer: ${CERT_ID}"
 
-echo "$VST2"
-echo "$VST3"
-echo "$AU"
-echo "$APP"
-echo "$AAX"
+echo $VST3
+echo $AU
+echo $APP
+echo $AAX
 
 if [ $DEMO == 1 ]; then
   echo "making $PLUGIN_NAME version $FULL_VERSION DEMO mac distribution..."
@@ -129,12 +125,8 @@ if [ -d "$AU" ]; then
   sudo rm -f -R "$AU"
 fi
 
-if [ -d "$VST2" ]; then
-  sudo rm -f -R "$VST2"
-fi
-
-if [ -d "$VST3" ]; then
-  sudo rm -f -R "$VST3"
+if [ -d $VST3 ]; then
+  sudo rm -f -R $VST3
 fi
 
 if [ -d "$AAX" ]; then
@@ -182,12 +174,8 @@ if [ -d "$AU" ]; then
   "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$AU"
 fi
 
-if [ -d "$VST2" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$VST2"
-fi
-
-if [ -d "$VST3" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$VST3"
+if [ -d $VST3 ]; then
+  ./$SCRIPTS/SetFileIcon -image resources/$PLUGIN_NAME.icns -file $VST3
 fi
 
 if [ -d "$AAX" ]; then
@@ -208,12 +196,8 @@ if [ -d "$AU" ]; then
   strip -x "$AU/Contents/MacOS/$PLUGIN_NAME"
 fi
 
-if [ -d "$VST2" ]; then
-  strip -x "$VST2/Contents/MacOS/$PLUGIN_NAME"
-fi
-
-if [ -d "$VST3" ]; then
-  strip -x "$VST3/Contents/MacOS/$PLUGIN_NAME"
+if [ -d $VST3 ]; then
+  strip -x $VST3/Contents/MacOS/$PLUGIN_NAME
 fi
 
 if [ -d "$AAX" ]; then
@@ -237,13 +221,11 @@ if [ $CODESIGN == 1 ]; then
   echo "code-sign binaries"
   echo ""
 
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$APP" --deep --strict --options=runtime
-  xattr -cr "$AU"
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$AU" --deep --strict
-  # xattr -cr "$VST2"
-  # codesign --force -s "${DEV_ID_APP_STR}" -v "$VST2" --deep --strict
-  xattr -cr "$VST3"
-  codesign --force -s "${DEV_ID_APP_STR}" -v "$VST3" --deep --strict
+  codesign --force -s "${DEV_ID_APP_STR}" -v $APP --deep --strict --options=runtime #hardened runtime for app
+  xattr -cr $AU 
+  codesign --force -s "${DEV_ID_APP_STR}" -v $AU --deep --strict
+  xattr -cr $VST3 
+  codesign --force -s "${DEV_ID_APP_STR}" -v $VST3 --deep --strict
   #---------------------------------------------------------------------------------------------------------
 fi
 
@@ -326,12 +308,8 @@ else
     cp -R "$AU" "build-mac/zip/$PLUGIN_NAME.component"
   fi
 
-  if [ -d "$VST2" ]; then
-    cp -R "$VST2" "build-mac/zip/$PLUGIN_NAME.vst"
-  fi
-
-  if [ -d "$VST3" ]; then
-    cp -R "$VST3" "build-mac/zip/$PLUGIN_NAME.vst3"
+  if [ -d $VST3 ]; then
+    cp -R $VST3 build-mac/zip/$PLUGIN_NAME.vst3
   fi
 
   if [ -d "$AAX_FINAL" ]; then
