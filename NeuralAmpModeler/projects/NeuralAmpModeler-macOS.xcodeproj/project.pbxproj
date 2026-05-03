@@ -655,9 +655,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1700F2BA8027D3FFC8C94247 /* slimmable.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable.h; path = slimmable.h; sourceTree = "<group>"; };
-		30A33B491A4460DA418F92D7 /* ring_buffer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = ring_buffer.cpp; path = ring_buffer.cpp; sourceTree = "<group>"; };
-		4DC943BC60FBDB7F67C44E16 /* model_config.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = model_config.h; path = model_config.h; sourceTree = "<group>"; };
 		4F037D75261F9DB400A752B5 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ../resources/Images.xcassets; sourceTree = "<group>"; };
 		4F03A55020A4621000EBDFFB /* IGraphicsNanoVG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IGraphicsNanoVG.h; sourceTree = "<group>"; };
 		4F03A55420A4621000EBDFFB /* IGraphicsNanoVG.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsNanoVG.cpp; sourceTree = "<group>"; };
@@ -1074,12 +1071,6 @@
 		4FFBB94120863E9300DDD0E7 /* IPlugVST3_Parameter.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugVST3_Parameter.h; path = ../../iPlug2/IPlug/VST3/IPlugVST3_Parameter.h; sourceTree = "<group>"; tabWidth = 2; };
 		4FFF72B8214BB71400839091 /* main.rc */ = {isa = PBXFileReference; lastKnownFileType = text; name = main.rc; path = ../resources/main.rc; sourceTree = "<group>"; };
 		52FBBED30D0CF143001C8B8A /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = config.h; path = ../config.h; sourceTree = "<group>"; tabWidth = 2; usesTabs = 0; };
-		545D631F2B6A90A7D22C850E /* ring_buffer.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ring_buffer.h; path = ring_buffer.h; sourceTree = "<group>"; };
-		5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = conv1d.cpp; path = conv1d.cpp; sourceTree = "<group>"; };
-		68E8C84DB7D7AD9CD84FC6DB /* registry.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = registry.h; path = registry.h; sourceTree = "<group>"; };
-		73C8EB5BB682575EC87A171A /* slimmable.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = slimmable.h; path = slimmable.h; sourceTree = "<group>"; };
-		75A94BC414EB3488384C040E /* params.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = params.h; path = params.h; sourceTree = "<group>"; };
-		82EEF83E257C83286184F1D1 /* container.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = container.h; path = container.h; sourceTree = "<group>"; };
 		AA341E1B2B9E5A530069C260 /* ToneStack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ToneStack.cpp; path = ../ToneStack.cpp; sourceTree = "<group>"; };
 		AA341E1C2B9E5A530069C260 /* ToneStack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ToneStack.h; path = ../ToneStack.h; sourceTree = "<group>"; };
 		AA355E2C295B688F0061AA3D /* Colors.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Colors.h; path = ../Colors.h; sourceTree = "<group>"; };
@@ -2016,20 +2007,6 @@
 			name = WDL;
 			sourceTree = "<group>";
 		};
-		6FEF5D7C938488C3E6D7A903 /* wavenet */ = {
-			isa = PBXGroup;
-			children = (
-				EA06A11CB62C27023A94D050 /* model.cpp */,
-				DCB8A31262D866F790A5BCB4 /* slimmable.cpp */,
-				C4D2D55C0D791E1D11CAF004 /* model.h */,
-				BDEA3FCDC83CACBB81749A20 /* detail.h */,
-				75A94BC414EB3488384C040E /* params.h */,
-				1700F2BA8027D3FFC8C94247 /* slimmable.h */,
-			);
-			name = wavenet;
-			path = wavenet;
-			sourceTree = "<group>";
-		};
 		AA7C85F12B439AC000B5FB3A /* ResamplingContainer */ = {
 			isa = PBXGroup;
 			children = (
@@ -2728,12 +2705,7 @@
 				4F2FB15B2A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				4F2FB1782A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
 				4F2FB1CA2A0047430027AB66 /* get_dsp.cpp in Sources */,
-				4F2FB1972A0047430027AB66 /* dsp.cpp in Sources */,
-				69ED3E18BDCA9D8C41BC0A1F /* conv1d.cpp in Sources */,
-				356A0863DD4FDFE171C0561C /* ring_buffer.cpp in Sources */,
-				527DE867562E7A15CB3A1381 /* model.cpp in Sources */,
-				9C6CD989CD3B01F7A6BD7F5A /* slimmable.cpp in Sources */,
-				79F127EA3659862A3115DE1E /* container.cpp in Sources */,
+				4F2FB1972A0047430027AB66 /* dsp.cpp in Sources */,				
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2778,12 +2750,7 @@
 				4F78D95C13B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
 				4F2FB1B52A0047430027AB66 /* activations.cpp in Sources */,
 				4FB1F58C20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
-				4F3862F22014BBEC0009F402 /* NeuralAmpModeler.cpp in Sources */,
-				DB1F84CAFA1621994F62D1B6 /* conv1d.cpp in Sources */,
-				65B075C85F6AEBE478A5341D /* ring_buffer.cpp in Sources */,
-				A948DA64A07D2ABC36BF474B /* model.cpp in Sources */,
-				9A250C763937BBB210E95D5C /* slimmable.cpp in Sources */,
-				121CB341D802D15830113366 /* container.cpp in Sources */,
+				4F3862F22014BBEC0009F402 /* NeuralAmpModeler.cpp in Sources */,				
 							1AC0334A641D01CB6B117C6F /* NAMLibraryBrowserWindow.mm in Sources */,
 							0D9E1322B331D98285EE33E1 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -2845,11 +2812,7 @@
 				4F2FB1862A0047430027AB66 /* wav.cpp in Sources */,
 				4F3EE1E4231438D000004786 /* IPlugParameter.cpp in Sources */,
 				4F3EE1E5231438D000004786 /* IPlugTimer.cpp in Sources */,
-				819448687946D1254A1FB006 /* conv1d.cpp in Sources */,
-				9D5F369B6CCFDD7EEADA5925 /* ring_buffer.cpp in Sources */,
-				2D607DF523B2091F3B4F6955 /* model.cpp in Sources */,
-				FC4DC0F81482911D2CBFB0EC /* slimmable.cpp in Sources */,
-				FF173D18AB1B46B857A598A3 /* container.cpp in Sources */,
+				
 							23F12A38355124FC541A29B8 /* NAMLibraryBrowserWindow.mm in Sources */,
 							5FA1F98F3DB90FF11882C139 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -2898,11 +2861,7 @@
 				4F2FB1702A0047430027AB66 /* NoiseGate.cpp in Sources */,
 				4F7C496B255DDFCB00DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F2FB15C2A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
-				3F155063FF908D3E4528CCAD /* conv1d.cpp in Sources */,
-				18E64064D35938374CAA2F54 /* ring_buffer.cpp in Sources */,
-				F7E3C34D5B239FD501128770 /* model.cpp in Sources */,
-				EFAC0DA601E0FD8A11032189 /* slimmable.cpp in Sources */,
-				B6E072561D9D3F8CEBB3A442 /* container.cpp in Sources */,
+				
 							7B593E4758DBAB7F44106034 /* NAMLibraryBrowserWindow.mm in Sources */,
 							FB63E6F6A39EFAF2EEE499B2 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -2979,11 +2938,7 @@
 				4F815988205D50EB00393585 /* coreiids.cpp in Sources */,
 				4F815993205D51F000393585 /* vstnoteexpressiontypes.cpp in Sources */,
 				4F2FB1742A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
-				EBE80BBCA41D61453D967C9B /* conv1d.cpp in Sources */,
-				8B6D71536E06BD645C000B57 /* ring_buffer.cpp in Sources */,
-				3A26085BC4E3D0B1C376D8A4 /* model.cpp in Sources */,
-				41E801933CDBEE30CA4FEC67 /* slimmable.cpp in Sources */,
-				5091257AEDF545C00E8F3669 /* container.cpp in Sources */,
+				
 							5BA459C48D4B99F85AF38CF1 /* NAMLibraryBrowserWindow.mm in Sources */,
 							F078F3DF594A74196D53697F /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -3032,11 +2987,7 @@
 				4F2FB16D2A0047430027AB66 /* NoiseGate.cpp in Sources */,
 				4F7C4962255DDFC600DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F2FB1592A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
-				55B2E65A1EEC6D691E2E5538 /* conv1d.cpp in Sources */,
-				566068F315E5C35D4C64A375 /* ring_buffer.cpp in Sources */,
-				DC11DA39C0B2D9233FFBA4B7 /* model.cpp in Sources */,
-				B7515DADE10095FADB375ACA /* slimmable.cpp in Sources */,
-				23F63FC25D3081D7849F4BF8 /* container.cpp in Sources */,
+				
 							00B11DD1427BC21DE19A3F0B /* NAMLibraryBrowserWindow.mm in Sources */,
 							4F992BFF62511B6AAA7B3B2A /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -3122,12 +3073,7 @@
 				4FF0A83221BE708700B2C9D1 /* swell-gdi.mm in Sources */,
 				4F2FB17E2A0047430027AB66 /* wav.cpp in Sources */,
 				4F78D91813B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
-				4FDAC0EA207D76C600299363 /* IPlugTimer.cpp in Sources */,
-				6705B0B3207731689A2DD34D /* conv1d.cpp in Sources */,
-				AE196794CD4C1DEED8A44AF9 /* ring_buffer.cpp in Sources */,
-				85E51F08B1F3A5AEF1BA2310 /* model.cpp in Sources */,
-				A10714F71C5FF79E64682E21 /* slimmable.cpp in Sources */,
-				2C569D8EE935FABE6DDBD306 /* container.cpp in Sources */,
+				4FDAC0EA207D76C600299363 /* IPlugTimer.cpp in Sources */,				
 							8D093A239A11AFDE0ED1B28D /* NAMLibraryBrowserWindow.mm in Sources */,
 							11CE065E2ACA3F79925CEBFF /* NAMPNAMEditorWindow.mm in Sources */,
 			);
@@ -3192,12 +3138,7 @@
 				4FFBB93020863B0E00DDD0E7 /* fbuffer.cpp in Sources */,
 				4FFBB93420863B0E00DDD0E7 /* coreiids.cpp in Sources */,
 				4F5F344720C0226200487201 /* IPlugPaths.mm in Sources */,
-				4FFBB93520863B0E00DDD0E7 /* vstnoteexpressiontypes.cpp in Sources */,
-				13D358AF0E029A17055AA8EC /* conv1d.cpp in Sources */,
-				97A34012AB1AB78C520DA261 /* ring_buffer.cpp in Sources */,
-				B0F957279AA079B341F0A6CF /* model.cpp in Sources */,
-				7921BA45672B8829923CBFFE /* slimmable.cpp in Sources */,
-				C27EBF8669A5B61D137C8EAB /* container.cpp in Sources */,
+				4FFBB93520863B0E00DDD0E7 /* vstnoteexpressiontypes.cpp in Sources */,				
 							C37E2AF247E189098D0D164D /* NAMLibraryBrowserWindow.mm in Sources */,
 							EE3E5ECF17AA3C9B20C8CD48 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
