@@ -13,8 +13,8 @@
   #include <windows.h>
 #endif
 
-#include "NeuralAmpModelerCore/NAM/activations.h"
-#include "NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "../../NeuralAmpModelerCore/NAM/activations.h"
+#include "../../NeuralAmpModelerCore/NAM/get_dsp.h"
 
 static const char* GetOpt(int argc, char** argv, const char* name)
 {
@@ -319,7 +319,7 @@ int main(int argc, char** argv)
       }
     }
 
-    std::cout << "Model: " << modelPath.u8string() << "\n";
+    std::cout << "Model: " << modelPath.string() << "\n";
     std::cout << "SR: " << sampleRate << " Hz, Block: " << blockSize << ", Target: " << seconds << " s\n";
     std::cout << "Trials: " << trials << ", WarmupBlocks: " << warmupBlocks << "\n";
 

@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <!-- Enable hand-optimized inline GEMM paths in NeuralAmpModelerCore (all configs, all platforms) -->
+  <!-- NAM_USE_INLINE_GEMM is intentionally NOT defined here.
+       Benchmarking via NamModelHarness showed the hand-rolled inline GEMM paths
+       are ~1.5-2x slower than letting the compiler/Eigen handle GEMM, so this
+       define remains disabled across all configurations. -->
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>NAM_USE_INLINE_GEMM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
 
