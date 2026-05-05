@@ -62,11 +62,11 @@ public:
       mPreloadThread.join();
   }
 
-  // Non-copyable due to thread member
+  // Non-copyable and non-movable due to mutex and thread members
   NAMModelMapper(const NAMModelMapper&) = delete;
   NAMModelMapper& operator=(const NAMModelMapper&) = delete;
-  NAMModelMapper(NAMModelMapper&&) = default;
-  NAMModelMapper& operator=(NAMModelMapper&&) = default;
+  NAMModelMapper(NAMModelMapper&&) = delete;
+  NAMModelMapper& operator=(NAMModelMapper&&) = delete;
 
   // Whether the mapper is active
   bool IsActive() const { return mActive && !mSlots.empty(); }

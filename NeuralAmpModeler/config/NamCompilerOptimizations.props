@@ -27,6 +27,18 @@
     </ClCompile>
   </ItemDefinitionGroup>
 
+  <!-- clang-cl: suppress warnings from third-party headers (nlohmann, iPlug2, WDL) -->
+  <!-- -Wno-deprecated-literal-operator: nlohmann json.hpp uses `operator ""_json` with a space,
+       which is deprecated in C++23 but harmless. -->
+  <ItemDefinitionGroup Condition="'$(PlatformToolset)'=='ClangCL'">
+    <ClCompile>
+      <AdditionalOptions>
+        /clang:-Wno-deprecated-literal-operator
+        %(AdditionalOptions)
+      </AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
   <!-- clang-cl: optimization flags for Release-Clang-x64-v3|x64 -->
   <!-- -fno-signed-zeros: audio DSP does not distinguish -0.0 from 0.0 -->
   <!-- -ffp-contract=fast: enables FMA fusion (e.g. vfmadd on AVX2) for dot products and GEMM -->

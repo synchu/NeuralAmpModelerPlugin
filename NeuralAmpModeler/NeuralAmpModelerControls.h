@@ -423,12 +423,12 @@ public:
   , mCompletionHandlerFunc(ch)
   , mDialogExtension(fileExtension)
   , mStyle(style.WithDrawFrame(false))
-  , mBitmap(bitmap)
   , mLoadSVG(loadSVG)
   , mClearSVG(clearSVG)
   , mLeftSVG(leftSVG)
   , mRightSVG(rightSVG)
-  , mLibrarySVG(librarySVG)
+  , mLibrarySVG(librarySVG)  
+  , mBitmap(bitmap)
   , mGlobeSVG(globeSVG)
   , mGetButtonLabel(getButtonLabel)
   , mGetButtonURL(getButtonURL)
@@ -506,7 +506,9 @@ public:
           const char* pathStr = path.Get();
           if (!pathStr || !pathStr[0])
           {
-            std::string parentStr = std::filesystem::u8path(fileName.Get()).parent_path().string();
+            std::string parentStr = std::filesystem::path(
+              std::u8string(reinterpret_cast<const char8_t*>(fileName.Get())))
+              .parent_path().string();
             derivedPath.Set(parentStr.c_str());
             pathStr = derivedPath.Get();
           }
@@ -911,13 +913,13 @@ public:
                          const IBitmap& switchBitmap, ISVG closeSVG, const IVStyle& style,
                          const IVStyle& radioButtonStyle)
   : IContainerBaseWithNamedChildren(bounds)
-  , mAnimationTime(0)
   , mBitmap(bitmap)
   , mInputLevelBackgroundBitmap(inputLevelBackgroundBitmap)
   , mSwitchBitmap(switchBitmap)
   , mStyle(style)
   , mRadioButtonStyle(radioButtonStyle)
   , mCloseSVG(closeSVG)
+  , mAnimationTime(0)
   {
     mIgnoreMouse = false;
   }

@@ -60,11 +60,8 @@ static const COLORREF kBtnBg      = RGB(60, 60, 60);
 static const COLORREF kBtnBorder  = RGB(100, 100, 100);
 static const COLORREF kBtnPressed = RGB(0, 120, 215);
 static const COLORREF kDisabledTx = RGB(100, 100, 100);
-static const COLORREF kSplitColor = RGB(55, 55, 55);
 
 // ---- Sizing constants ----
-static const int kInitWndW   = 920;
-static const int kInitWndH   = 700;
 static const int kMinWndW    = 750;
 static const int kMinWndH    = 580;
 static const int kMinSplitX  = 200;
@@ -167,18 +164,6 @@ static std::string CheckSlotOverlaps(const std::vector<ModelMapSlot>& slots)
       if (slots[i].ampGainMax > slots[j].ampGainMin && slots[j].ampGainMax > slots[i].ampGainMin)
         warn += "Slot " + std::to_string(i + 1) + " and slot " + std::to_string(j + 1) + " overlap.\n";
   return warn;
-}
-
-// ---- Portable path helpers ----
-// Store paths relative to the .pnam file using forward slashes so files are
-// cross-platform compatible (Mac/Windows network shares, different mount points).
-static std::string MakePortablePath(const std::string& absPath, const std::string& baseDir)
-{
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path rel = fs::relative(fs::path(absPath), fs::path(baseDir), ec);
-  if (ec || rel.empty()) return absPath;
-  return rel.generic_string(); // forward slashes
 }
 
 static std::string ResolvePath(const std::string& stored, const std::string& baseDir)

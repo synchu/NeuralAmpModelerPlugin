@@ -4,8 +4,8 @@
 
 NAMLibraryTreeView::NAMLibraryTreeView(const IRECT& bounds, const IVStyle& style)
 : IContainerBase(bounds)
-, mStyle(style)
 , mSelectedIndex(-1)
+, mStyle(style)
 {
 }
 
@@ -84,11 +84,11 @@ void NAMLibraryTreeView::Draw(IGraphics& g)
   {
     bool isSelected = (static_cast<int>(i) == mSelectedIndex);
     
-    // Adjust Y position by scroll offset
+    // Adjust Y position to account for scroll offset
     auto item = mDisplayList[i];
     item.yPos -= mScrollOffset;
     
-    // Only draw items that are visible
+    // Draw items within visible range
     if (item.yPos + ITEM_HEIGHT >= 0 && item.yPos <= mRECT.H())
     {
       DrawItem(g, item, isSelected);
@@ -210,9 +210,11 @@ void NAMLibraryTreeView::DrawItem(IGraphics& g, const TreeItemUI& item, bool isS
     if (!item.node->gear_make.empty() || !item.node->gear_model.empty())
     {
       metadata = item.node->gear_make + " " + item.node->gear_model;
-      IRECT metadataRect = textBounds.GetVShifted(2.0f);
+      //IRECT metadataRect = textBounds.GetVShifted(2.0f);
       IText metadataStyle(10, COLOR_LIGHT_GRAY, "Roboto-Regular", EAlign::Near, EVAlign::Middle, 0);
+      
       // This would need to be rendered in a separate line, but we're limited by ITEM_HEIGHT
+      (void)textBounds;
     }
   }
 }

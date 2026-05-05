@@ -29,7 +29,7 @@ public:
   void SetOnModelSelected(OnLibraryModelSelectedFunc func) { mOnModelSelected = func; }
   void OnAttached() override;
   void Draw(IGraphics& g) override;
-  void OnResize();  // Add this
+  void OnResize() override;
 
 private:
   void OnSearchTextChanged(const char* text);

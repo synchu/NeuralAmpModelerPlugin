@@ -113,8 +113,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kCalibrateInput)->InitBool(kCalibrateInputParamName.c_str(), kDefaultCalibrateInput);
   GetParam(kInputCalibrationLevel)
     ->InitDouble(kInputCalibrationLevelParamName.c_str(), kDefaultInputCalibrationLevel, -60.0, 60.0, 0.1, "dBu");
-  GetParam(kSlim)->InitDouble("Slim", 1.0, 0.0, 1.0, 0.01);
-  GetParam(kAmpGain)->InitDouble("Voice", 5.0, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
+  GetParam(kSlim)->InitDouble("Slim", 0.0, 0.0, 1.0, 0.01);
+  GetParam(kAmpGain)->InitDouble("Voice", 0.1, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
 
   mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 
@@ -187,8 +187,6 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       noiseGateArea.GetVShifted(noiseGateArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
     const auto eqToggleArea =
       midKnobArea.GetVShifted(midKnobArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
-    const auto outNormToggleArea =
-      outputKnobArea.GetVShifted(midKnobArea.H()).SubRectVertical(2, 0).GetReducedFromTop(10.0f);
 
     // Areas for model and IR
     const auto fileWidth = 200.0f;
@@ -215,7 +213,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     auto loadModelCompletionHandler = [&](const WDL_String& fileName, const WDL_String& path) {
       if (fileName.GetLength())
       {
-        std::filesystem::path fp = std::filesystem::u8path(fileName.Get());
+        std::filesystem::path fp(std::u8string(reinterpret_cast<const char8_t*>(fileName.Get())));
         if (fp.extension() == ".pnam")
         {
           _LoadPNAMFile(fileName.Get());
@@ -258,7 +256,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     // PNAM chain editor icon — right side, symmetric to model icon
     pGraphics->AttachControl(new NAMTextCircleButtonControl(
       pnamEditIconArea,
-      [pGraphics](IControl* pCaller) {
+      [](IControl* pCaller) {
         auto* pPlugin = dynamic_cast<NeuralAmpModeler*>(pCaller->GetDelegate());
         if (pPlugin) pPlugin->OpenPNAMEditorWindow();
       }),
@@ -521,7 +519,7 @@ void NeuralAmpModeler::OpenPNAMEditorWindow()
     _LoadPNAMFile(filePath);
   });
 
-  mPNAMEditorWindow->mOnWindowClosed = [this]() {};
+  mPNAMEditorWindow->mOnWindowClosed = []() {};
 
   void* pParent = GetUI() ? GetUI()->GetWindow() : nullptr;
   mPNAMEditorWindow->Open(pParent);
@@ -660,6 +658,7 @@ void NeuralAmpModeler::OnIdle()
   {
     if (auto* pGraphics = GetUI())
     {
+      (void)pGraphics;
       _UpdateControlsFromModel();
       mNewModelLoadedInDSP = false;
     }
@@ -1181,7 +1180,7 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
       }
     }
 
-    auto dspPath = std::filesystem::u8path(modelPath.Get());
+    auto dspPath = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(modelPath.Get())));
     std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
 
     // Check that the model has 1 input and 1 output channel
@@ -1227,7 +1226,7 @@ dsp::wav::LoadReturnCode NeuralAmpModeler::_StageIR(const WDL_String& irPath)
   dsp::wav::LoadReturnCode wavState = dsp::wav::LoadReturnCode::ERROR_OTHER;
   try
   {
-    auto irPathU8 = std::filesystem::u8path(irPath.Get());
+    auto irPathU8 = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(irPath.Get())));
     mStagedIR = std::make_unique<dsp::ImpulseResponse>(irPathU8.string().c_str(), sampleRate);
     wavState = mStagedIR->GetWavState();
   }
@@ -1570,7 +1569,7 @@ void NeuralAmpModeler::OnParamChange(int paramIdx)
             SendParameterValueFromDelegate(kOutputLevel, GetParam(kOutputLevel)->GetNormalized(), true);
             SendParameterValueFromDelegate(kToneBass, GetParam(kToneBass)->GetNormalized(),       true);
             SendParameterValueFromDelegate(kToneMid, GetParam(kToneMid)->GetNormalized(),         true);
-            SendParameterValueFromDelegate(kToneTreble, GetParam(kToneTreble)->GetNormalized(),   true);
+            SendParameterValueFromDelegate(kToneTreble, GetParam(kToneTreble)->GetNormalized(),  true);
             _SetOutputGain();
           }
         }
@@ -1724,6 +1723,60 @@ void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
     mPNAMLoadPending.store(true); // signal OnIdle — written last as the memory barrier
   });
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
