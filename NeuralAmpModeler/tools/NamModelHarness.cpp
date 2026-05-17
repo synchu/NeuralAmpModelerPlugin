@@ -15,6 +15,7 @@
 
 #include "../../NeuralAmpModelerCore/NAM/activations.h"
 #include "../../NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "../../NeuralAmpModelerCore/NAM/slimmable.h"
 
 static const char* GetOpt(int argc, char** argv, const char* name)
 {
@@ -40,14 +41,19 @@ static void PrintUsage()
     "  NamModelHarness [--model <path-to-model.nam>] [--sr 48000] [--block 64] [--seconds 5]\n"
     "                 [--freq 110] [--no-prewarm]\n"
     "                 [--fast-tanh | --compare-fast-tanh]\n"
+    "                 [--slim <0.0-1.0> | --compare-slim]\n"
     "                 [--trials 7] [--warmup-blocks 200]\n"
 #ifdef _WIN32
     "                 [--pin-core 4] [--priority-high]\n"
 #endif
     "\n"
     "Flags:\n"
-    "  --fast-tanh           Enable nam::activations::Activation::enable_fast_tanh() for this run.\n"
-    "  --compare-fast-tanh   Run baseline suite then fast-tanh suite.\n"
+    "  --fast-tanh           Enable fast tanh for this run.\n"
+    "  --compare-fast-tanh   Run baseline then fast-tanh suite and compare.\n"
+    "  --slim <val>          Set slimmable size (0.0=min, 1.0=full) before benchmarking.\n"
+    "                        Has no effect if the model is not slimmable.\n"
+    "  --compare-slim        Run full (1.0) then slim (0.0) suite and compare.\n"
+    "                        Skipped gracefully if the model is not slimmable.\n"
     "  --trials N            Run N timed trials per suite (default 7).\n"
     "  --warmup-blocks N     Run N warmup blocks before each timed trial (default 200).\n"
 #ifdef _WIN32
@@ -59,7 +65,9 @@ static void PrintUsage()
     "  C:\\Users\\npn\\source\\repos\\NeuralAmpModelerPlugin\\NeuralAmpModeler\\complex_marshall_model_test.nam\n"
     "\n"
     "Examples:\n"
-    "  NamModelHarness --seconds 20 --compare-fast-tanh --trials 9 --warmup-blocks 500\n";
+    "  NamModelHarness --seconds 20 --compare-fast-tanh --trials 9 --warmup-blocks 500\n"
+    "  NamModelHarness --model my_slimmable.nam --compare-slim --trials 7\n"
+    "  NamModelHarness --model my_slimmable.nam --slim 0.5\n";
 }
 
 static void PrintBuildInfo()
@@ -157,8 +165,6 @@ static void PrintTrials(const char* label, const std::vector<BenchResult>& resul
     return;
 
   std::cout << label << " trials:\n";
-
-  // Use fixed formatting so comparisons are easy when pasting logs
   std::cout << std::fixed << std::setprecision(6);
 
   for (size_t i = 0; i < results.size(); ++i)
@@ -169,7 +175,6 @@ static void PrintTrials(const char* label, const std::vector<BenchResult>& resul
               << ", RT=" << r.realtimeFactor << "\n";
   }
 
-  // Restore default-ish formatting for the rest of the output
   std::cout.unsetf(std::ios::floatfield);
   std::cout << "\n";
 }
@@ -228,12 +233,13 @@ static BenchResult RunTrial(nam::DSP& model, const double sampleRate, const int 
   return r;
 }
 
+// slimSize: -1.0 = don't touch, otherwise set slimmable size before each trial
 static std::vector<BenchResult> RunSuite(const std::filesystem::path& modelPath, const double sampleRate,
-                                         const int blockSize, const bool prewarm, const std::vector<NAM_SAMPLE>& inputAll,
+                                         const int blockSize, const bool prewarm,
+                                         const std::vector<NAM_SAMPLE>& inputAll,
                                          const int iterations, const int warmupBlocks, const int trials,
-                                         const bool fastTanh)
+                                         const bool fastTanh, const double slimSize)
 {
-  // Toggle BEFORE loading model
   nam::activations::Activation::disable_fast_tanh();
   if (fastTanh)
     nam::activations::Activation::enable_fast_tanh();
@@ -242,6 +248,13 @@ static std::vector<BenchResult> RunSuite(const std::filesystem::path& modelPath,
   if (!model)
     throw std::runtime_error("nam::get_dsp returned null");
 
+  // Apply slim size once after load — the model holds state across trials
+  if (slimSize >= 0.0)
+  {
+    if (auto* slimmable = dynamic_cast<nam::SlimmableModel*>(model.get()))
+      slimmable->SetSlimmableSize(slimSize);
+  }
+
   std::vector<BenchResult> results;
   results.reserve(static_cast<size_t>(trials));
 
@@ -249,6 +262,20 @@ static std::vector<BenchResult> RunSuite(const std::filesystem::path& modelPath,
     results.push_back(RunTrial(*model, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks));
 
   return results;
+}
+
+// Returns true if the model at modelPath is slimmable (loads a temp instance to check)
+static bool ProbeIsSlimmable(const std::filesystem::path& modelPath)
+{
+  try
+  {
+    auto model = nam::get_dsp(modelPath);
+    return model && dynamic_cast<nam::SlimmableModel*>(model.get()) != nullptr;
+  }
+  catch (...)
+  {
+    return false;
+  }
 }
 
 int main(int argc, char** argv)
@@ -284,6 +311,12 @@ int main(int argc, char** argv)
   const bool compareFastTanh = HasFlag(argc, argv, "--compare-fast-tanh");
   const bool fastTanhOnly = HasFlag(argc, argv, "--fast-tanh") && !compareFastTanh;
 
+  const bool compareSlim = HasFlag(argc, argv, "--compare-slim");
+  // --slim sets a fixed slim value; ignored when --compare-slim is active
+  const double slimFixed = (!compareSlim && GetOpt(argc, argv, "--slim"))
+                             ? std::stod(GetOpt(argc, argv, "--slim"))
+                             : -1.0; // -1 = don't touch
+
 #ifdef _WIN32
   const bool priorityHigh = HasFlag(argc, argv, "--priority-high");
   const int pinCore = GetOpt(argc, argv, "--pin-core") ? std::stoi(GetOpt(argc, argv, "--pin-core")) : -1;
@@ -292,7 +325,9 @@ int main(int argc, char** argv)
 
   try
   {
-    const std::filesystem::path modelPath = std::filesystem::u8path(modelPathArg);
+    const std::filesystem::path modelPath(
+      std::u8string(reinterpret_cast<const char8_t*>(modelPathArg)));
+
     if (!std::filesystem::exists(modelPath))
     {
       std::cerr << "Error: model does not exist: " << modelPathArg << "\n\n";
@@ -300,16 +335,15 @@ int main(int argc, char** argv)
       return 2;
     }
 
+    const bool isSlimmable = ProbeIsSlimmable(modelPath);
+
     const int totalFrames = static_cast<int>(std::llround(seconds * sampleRate));
     const int iterations = (totalFrames + blockSize - 1) / blockSize;
 
-    // Precompute input once
     std::vector<NAM_SAMPLE> inputAll(static_cast<size_t>(iterations) * blockSize);
     double phase = 0.0;
     const double phaseInc = 2.0 * 3.14159265358979323846 * freqHz / sampleRate;
-
     for (int it = 0; it < iterations; ++it)
-    {
       for (int i = 0; i < blockSize; ++i)
       {
         inputAll[static_cast<size_t>(it) * blockSize + i] = static_cast<NAM_SAMPLE>(0.1 * std::sin(phase));
@@ -317,9 +351,9 @@ int main(int argc, char** argv)
         if (phase >= 2.0 * 3.14159265358979323846)
           phase -= 2.0 * 3.14159265358979323846;
       }
-    }
 
-    std::cout << "Model: " << modelPath.string() << "\n";
+    std::cout << "Model:     " << modelPath.string() << "\n";
+    std::cout << "Slimmable: " << (isSlimmable ? "YES" : "NO") << "\n";
     std::cout << "SR: " << sampleRate << " Hz, Block: " << blockSize << ", Target: " << seconds << " s\n";
     std::cout << "Trials: " << trials << ", WarmupBlocks: " << warmupBlocks << "\n";
 
@@ -329,13 +363,55 @@ int main(int argc, char** argv)
     if (priorityHigh)
       std::cout << "Priority: high\n";
 #endif
+    std::cout << "\n";
 
+    // ----------------------------------------------------------------
+    // --compare-slim
+    // ----------------------------------------------------------------
+    if (compareSlim)
+    {
+      if (!isSlimmable)
+      {
+        std::cout << "Note: --compare-slim skipped — model is not slimmable.\n";
+      }
+      else
+      {
+        std::cout << "Running Full (slim=1.0) suite...\n";
+        const auto fullResults =
+          RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, fastTanhOnly, 1.0);
+
+        std::cout << "Running Slim (slim=0.0) suite...\n";
+        const auto slimResults =
+          RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, fastTanhOnly, 0.0);
+
+        PrintTrials("Full (slim=1.0)", fullResults);
+        PrintTrials("Slim (slim=0.0)", slimResults);
+
+        const BenchSummary full = Summarize(fullResults);
+        const BenchSummary slim = Summarize(slimResults);
+
+        std::cout << "Full (min/med/mean RT): " << full.minRt << " / " << full.medianRt << " / " << full.meanRt
+                  << "  | elapsed(min/med/mean): " << full.minElapsedSeconds << " / " << full.medianElapsedSeconds
+                  << " / " << full.meanElapsedSeconds << " s\n";
+        std::cout << "Slim (min/med/mean RT): " << slim.minRt << " / " << slim.medianRt << " / " << slim.meanRt
+                  << "  | elapsed(min/med/mean): " << slim.minElapsedSeconds << " / " << slim.medianElapsedSeconds
+                  << " / " << slim.meanElapsedSeconds << " s\n";
+
+        const double speedup = full.medianRt / slim.medianRt;
+        std::cout << "Speedup (median RT, Full/Slim): " << speedup << "x\n";
+      }
+      return 0;
+    }
+
+    // ----------------------------------------------------------------
+    // --compare-fast-tanh
+    // ----------------------------------------------------------------
     if (compareFastTanh)
     {
       const auto baseResults =
-        RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, false);
+        RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, false, slimFixed);
       const auto fastResults =
-        RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, true);
+        RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, true, slimFixed);
 
       PrintTrials("Baseline", baseResults);
       PrintTrials("FastTanh", fastResults);
@@ -346,28 +422,34 @@ int main(int argc, char** argv)
       std::cout << "Baseline (min/med/mean RT): " << base.minRt << " / " << base.medianRt << " / " << base.meanRt
                 << "  | elapsed(min/med/mean): " << base.minElapsedSeconds << " / " << base.medianElapsedSeconds
                 << " / " << base.meanElapsedSeconds << " s\n";
-      std::cout << "FastTanh  (min/med/mean RT): " << fast.minRt << " / " << fast.medianRt << " / " << fast.meanRt
+      std::cout << "FastTanh (min/med/mean RT): " << fast.minRt << " / " << fast.medianRt << " / " << fast.meanRt
                 << "  | elapsed(min/med/mean): " << fast.minElapsedSeconds << " / " << fast.medianElapsedSeconds
                 << " / " << fast.meanElapsedSeconds << " s\n";
 
       const double speedup = base.medianRt / fast.medianRt;
       std::cout << "Speedup (median RT, Baseline/FastTanh): " << speedup << "x\n";
+      return 0;
     }
-    else
-    {
-      const auto results =
-        RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, fastTanhOnly);
 
-      PrintTrials(fastTanhOnly ? "FastTanh" : "Baseline", results);
+    // ----------------------------------------------------------------
+    // Single suite (default, --fast-tanh, or --slim <val>)
+    // ----------------------------------------------------------------
+    if (slimFixed >= 0.0 && !isSlimmable)
+      std::cout << "Note: --slim ignored — model is not slimmable.\n\n";
 
-      const BenchSummary s = Summarize(results);
+    const auto results =
+      RunSuite(modelPath, sampleRate, blockSize, prewarm, inputAll, iterations, warmupBlocks, trials, fastTanhOnly, slimFixed);
 
-      std::cout << (fastTanhOnly ? "FastTanh" : "Baseline") << " (min/med/mean RT): " << s.minRt << " / "
-                << s.medianRt << " / " << s.meanRt << "\n";
-      std::cout << (fastTanhOnly ? "FastTanh" : "Baseline")
-                << " elapsed(min/med/mean): " << s.minElapsedSeconds << " / " << s.medianElapsedSeconds << " / "
-                << s.meanElapsedSeconds << " s\n";
-    }
+    std::string label = fastTanhOnly ? "FastTanh" : "Baseline";
+    if (isSlimmable && slimFixed >= 0.0)
+      label += " (slim=" + std::to_string(slimFixed) + ")";
+
+    PrintTrials(label.c_str(), results);
+
+    const BenchSummary s = Summarize(results);
+    std::cout << label << " (min/med/mean RT): " << s.minRt << " / " << s.medianRt << " / " << s.meanRt << "\n";
+    std::cout << label << " elapsed(min/med/mean): " << s.minElapsedSeconds << " / " << s.medianElapsedSeconds
+              << " / " << s.meanElapsedSeconds << " s\n";
 
     return 0;
   }

@@ -195,10 +195,10 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     const auto modelArea =
       contentArea.GetFromBottom((2.0f * fileHeight)).GetFromTop(fileHeight).GetMidHPadded(fileWidth).GetVShifted(-1);
     const auto slimIconArea =
-      IRECT(modelArea.R + 6.f, modelArea.MH() - 14.f, modelArea.R + 6.f + 2.f * 28.f, modelArea.MH() + 14.f);
+      IRECT(modelArea.R + 2.f, modelArea.MH() - 10.f, modelArea.R + 4.f + 2.f * 22.f, modelArea.MH() + 10.f);
     const auto modelIconArea = modelArea.GetFromLeft(30).GetTranslated(-40, 10);
-    const auto pnamEditIconArea = IRECT(contentArea.R - 22.f, modelArea.T + 4.f,
-                                        contentArea.R,         modelArea.B - 4.f);
+    const auto pnamEditIconArea = IRECT(slimIconArea.R + 2.f, modelArea.T + 4.f,
+                                        slimIconArea.R + 22.f, modelArea.B - 4.f);
     const auto irArea = modelArea.GetVShifted(irYOffset);
     const auto irSwitchArea = irArea.GetFromLeft(30.0f).GetHShifted(-40.0f).GetScaledAboutCentre(0.6f);
 
@@ -1723,6 +1723,78 @@ void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
     mPNAMLoadPending.store(true); // signal OnIdle — written last as the memory barrier
   });
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
