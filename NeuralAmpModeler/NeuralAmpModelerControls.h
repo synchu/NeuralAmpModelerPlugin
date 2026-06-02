@@ -1136,16 +1136,17 @@ private:
 
       buildInfoStr.SetFormatted(100, "Version %s %s %s", verStr.Get(), PLUG()->GetArchStr(), PLUG()->GetAPIStr());
 
-      AddChildControl(new IURLControl(GetRECT().SubRectVertical(5, 0), "NEURAL AMP MODELER",
+      AddChildControl(new IURLControl(GetRECT().SubRectVertical(6, 0), "NEURAL AMP MODELER",
                                       "https://www.neuralampmodeler.com", mText, COLOR_TRANSPARENT,
                                       PluginColors::HELP_TEXT_MO, PluginColors::HELP_TEXT_CLICKED));
-      AddChildControl(new IVLabelControl(GetRECT().SubRectVertical(5, 1), "By Steven Atkinson", mStyle));
-      AddChildControl(new IVLabelControl(GetRECT().SubRectVertical(5, 2), buildInfoStr.Get(), mStyle));
-      AddChildControl(new IURLControl(GetRECT().SubRectVertical(5, 3),
+      AddChildControl(new IVLabelControl(GetRECT().SubRectVertical(6, 1), "By Steven Atkinson", mStyle));
+      AddChildControl(new IVLabelControl(GetRECT().SubRectVertical(6, 2), buildInfoStr.Get(), mStyle));
+      AddChildControl(new IURLControl(GetRECT().SubRectVertical(6, 3),
                                       "Plug-in development: Steve Atkinson, Oli Larkin, ... ",
                                       "https://github.com/sdatkinson/NeuralAmpModelerPlugin/graphs/contributors", mText,
                                       COLOR_TRANSPARENT, PluginColors::HELP_TEXT_MO, PluginColors::HELP_TEXT_CLICKED));
-      AddChildControl(new ThirdPartyNoticesControl(GetRECT().SubRectVertical(5, 4), mText));
+      AddChildControl(new ThirdPartyNoticesControl(GetRECT().SubRectVertical(6, 4), mText));
+      AddChildControl(new IVLabelControl(GetRECT().SubRectVertical(6, 5), "Chains, Drag&Drop and more by Niki Nyagolov", mStyle));
     };
 
   private:
