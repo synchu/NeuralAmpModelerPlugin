@@ -943,6 +943,17 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
   if (mIsOpen)
     return;
 
+  // Cocoa UI work must run on the main thread. In Logic's AU host, button
+  // callbacks can arrive from a non-main thread, which would crash on NSWindow
+  // creation. Dispatch to the main thread and return immediately if needed.
+  if (![[NSThread currentThread] isMainThread])
+  {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      Open(pParentWindow);
+    });
+    return;
+  }
+
   @autoreleasepool
   {
     NAMLibraryWindowController* ctrl =
