@@ -959,6 +959,8 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     NAMLibraryWindowController* ctrl =
       [[NAMLibraryWindowController alloc] initWithFontSize:mFontSize];
 
+    NSWindow* parentWin = pParentWindow ? ((__bridge NSView*)pParentWindow).window : nil;
+
     if (mHasSavedBounds)
     {
       NSScreen* targetScreen = [NSScreen mainScreen];
@@ -978,19 +980,16 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       if (onScreen)
         [ctrl.window setFrame:frame display:NO];
     }
-    else if (pParentWindow)
+    else if (parentWin)
     {
-      if (NSWindow* parentWin = ((__bridge NSView*) pParentWindow).window)
-      {
-        ctrl.parentHostWindow = parentWin;
+      ctrl.parentHostWindow = parentWin;
 
-        NSRect pf = parentWin.frame;
-        [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
-                                         pf.origin.y,
-                                         mWindowW,
-                                         mWindowH)
-                      display:NO];
-      }
+      NSRect pf = parentWin.frame;
+      [ctrl.window setFrame:NSMakeRect(pf.origin.x + pf.size.width + 10,
+                                       pf.origin.y,
+                                       mWindowW,
+                                       mWindowH)
+                    display:NO];
     }
 
     [ctrl setSearchTextFromUtf8:mPendingSearchQuery];
@@ -1236,17 +1235,11 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       [ctrl setDisplayRoot:mRootNode];
     }
 
-    [ctrl showWindow:nil];
-    [ctrl.window orderFrontRegardless]; // Floating tool window is the robust AU/VST3 behavior.
-    [ctrl.window makeKeyWindow];
-    [ctrl.window makeMainWindow];
-    [NSApp activateIgnoringOtherApps:YES];
-
-#if __has_feature(objc_arc)
     mpWindowController = (__bridge_retained void*) ctrl;
-#else
-    mpWindowController = (void*) [ctrl retain];
-#endif
+    [ctrl showWindow:nil];
+
+    if (parentWin)
+      [parentWin addChildWindow:ctrl.window ordered:NSWindowAbove];
 
     mIsOpen = true;
   }
@@ -1264,10 +1257,6 @@ void NAMLibraryBrowserWindow::BringToFront()
       return;
 
     [ctrl showWindow:nil];
-    [ctrl.window orderFrontRegardless];
-    [ctrl.window makeKeyWindow];
-    [ctrl.window makeMainWindow];
-    [NSApp activateIgnoringOtherApps:YES];
   }
 }
 
@@ -1324,6 +1313,8 @@ void NAMLibraryBrowserWindow::Close()
       mHasSavedBounds = true;
 
       ctrl.onWindowClose = nullptr;
+      if (ctrl.window.parentWindow)
+        [ctrl.window.parentWindow removeChildWindow:ctrl.window];
       [ctrl close];
 
 #if __has_feature(objc_arc)
