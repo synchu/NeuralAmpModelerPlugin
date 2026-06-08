@@ -8,6 +8,7 @@
 #include "../NeuralAmpModelerCore/NAM/dsp.h"
 #include "../NeuralAmpModelerCore/NAM/slimmable.h"
 
+#include <array>
 #include <filesystem>
 
 #include "Colors.h"
@@ -75,6 +76,8 @@ enum ECtrlTags
   kCtrlTagSlimKnob,
   kCtrlTagAmpGain,
   kCtrlTagPNAMEditorBtn,   // NEW — chain editor icon button
+  kCtrlTagRecallBack, // << recall back button
+  kCtrlTagRecallForward, 
   kNumCtrlTags
 };
 
@@ -240,6 +243,11 @@ public:
 
   // Drag-and-drop file handling (moved from IControl.h hack)
   void HandleFileDrop(const char* str);
+  // Recall (back / forward configuration history)
+  void RecallBack();
+  void RecallForward();
+  void _UpdateRecallButtonStates();
+  void _UpdateCurrentRecallParams();
 
 private:
   // Allocates mInputPointers and mOutputPointers
@@ -397,4 +405,23 @@ private:
   int  mLastTooltipSlotIndex   = -2;
   bool mLastKnobHoverState     = false;
   bool mBrowserShowingSlotName = false;
+
+    // -------------------------------------------------------------------------
+  // Recall history (back / forward)
+  // -------------------------------------------------------------------------
+  struct RecallSnapshot
+  {
+    WDL_String namPath;
+    WDL_String irPath;
+    WDL_String pnamPath;
+    std::array<double, kNumParams> params{};
+  };
+
+  std::vector<RecallSnapshot> mRecallHistory;
+  int mRecallIndex = -1;
+  bool mIsApplyingRecall = false;
+  static constexpr int kMaxRecallHistory = 32;
+
+  void _PushRecallSnapshot();
+  void _ApplyRecallSnapshot(const RecallSnapshot& snap);
 };

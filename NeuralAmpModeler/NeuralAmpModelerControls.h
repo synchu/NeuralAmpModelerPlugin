@@ -131,6 +131,32 @@ public:
   }
 };
 
+/// Small rounded-rect text button used for "<<" / ">>" recall navigation.
+class NAMRecallButtonControl : public IButtonControlBase
+{
+public:
+  NAMRecallButtonControl(const IRECT& bounds, IActionFunction af, const char* label)
+  : IButtonControlBase(bounds, af)
+  , mLabel(label)
+  {
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    const IColor baseCol = mDisabled ? PluginColors::NAM_3 : PluginColors::NAM_THEMECOLOR;
+    const IColor fillCol = (!mDisabled && mMouseIsOver) ? PluginColors::MOUSEOVER : COLOR_TRANSPARENT;
+
+    g.FillRoundRect(fillCol, mRECT, 3.f);
+    g.DrawRoundRect(baseCol, mRECT, 3.f, nullptr, 1.f);
+
+    const IText txt(11.f, baseCol, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+    g.DrawText(txt, mLabel.c_str(), mRECT);
+  }
+
+private:
+  std::string mLabel;
+};
+
 class NAMKnobControl : public WithFileDrop<IVKnobControl>, public IBitmapBase
 {
 public:

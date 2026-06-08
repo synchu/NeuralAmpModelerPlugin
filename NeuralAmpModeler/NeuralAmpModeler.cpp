@@ -251,7 +251,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachBackground(BACKGROUND_FN);
     pGraphics->AttachControl(new WithFileDrop<IBitmapControl>(b, linesBitmap));
     pGraphics->AttachControl(new WithFileDrop<IVLabelControl>(titleArea, "NEURAL AMP MODELER", titleStyle));
-    pGraphics->AttachControl(new WithFileDrop<ISVGControl>(modelIconArea, modelIconSVG));
+    //pGraphics->AttachControl(new WithFileDrop<ISVGControl>(modelIconArea, modelIconSVG));
 
     // PNAM chain editor icon — right side, symmetric to model icon
     pGraphics->AttachControl(new NAMTextCircleButtonControl(
@@ -359,6 +359,36 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics
       ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
       ->Hide(true);
+
+    // Recall back / forward buttons — placed where the model icon was,
+    // i.e. the 40px slot directly to the left of the model file browser.
+    {
+      const float recallL = modelArea.L - 40.f;
+      const float recallR = modelArea.L - 2.f;
+      const float recallT = modelArea.T + 7.f;
+      const float recallB = modelArea.B - 7.f;
+      const float btnW = (recallR - recallL - 2.f) * 0.5f; // ~19px each, 2px gap
+
+      const IRECT backRect(recallL, recallT, recallL + btnW, recallB);
+      const IRECT fwdRect(recallR - btnW, recallT, recallR, recallB);
+
+      pGraphics->AttachControl(
+        new NAMRecallButtonControl(
+          backRect, [](IControl* pCaller) { static_cast<NeuralAmpModeler*>(pCaller->GetDelegate())->RecallBack(); },
+          "<<"),
+        kCtrlTagRecallBack);
+
+      pGraphics->AttachControl(
+        new NAMRecallButtonControl(
+          fwdRect, [](IControl* pCaller) { static_cast<NeuralAmpModeler*>(pCaller->GetDelegate())->RecallForward(); },
+          ">>"),
+        kCtrlTagRecallForward);
+
+      pGraphics->GetControlWithTag(kCtrlTagRecallBack)->SetDisabled(true);
+      pGraphics->GetControlWithTag(kCtrlTagRecallForward)->SetDisabled(true);
+      pGraphics->GetControlWithTag(kCtrlTagRecallBack)->SetTooltip("Recall previous configuration");
+      pGraphics->GetControlWithTag(kCtrlTagRecallForward)->SetTooltip("Recall next configuration");
+    }
 
     pGraphics->ForAllControlsFunc([](IControl* pControl) {
       pControl->SetMouseEventsWhenDisabled(true);
@@ -1202,6 +1232,7 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
     }
     mStagedModel = std::move(temp);
     mNAMPath = modelPath;
+    _PushRecallSnapshot();
     SendControlMsgFromDelegate(kCtrlTagModelFileBrowser, kMsgTagLoadedModel, mNAMPath.GetLength(), mNAMPath.Get());
   }
   catch (std::runtime_error& e)
@@ -1240,6 +1271,7 @@ dsp::wav::LoadReturnCode NeuralAmpModeler::_StageIR(const WDL_String& irPath)
   if (wavState == dsp::wav::LoadReturnCode::SUCCESS)
   {
     mIRPath = irPath;
+    _PushRecallSnapshot();
     SendControlMsgFromDelegate(kCtrlTagIRFileBrowser, kMsgTagLoadedIR, mIRPath.GetLength(), mIRPath.Get());
   }
   else
@@ -1531,6 +1563,9 @@ void NeuralAmpModeler::OnUIOpen()
     if (auto* pCtrl = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn))
       pCtrl->SetDisabled(!mModelMapper.IsActive());
   }
+
+  _UpdateRecallButtonStates();
+
 }
 
 void NeuralAmpModeler::OnParamChange(int paramIdx)
@@ -1596,6 +1631,15 @@ void NeuralAmpModeler::OnParamChangeUI(int paramIdx, EParamSource source)
       default: break;
     }
   }
+  // Keep the current recall slot's param snapshot up to date whenever the
+  // user moves a knob while a model/chain is loaded.
+  // Skip: during a recall apply, when no slot exists yet, and for AmpGain
+  // (which drives slot switching rather than the slot's own state).
+  if (!mIsApplyingRecall && paramIdx != kAmpGain && mRecallIndex >= 0
+      && mRecallIndex < static_cast<int>(mRecallHistory.size()) && (mNAMPath.GetLength() || mPNAMPath.GetLength()))
+  {
+    _UpdateCurrentRecallParams();
+  }
 }
 
 bool NeuralAmpModeler::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
@@ -1630,8 +1674,162 @@ bool NeuralAmpModeler::OnMessage(int msgTag, int ctrlTag, int dataSize, const vo
   }
 }
 
+// ---------------------------------------------------------------------------
+// Recall history
+// ---------------------------------------------------------------------------
+
+void NeuralAmpModeler::_PushRecallSnapshot()
+{
+  if (mIsApplyingRecall)
+    return;
+
+  // Before creating a new entry, flush any knob adjustments made since the
+  // last load into the CURRENT slot. This is the only reliable place to do
+  // this because it runs synchronously on every model/IR load, regardless of
+  // whether OnParamChangeUI fired for every knob movement.
+  if (mRecallIndex >= 0 && mRecallIndex < static_cast<int>(mRecallHistory.size()))
+  {
+    RecallSnapshot& current = mRecallHistory[mRecallIndex];
+    for (int i = 0; i < kNumParams; i++)
+      current.params[i] = GetParam(i)->Value();
+  }
+
+  RecallSnapshot snap;
+  snap.namPath  = mNAMPath;
+  snap.irPath   = mIRPath;
+  snap.pnamPath = mPNAMPath;
+  for (int i = 0; i < kNumParams; i++)
+    snap.params[i] = GetParam(i)->Value();
+
+  // Truncate forward history when a new load happens while not at the end
+  if (mRecallIndex + 1 < static_cast<int>(mRecallHistory.size()))
+    mRecallHistory.erase(mRecallHistory.begin() + mRecallIndex + 1, mRecallHistory.end());
+
+  mRecallHistory.push_back(std::move(snap));
+  if (static_cast<int>(mRecallHistory.size()) > kMaxRecallHistory)
+    mRecallHistory.erase(mRecallHistory.begin());
+
+  mRecallIndex = static_cast<int>(mRecallHistory.size()) - 1;
+  _UpdateRecallButtonStates();
+}
+
+void NeuralAmpModeler::_UpdateCurrentRecallParams()
+{
+  if (mRecallIndex < 0 || mRecallIndex >= static_cast<int>(mRecallHistory.size()))
+    return;
+
+  RecallSnapshot& snap = mRecallHistory[mRecallIndex];
+  for (int i = 0; i < kNumParams; i++)
+    snap.params[i] = GetParam(i)->Value();
+}
+
+void NeuralAmpModeler::_ApplyRecallSnapshot(const RecallSnapshot& snap)
+{
+  mIsApplyingRecall = true;
+
+  // 1. Restore param values in the param store
+  ENTER_PARAMS_MUTEX
+  for (int i = 0; i < kNumParams; i++)
+    GetParam(i)->Set(snap.params[i]);
+  LEAVE_PARAMS_MUTEX
+
+  // 2. Apply DSP side-effects (gain, tone stack, etc.)
+  for (int i = 0; i < kNumParams; i++)
+    OnParamChange(i);
+
+  // 3. Update knob/switch visuals directly on the UI thread
+  if (auto* pGraphics = GetUI())
+  {
+    for (int i = 0; i < kNumParams; i++)
+    {
+      IControl* pCtrl = pGraphics->GetControlWithParamIdx(i);
+      if (pCtrl)
+        pCtrl->SetValueFromDelegate(GetParam(i)->GetNormalized());
+    }
+
+    // 4. Restore enabled/disabled states of dependent controls
+    OnParamChangeUI(kNoiseGateActive, iplug::EParamSource::kPresetRecall);
+    OnParamChangeUI(kEQActive,        iplug::EParamSource::kPresetRecall);
+    OnParamChangeUI(kIRToggle,        iplug::EParamSource::kPresetRecall);
+
+    pGraphics->SetAllControlsDirty();
+  }
+
+  // 5. Reload model / IR / chain
+  if (snap.pnamPath.GetLength())
+  {
+    mNAMPath.Set("");
+    _LoadPNAMFile(snap.pnamPath.Get());
+  }
+  else
+  {
+    // Deactivate mapper if currently active
+    if (mModelMapper.IsActive())
+    {
+      mModelMapper.SetActive(false);
+      mModelMapper.ClearSlots();
+      mPNAMPath.Set("");
+      if (auto* pGraphics = GetUI())
+      {
+        if (auto* c = pGraphics->GetControlWithTag(kCtrlTagAmpGain))       c->SetDisabled(true);
+        if (auto* c = pGraphics->GetControlWithTag(kCtrlTagPNAMEditorBtn)) c->SetDisabled(true);
+      }
+    }
+
+    if (snap.namPath.GetLength())
+      _StageModel(snap.namPath);
+    else
+      mShouldRemoveModel = true;
+  }
+
+  if (snap.irPath.GetLength())
+    _StageIR(snap.irPath);
+  else
+    mShouldRemoveIR = true;
+
+  mIsApplyingRecall = false;
+  _UpdateRecallButtonStates();
+}
+
+void NeuralAmpModeler::RecallBack()
+{
+  if (mRecallIndex <= 0)
+    return;
+
+  // Save any knob adjustments made since the last load into the current slot
+  // before leaving it — mirrors what _PushRecallSnapshot does on a new load.
+  _UpdateCurrentRecallParams();
+
+  --mRecallIndex;
+  _ApplyRecallSnapshot(mRecallHistory[mRecallIndex]);
+}
+
+void NeuralAmpModeler::RecallForward()
+{
+  if (mRecallIndex + 1 >= static_cast<int>(mRecallHistory.size()))
+    return;
+
+  // Same: flush current knob state before moving forward
+  _UpdateCurrentRecallParams();
+
+  ++mRecallIndex;
+  _ApplyRecallSnapshot(mRecallHistory[mRecallIndex]);
+}
+
+void NeuralAmpModeler::_UpdateRecallButtonStates()
+{
+  if (auto* pGraphics = GetUI())
+  {
+    if (auto* c = pGraphics->GetControlWithTag(kCtrlTagRecallBack))
+      c->SetDisabled(mRecallIndex <= 0);
+    if (auto* c = pGraphics->GetControlWithTag(kCtrlTagRecallForward))
+      c->SetDisabled(mRecallIndex + 1 >= static_cast<int>(mRecallHistory.size()));
+  }
+}
+
 // HACK
 #include "Unserialization.cpp"
+
 
 void NeuralAmpModeler::HandleFileDrop(const char* str)
 {
@@ -1707,6 +1905,7 @@ void NeuralAmpModeler::_LoadPNAMFile(const std::string& pnamPath)
 
   // Store path and prepare display name for OnIdle to use after load completes.
   mPNAMPath = WDL_String(pnamPath.c_str());
+  _PushRecallSnapshot();
   std::filesystem::path p(pnamPath);
   mPNAMPendingDisplayName = "[Chain] " + p.stem().string();
 
