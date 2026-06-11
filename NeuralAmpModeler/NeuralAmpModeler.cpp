@@ -115,6 +115,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     ->InitDouble(kInputCalibrationLevelParamName.c_str(), kDefaultInputCalibrationLevel, -60.0, 60.0, 0.1, "dBu");
   GetParam(kSlim)->InitDouble("Slim", 0.0, 0.0, 1.0, 0.01);
   GetParam(kAmpGain)->InitDouble("Voice", 0.1, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
+  GetParam(kOversampling)->InitEnum("Oversampling", 0, {"None", "2x", "4x", "8x"});
 
   mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 
@@ -347,22 +348,9 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       },
       gearSVG));
 
-    pGraphics
-      ->AttachControl(new NAMSettingsPageControl(b, backgroundBitmap, inputLevelBackgroundBitmap, switchHandleBitmap,
-                                                 crossSVG, style, radioButtonStyle),
-                      kCtrlTagSettingsBox)
-      ->Hide(true);
-
-    const auto slimKnobArea = b.GetCentredInside(100.f, NAM_KNOB_HEIGHT + 24.f);
-    pGraphics->AttachControl(new NAMSlimOverlayBackdropControl(b, hideSlimOverlay), kCtrlTagSlimOverlayBackdrop)
-      ->Hide(true);
-    pGraphics
-      ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
-      ->Hide(true);
-
-    // Recall back / forward buttons — placed where the model icon was,
+     // Recall back / forward buttons — placed where the model icon was,
     // i.e. the 40px slot directly to the left of the model file browser.
-    {
+    
       const float recallL = modelArea.L - 40.f;
       const float recallR = modelArea.L - 2.f;
       const float recallT = modelArea.T + 7.f;
@@ -388,7 +376,22 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       pGraphics->GetControlWithTag(kCtrlTagRecallForward)->SetDisabled(true);
       pGraphics->GetControlWithTag(kCtrlTagRecallBack)->SetTooltip("Recall previous configuration");
       pGraphics->GetControlWithTag(kCtrlTagRecallForward)->SetTooltip("Recall next configuration");
-    }
+    
+
+    pGraphics
+      ->AttachControl(new NAMSettingsPageControl(b, backgroundBitmap, inputLevelBackgroundBitmap, switchHandleBitmap,
+                                                 crossSVG, style, radioButtonStyle),
+                      kCtrlTagSettingsBox)
+      ->Hide(true);
+
+    const auto slimKnobArea = b.GetCentredInside(100.f, NAM_KNOB_HEIGHT + 24.f);
+    pGraphics->AttachControl(new NAMSlimOverlayBackdropControl(b, hideSlimOverlay), kCtrlTagSlimOverlayBackdrop)
+      ->Hide(true);
+    pGraphics
+      ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
+      ->Hide(true);
+
+   
 
     pGraphics->ForAllControlsFunc([](IControl* pControl) {
       pControl->SetMouseEventsWhenDisabled(true);
@@ -559,106 +562,138 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
 {
   const size_t numChannelsExternalIn = (size_t)NInChansConnected();
   const size_t numChannelsExternalOut = (size_t)NOutChansConnected();
-  const size_t numChannelsInternal = kNumChannelsInternal;
+  constexpr size_t numChannelsInternal = kNumChannelsInternal;
   const size_t numFrames = (size_t)nFrames;
-  const double sampleRate = GetSampleRate();
+  const double hostRate = GetSampleRate();
 
-  // Disable floating point denormals
   std::fenv_t fe_state;
   std::feholdexcept(&fe_state);
   disable_denormals();
 
   _PrepareBuffers(numChannelsInternal, numFrames);
-  // Input is collapsed to mono in preparation for the NAM.
   _ProcessInput(inputs, numFrames, numChannelsExternalIn, numChannelsInternal);
+
+  // Apply oversampling change only at block boundary, with no UI-thread mutation
+  // of live DSP objects.
+  if (mStagedOversamplerReady.exchange(false, std::memory_order_acquire))
+  {
+    mOversampler = std::move(mStagedOversampler);
+    mActiveOversampleFactor = mStagedOversampleFactor;
+
+    const double effectiveRate = hostRate * mActiveOversampleFactor;
+    const int effectiveBlock = GetBlockSize() * mActiveOversampleFactor;
+
+    _ResetModelAndIR(effectiveRate, effectiveBlock);
+    mToneStack->Reset(effectiveRate, effectiveBlock);
+    _SetInputGain();
+    _SetOutputGain();
+    mShouldUpdateLatency.store(true, std::memory_order_release);
+  }
+
   _ApplyDSPStaging();
+
+  const int factor = mActiveOversampleFactor;
   const bool noiseGateActive = GetParam(kNoiseGateActive)->Value();
   const bool toneStackActive = GetParam(kEQActive)->Value();
 
-  // Noise gate trigger
-  sample** triggerOutput = mInputPointers;
-  if (noiseGateActive)
-  {
-    const double time = 0.01;
-    const double threshold = GetParam(kNoiseGateThreshold)->Value(); // GetParam...
-    const double ratio = 0.1; // Quadratic...
-    const double openTime = 0.005;
-    const double holdTime = 0.01;
-    const double closeTime = 0.05;
-    const dsp::noise_gate::TriggerParams triggerParams(time, threshold, ratio, openTime, holdTime, closeTime);
-    mNoiseGateTrigger.SetParams(triggerParams);
-    mNoiseGateTrigger.SetSampleRate(sampleRate);
-    triggerOutput = mNoiseGateTrigger.Process(mInputPointers, numChannelsInternal, numFrames);
-  }
+  auto runChain = [&](iplug::sample** chainIn, iplug::sample** chainOut, size_t chainFrames, double effectiveRate) {
+    // Noise gate trigger
+    iplug::sample** triggerOutput = chainIn;
+    if (noiseGateActive)
+    {
+      const double time = 0.01;
+      const double threshold = GetParam(kNoiseGateThreshold)->Value();
+      const double ratio = 0.1;
+      const double openTime = 0.005;
+      const double holdTime = 0.01;
+      const double closeTime = 0.05;
+      const dsp::noise_gate::TriggerParams triggerParams(time, threshold, ratio, openTime, holdTime, closeTime);
+      mNoiseGateTrigger.SetParams(triggerParams);
+      mNoiseGateTrigger.SetSampleRate(effectiveRate);
+      triggerOutput = mNoiseGateTrigger.Process(chainIn, numChannelsInternal, chainFrames);
+    }
 
-  if (mModel != nullptr)
+    // NAM model — writes directly into chainOut
+    if (mModel != nullptr)
+      mModel->process(triggerOutput, chainOut, (int)chainFrames);
+    else
+      for (size_t c = 0; c < numChannelsInternal; c++)
+        for (size_t s = 0; s < chainFrames; s++)
+          chainOut[c][s] = triggerOutput[c][s];
+
+    // Noise gate gain
+    iplug::sample** gateGainOutput =
+      noiseGateActive ? mNoiseGateGain.Process(chainOut, numChannelsInternal, chainFrames) : chainOut;
+
+    // Tone stack
+    iplug::sample** toneStackOut = (toneStackActive && mToneStack != nullptr)
+                                     ? mToneStack->Process(gateGainOutput, numChannelsInternal, (int)chainFrames)
+                                     : gateGainOutput;
+
+    // IR
+    iplug::sample** irOut = toneStackOut;
+    if (mIR != nullptr && GetParam(kIRToggle)->Value())
+      irOut = mIR->Process(toneStackOut, numChannelsInternal, chainFrames);
+
+    // HPF (DC blocker)
+    const recursive_linear_filter::HighPassParams hpfParams(effectiveRate, kDCBlockerFrequency);
+    mHighPass.SetParams(hpfParams);
+    iplug::sample** hpfOut = mHighPass.Process(irOut, numChannelsInternal, chainFrames);
+
+    // Smooth fade for mapper model switches
+    if (mOutputFadeDir != 0 || mOutputFadeGain < 1.0f)
+    {
+      const float step = 1.0f / static_cast<float>(kModelFadeSamples);
+      for (size_t s = 0; s < chainFrames; s++)
+      {
+        if (mOutputFadeDir == -1)
+        {
+          mOutputFadeGain = std::max(0.0f, mOutputFadeGain - step);
+          if (mOutputFadeGain <= 0.0f && mMapperPendingModel)
+          {
+            mModel = std::move(mMapperPendingModel);
+            mMapperPendingModel = nullptr;
+            mNewModelLoadedInDSP = true;
+            mShouldUpdateLatency.store(true, std::memory_order_release);
+            mPendingGainRecalc = true;
+            mOutputFadeDir = 1;
+          }
+        }
+        else if (mOutputFadeDir == 1)
+        {
+          mOutputFadeGain = std::min(1.0f, mOutputFadeGain + step);
+          if (mOutputFadeGain >= 1.0f)
+            mOutputFadeDir = 0;
+        }
+
+        for (size_t c = 0; c < numChannelsInternal; c++)
+          hpfOut[c][s] *= mOutputFadeGain;
+      }
+    }
+
+    // Copy final result into chainOut so the caller/resampler can read it
+    if (hpfOut != chainOut)
+      for (size_t c = 0; c < numChannelsInternal; c++)
+        for (size_t s = 0; s < chainFrames; s++)
+          chainOut[c][s] = hpfOut[c][s];
+  };
+
+  if (factor == 1 || !mOversampler)
   {
-    mModel->process(triggerOutput, mOutputPointers, nFrames);
+    // No oversampling path: direct DSP only
+    runChain(mInputPointers, mOutputPointers, numFrames, hostRate);
   }
   else
   {
-    _FallbackDSP(triggerOutput, mOutputPointers, numChannelsInternal, numFrames);
+    mOversampler->ProcessBlock(
+      mInputPointers, mOutputPointers, nFrames, [&](iplug::sample** osIn, iplug::sample** osOut, int osFrames) {
+        runChain(osIn, osOut, (size_t)osFrames, hostRate * factor);
+      });
   }
 
-  // Apply the noise gate after the NAM
-  sample** gateGainOutput =
-    noiseGateActive ? mNoiseGateGain.Process(mOutputPointers, numChannelsInternal, numFrames) : mOutputPointers;
-
-  sample** toneStackOutPointers = (toneStackActive && mToneStack != nullptr)
-                                    ? mToneStack->Process(gateGainOutput, numChannelsInternal, nFrames)
-                                    : gateGainOutput;
-
-  sample** irPointers = toneStackOutPointers;
-  if (mIR != nullptr && GetParam(kIRToggle)->Value())
-    irPointers = mIR->Process(toneStackOutPointers, numChannelsInternal, numFrames);
-
-  // And the HPF for DC offset (Issue 271)
-  const double highPassCutoffFreq = kDCBlockerFrequency;
-  const recursive_linear_filter::HighPassParams highPassParams(sampleRate, highPassCutoffFreq);
-  mHighPass.SetParams(highPassParams);
-  sample** hpfPointers = mHighPass.Process(irPointers, numChannelsInternal, numFrames);
-
-  // Smooth fade for mapper model switches — applied per-sample to avoid pop
-  if (mOutputFadeDir != 0 || mOutputFadeGain < 1.0f)
-  {
-    const float step = 1.0f / static_cast<float>(kModelFadeSamples);
-    for (size_t s = 0; s < numFrames; s++)
-    {
-      if (mOutputFadeDir == -1)
-      {
-        mOutputFadeGain = std::max(0.0f, mOutputFadeGain - step);
-        if (mOutputFadeGain <= 0.0f && mMapperPendingModel)
-        {
-          // Silent point — swap model here
-          mModel = std::move(mMapperPendingModel);
-          mMapperPendingModel = nullptr;
-          mNewModelLoadedInDSP = true;
-          _UpdateLatency();
-          // Defer gain recalc to next block boundary — calling _SetOutputGain here
-          // changes mOutputGain mid-block and _ProcessOutput retroactively applies
-          // the new gain to pre-swap samples, causing a pop.
-          mPendingGainRecalc = true;
-          mOutputFadeDir = 1;  // start fade in
-        }
-      }
-      else if (mOutputFadeDir == 1)
-      {
-        mOutputFadeGain = std::min(1.0f, mOutputFadeGain + step);
-        if (mOutputFadeGain >= 1.0f)
-          mOutputFadeDir = 0;
-      }
-
-      for (size_t c = 0, nc = numChannelsInternal; c < nc; c++)
-        hpfPointers[c][s] *= mOutputFadeGain;
-    }
-  }
-
-  // restore previous floating point state
   std::feupdateenv(&fe_state);
 
-  // Exit mono for whatever the output requires.
-  _ProcessOutput(hpfPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
-
+  _ProcessOutput(mOutputPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
   _UpdateMeters(mInputPointers, outputs, numFrames, numChannelsInternal, numChannelsExternalOut);
 }
 
@@ -667,15 +702,21 @@ void NeuralAmpModeler::OnReset()
   const auto sampleRate = GetSampleRate();
   const int maxBlockSize = GetBlockSize();
 
-  // Tail is because the HPF DC blocker has a decay.
-  // 10 cycles should be enough to pass the VST3 tests checking tail behavior.
   const int tailCycles = 10;
   SetTailSize(tailCycles * (int)(sampleRate / kDCBlockerFrequency));
   mInputSender.Reset(sampleRate);
   mOutputSender.Reset(sampleRate);
 
-  _ResetModelAndIR(sampleRate, GetBlockSize());
-  mToneStack->Reset(sampleRate, maxBlockSize);
+  _ResetOversampler();
+  mActiveOversampleFactor = _GetOversampleFactor();
+
+  const double effectiveRate = sampleRate * mActiveOversampleFactor;
+  const int effectiveBlock = maxBlockSize * mActiveOversampleFactor;
+
+  _ResetModelAndIR(effectiveRate, effectiveBlock);
+  mToneStack->Reset(effectiveRate, effectiveBlock);
+  _SetInputGain();
+  _SetOutputGain();
   _UpdateLatency();
 }
 
@@ -683,6 +724,35 @@ void NeuralAmpModeler::OnIdle()
 {
   mInputSender.TransmitData(*this);
   mOutputSender.TransmitData(*this);
+
+   // Build oversampler on UI thread so no allocation ever happens on the RT thread.
+  if (mShouldResetForOversampling.exchange(false))
+  {
+    const int factor = _GetOversampleFactor();
+
+    if (factor != mActiveOversampleFactor)
+    {
+      if (factor == 1)
+      {
+        mStagedOversampler.reset();
+      }
+      else
+      {
+        const double nativeRate = GetSampleRate() * factor;
+        auto newOversampler = std::make_unique<dsp::ResamplingContainer<iplug::sample, 1, 12>>(nativeRate);
+        newOversampler->Reset(GetSampleRate(), GetBlockSize());
+        mStagedOversampler = std::move(newOversampler);
+      }
+
+      mStagedOversampleFactor = factor;
+      mStagedOversamplerReady.store(true, std::memory_order_release);
+    }
+  }
+
+  // SetLatency() must not be called from ProcessBlock — audio thread sets this flag
+  // and we handle it here on the UI thread.
+  if (mShouldUpdateLatency.exchange(false))
+    _UpdateLatency();
 
   if (mNewModelLoadedInDSP)
   {
@@ -1025,6 +1095,7 @@ void NeuralAmpModeler::_AllocateIOPointers(const size_t nChans)
 
 void NeuralAmpModeler::_ApplyDSPStaging()
 {
+
   // Deferred gain recalc from a mid-block mapper model swap (previous block)
   if (mPendingGainRecalc)
   {
@@ -1047,7 +1118,8 @@ void NeuralAmpModeler::_ApplyDSPStaging()
     mLastTooltipSlotIndex = -2;
     mBrowserShowingSlotName = false;
     mLastKnobHoverState = false;
-    _UpdateLatency();
+    // Do NOT call _UpdateLatency() here — SetLatency() from the RT thread crashes DAWs
+    mShouldUpdateLatency.store(true, std::memory_order_release);
     _SetInputGain();
     _SetOutputGain();
   }
@@ -1063,7 +1135,8 @@ void NeuralAmpModeler::_ApplyDSPStaging()
     mModel = std::move(mStagedModel);
     mStagedModel = nullptr;
     mNewModelLoadedInDSP = true;
-    _UpdateLatency();
+    // Do NOT call _UpdateLatency() here — SetLatency() from the RT thread crashes DAWs
+    mShouldUpdateLatency.store(true, std::memory_order_release);
     _SetInputGain();
     _SetOutputGain();
   }
@@ -1224,8 +1297,8 @@ std::string NeuralAmpModeler::_StageModel(const WDL_String& modelPath)
                                + std::to_string(model->NumOutputChannels()));
     }
 
-    std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), GetSampleRate());
-    temp->Reset(GetSampleRate(), GetBlockSize());
+    std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), _GetEffectiveSampleRate());
+    temp->Reset(_GetEffectiveSampleRate(), GetBlockSize() * _GetOversampleFactor());
     if (nam::SlimmableModel* slimmable = temp->GetSlimmableModel())
     {
       slimmable->SetSlimmableSize(GetParam(kSlim)->Value());
@@ -1258,7 +1331,7 @@ dsp::wav::LoadReturnCode NeuralAmpModeler::_StageIR(const WDL_String& irPath)
   try
   {
     auto irPathU8 = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(irPath.Get())));
-    mStagedIR = std::make_unique<dsp::ImpulseResponse>(irPathU8.string().c_str(), sampleRate);
+    mStagedIR = std::make_unique<dsp::ImpulseResponse>(irPathU8.string().c_str(), _GetEffectiveSampleRate());
     wavState = mStagedIR->GetWavState();
   }
   catch (std::runtime_error& e)
@@ -1430,16 +1503,11 @@ void NeuralAmpModeler::_UpdateLatency()
 {
   int latency = 0;
   if (mModel)
-  {
     latency += mModel->GetLatency();
-  }
-  // Other things that add latency here...
-
-  // Feels weird to have to do this.
+  if (mOversampler)
+    latency += mOversampler->GetLatency();
   if (GetLatency() != latency)
-  {
     SetLatency(latency);
-  }
 }
 
 void NeuralAmpModeler::_UpdateMeters(sample** inputPointer, sample** outputPointer, const size_t nFrames,
@@ -1580,6 +1648,9 @@ void NeuralAmpModeler::OnParamChange(int paramIdx)
     case kToneMid: mToneStack->SetParam("middle", GetParam(paramIdx)->Value()); break;
     case kToneTreble: mToneStack->SetParam("treble", GetParam(paramIdx)->Value()); break;
     case kInputLevel: _SetInputGain(); break;
+    case kOversampling:
+      mShouldResetForOversampling = true;
+      break;
     case kAmpGain:
     {
       if (mModelMapper.IsActive())
@@ -1825,6 +1896,37 @@ void NeuralAmpModeler::_UpdateRecallButtonStates()
     if (auto* c = pGraphics->GetControlWithTag(kCtrlTagRecallForward))
       c->SetDisabled(mRecallIndex + 1 >= static_cast<int>(mRecallHistory.size()));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Oversampling helpers
+// ---------------------------------------------------------------------------
+
+int NeuralAmpModeler::_GetOversampleFactor() const
+{
+  switch (GetParam(kOversampling)->Int())
+  {
+    case 1: return 2;
+    case 2: return 4;
+    case 3: return 8;
+    default: return 1;
+  }
+}
+
+double NeuralAmpModeler::_GetEffectiveSampleRate() const
+{ return GetSampleRate() * static_cast<double>(mActiveOversampleFactor); }
+
+void NeuralAmpModeler::_ResetOversampler()
+{
+  const int factor = _GetOversampleFactor();
+  if (factor == 1)
+  {
+    mOversampler.reset();
+    return;
+  }
+  const double nativeRate = GetSampleRate() * factor;
+  mOversampler = std::make_unique<dsp::ResamplingContainer<iplug::sample, 1, 12>>(nativeRate);
+  mOversampler->Reset(GetSampleRate(), GetBlockSize());
 }
 
 // HACK

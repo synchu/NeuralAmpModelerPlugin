@@ -119,7 +119,8 @@ int _GetConfigFrom_0_7_14(const iplug::IByteChunk& chunk, int startPos, nlohmann
                                       "InputCalibrationLevel",
                                       "OutputMode",
                                       "Slim",
-                                      "Voice"};  // kAmpGain — must match EParams order
+                                      "Voice",
+                                      "Oversampling"}; // kAmpGain — must match EParams order
 
   int pos = _UnserializePathsAndExpectedKeys(chunk, startPos, config, paramNames);
 
@@ -138,6 +139,7 @@ int _GetConfigFrom_0_7_14(const iplug::IByteChunk& chunk, int startPos, nlohmann
 void _UpdateConfigFrom_0_7_12(nlohmann::json& config)
 {
   config["Slim"] = 1.0;
+  config["Oversampling"] = 0.0;
   _UpdateConfigFrom_0_7_14(config);
 }
 
