@@ -187,6 +187,7 @@ public:
     const auto maxEncapsulatedBlockSize = static_cast<int>(std::ceil(static_cast<double>(maxBlockSize) / mUpRatio));
     //this got updated in the latest upstream NAMCore
     // ResetAndPrewarm() is now just Reset(), and you can control whether it prewarms with SetPrewarmOnReset()
+    // since with was ResetAndPrewarm(), we are now Setting prewarm on reset to true, and then calling Reset()
     mEncapsulated->SetPrewarmOnReset(true);
     mEncapsulated->Reset(sampleRate, maxEncapsulatedBlockSize);
   };
