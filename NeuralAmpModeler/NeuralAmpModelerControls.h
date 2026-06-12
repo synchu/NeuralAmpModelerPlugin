@@ -1019,25 +1019,29 @@ public:
     AddNamedChildControl(new IVLabelControl(titleArea, "SETTINGS", titleStyle), mControlNames.title);
 
     // Oversampling — tab switch, anchored directly to titleArea.B
-    const float osW = 280.f;
-    const float osTabH = 42.f;
+    //const float osW = 280.f;
+    //const float osTabH = 42.f;
 
-    const IRECT osTabRect(
-      titleArea.MW() - osW * 0.5f, titleArea.B, titleArea.MW() + osW * 0.5f, titleArea.B + osTabH);
+    //const IRECT osTabRect(
+     // titleArea.MW() - osW * 0.5f, titleArea.B, titleArea.MW() + osW * 0.5f, titleArea.B + osTabH);
 
-    AddNamedChildControl(
+    /* AddNamedChildControl(
       new IVTabSwitchControl(osTabRect, kOversampling, {"None", "2x", "4x", "8x"}, "Oversampling", style.WithShowLabel(true)),
       mControlNames.oversampling, kCtrlTagOversampling);
-
+      */
     // Calibration + output mode — anchored at osTabRect.B, NO translation formula
     {
-      const float calT = osTabRect.B - 20.f; // bottom is too low of a - push back to the top -20.f 
+      // const float calT = titleArea.B - 20.f; // bottom is too low of a - push back to the top -20.f 
       const float height = NAM_KNOB_HEIGHT + NAM_SWTICH_HEIGHT + 10.0f;
       const float width = titleArea.W();
 
-      const IRECT inputOutputArea(titleArea.L, calT, titleArea.R, calT + height);
+      /* const IRECT inputOutputArea(titleArea.L, calT, titleArea.R, calT + height);
       const IRECT inputArea = inputOutputArea.GetFromLeft(0.5f * width);
       const IRECT outputArea = inputOutputArea.GetFromRight(0.5f * width);
+      */
+      const auto inputOutputArea = titleArea.GetFromBottom(height).GetTranslated(0.0f, height);
+      const auto inputArea = inputOutputArea.GetFromLeft(0.5f * width);
+      const auto outputArea = inputOutputArea.GetFromRight(0.5f * width);
 
       const float knobWidth = 87.0f;
       const auto inputLevelArea =

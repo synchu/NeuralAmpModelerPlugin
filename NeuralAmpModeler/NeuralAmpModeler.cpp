@@ -116,6 +116,9 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kSlim)->InitDouble("Slim", 0.0, 0.0, 1.0, 0.01);
   GetParam(kAmpGain)->InitDouble("Voice", 0.1, 0.0, 10.0, 0.01, "", IParam::kFlagsNone, "AmpGain", IParam::ShapePowCurve(1.0));
   GetParam(kOversampling)->InitEnum("Oversampling", 0, {"None", "2x", "4x", "8x"});
+  //ignore oversampling
+  GetParam(kOversampling)->Set(0.0);
+  //
 
   mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 
@@ -1650,7 +1653,11 @@ void NeuralAmpModeler::OnParamChange(int paramIdx)
     case kToneTreble: mToneStack->SetParam("treble", GetParam(paramIdx)->Value()); break;
     case kInputLevel: _SetInputGain(); break;
     case kOversampling:
-      mShouldResetForOversampling = true;
+      //ignore
+      GetParam(kOversampling)->Set(0.0);
+      mShouldResetForOversampling = false;
+      //
+      //mShouldResetForOversampling = true;
       break;
     case kAmpGain:
     {
