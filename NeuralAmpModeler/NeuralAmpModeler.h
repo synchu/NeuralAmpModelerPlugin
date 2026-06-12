@@ -10,7 +10,6 @@
 
 #include <array>
 #include <filesystem>
-#include <mutex>
 
 #include "Colors.h"
 #include "ToneStack.h"
@@ -57,7 +56,6 @@ enum EParams
   kOutputMode,
   kSlim,
   kAmpGain,      // NEW — visible only when .pnam is active
-  kOversampling, // None / 2x / 4x / 8x
   kNumParams
 };
 
@@ -80,7 +78,6 @@ enum ECtrlTags
   kCtrlTagPNAMEditorBtn,   // NEW — chain editor icon button
   kCtrlTagRecallBack, // << recall back button
   kCtrlTagRecallForward, 
-  kCtrlTagOversampling, // NEW — oversampling selector
   kNumCtrlTags
 };
 
@@ -256,11 +253,6 @@ public:
   void _UpdateRecallButtonStates();
   void _UpdateCurrentRecallParams();
 
-  // Oversampling
-  int _GetOversampleFactor() const;
-  double _GetEffectiveSampleRate() const;
-  void _ResetOversampler();
-
 private:
   // Allocates mInputPointers and mOutputPointers
   void _AllocateIOPointers(const size_t nChans);
@@ -417,24 +409,6 @@ private:
   int  mLastTooltipSlotIndex   = -2;
   bool mLastKnobHoverState     = false;
   bool mBrowserShowingSlotName = false;
-
-  // -------------------------------------------------------------------------
-  // Oversampling
-  // -------------------------------------------------------------------------
-  std::unique_ptr<dsp::ResamplingContainer<iplug::sample, 1, 12>> mOversampler;
-  std::atomic<bool> mShouldResetForOversampling{false};
-
-  // Runtime state actually used by ProcessBlock()
-  int mActiveOversampleFactor{1};
-
-  // Built on UI thread, adopted on audio thread at block boundary
-  std::unique_ptr<dsp::ResamplingContainer<iplug::sample, 1, 12>> mStagedOversampler;
-  std::atomic<bool> mStagedOversamplerReady{false};
-  int mStagedOversampleFactor{1};
-
-  // Audio thread signals OnIdle to call _UpdateLatency() — SetLatency() is NOT RT-safe
-  std::atomic<bool> mShouldUpdateLatency{false};
-
 
     // -------------------------------------------------------------------------
   // Recall history (back / forward)

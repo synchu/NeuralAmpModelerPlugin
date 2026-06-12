@@ -1003,7 +1003,7 @@ public:
     SetDirty(true);
   }
 
- void OnAttached() override
+  void OnAttached() override
   {
     const float pad = 20.0f;
     const IVStyle titleStyle = DEFAULT_STYLE.WithValueText(IText(30, COLOR_WHITE, "Michroma-Regular"))
@@ -1018,32 +1018,15 @@ public:
     const auto titleArea = GetRECT().GetPadded(-(pad + 10.0f)).GetFromTop(50.0f);
     AddNamedChildControl(new IVLabelControl(titleArea, "SETTINGS", titleStyle), mControlNames.title);
 
-    // Oversampling — tab switch, anchored directly to titleArea.B
-    //const float osW = 280.f;
-    //const float osTabH = 42.f;
-
-    //const IRECT osTabRect(
-     // titleArea.MW() - osW * 0.5f, titleArea.B, titleArea.MW() + osW * 0.5f, titleArea.B + osTabH);
-
-    /* AddNamedChildControl(
-      new IVTabSwitchControl(osTabRect, kOversampling, {"None", "2x", "4x", "8x"}, "Oversampling", style.WithShowLabel(true)),
-      mControlNames.oversampling, kCtrlTagOversampling);
-      */
-    // Calibration + output mode — anchored at osTabRect.B, NO translation formula
+    // Attach input/output calibration controls
     {
-      // const float calT = titleArea.B - 20.f; // bottom is too low of a - push back to the top -20.f 
       const float height = NAM_KNOB_HEIGHT + NAM_SWTICH_HEIGHT + 10.0f;
       const float width = titleArea.W();
-
-      /* const IRECT inputOutputArea(titleArea.L, calT, titleArea.R, calT + height);
-      const IRECT inputArea = inputOutputArea.GetFromLeft(0.5f * width);
-      const IRECT outputArea = inputOutputArea.GetFromRight(0.5f * width);
-      */
       const auto inputOutputArea = titleArea.GetFromBottom(height).GetTranslated(0.0f, height);
       const auto inputArea = inputOutputArea.GetFromLeft(0.5f * width);
       const auto outputArea = inputOutputArea.GetFromRight(0.5f * width);
 
-      const float knobWidth = 87.0f;
+      const float knobWidth = 87.0f; // HACK based on looking at the main page knobs.
       const auto inputLevelArea =
         inputArea.GetFromTop(NAM_KNOB_HEIGHT).GetFromBottom(25.0f).GetMidHPadded(0.5f * knobWidth);
       const auto inputSwitchArea = inputArea.GetFromBottom(NAM_SWTICH_HEIGHT).GetMidHPadded(0.5f * knobWidth);
@@ -1054,12 +1037,13 @@ public:
       inputLevelControl->SetTooltip(
         "The analog level, in dBu RMS, that corresponds to digital level of 0 dBFS peak in the host as its signal "
         "enters this plugin.");
-
       AddNamedChildControl(
         new NAMSwitchControl(inputSwitchArea, kCalibrateInput, "Calibrate Input", mStyle, mSwitchBitmap),
         mControlNames.calibrateInput, kCtrlTagCalibrateInput);
 
-      const auto outputRadioArea = outputArea.GetFromBottom(1.1f * (inputLevelArea.H() + inputSwitchArea.H()));
+      // Same-ish height & width as input controls
+      const auto outputRadioArea = outputArea.GetFromBottom(
+        1.1f * (inputLevelArea.H() + inputSwitchArea.H())); // .GetMidHPadded(0.55f * knobWidth);
       const float buttonSize = 10.0f;
       auto* outputModeControl =
         AddNamedChildControl(new OutputModeControl(outputRadioArea, kOutputMode, mRadioButtonStyle, buttonSize),
@@ -1114,7 +1098,6 @@ private:
     const std::string inputCalibrationLevel = "InputCalibrationLevel";
     const std::string modelInfo = "ModelInfo";
     const std::string outputMode = "OutputMode";
-    const std::string oversampling = "Oversampling";
     const std::string title = "Title";
   } mControlNames;
 
