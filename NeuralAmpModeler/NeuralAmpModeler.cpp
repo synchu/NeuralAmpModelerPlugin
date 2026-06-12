@@ -652,7 +652,7 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
         hpfPointers[c][s] *= mOutputFadeGain;
     }
   }
-  runChain(mInputPointers, mOutputPointers, numFrames, hostRate);
+  
   // restore previous floating point state
   std::feupdateenv(&fe_state);
 
