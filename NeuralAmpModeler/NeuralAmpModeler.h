@@ -185,7 +185,10 @@ public:
     // Stolen some code from the resampler; it'd be nice to have these exposed as methods? :)
     const double mUpRatio = sampleRate / GetEncapsulatedSampleRate();
     const auto maxEncapsulatedBlockSize = static_cast<int>(std::ceil(static_cast<double>(maxBlockSize) / mUpRatio));
-    mEncapsulated->ResetAndPrewarm(sampleRate, maxEncapsulatedBlockSize);
+    //this got updated in the latest upstream NAMCore
+    // ResetAndPrewarm() is now just Reset(), and you can control whether it prewarms with SetPrewarmOnReset()
+    mEncapsulated->SetPrewarmOnReset(true);
+    mEncapsulated->Reset(sampleRate, maxEncapsulatedBlockSize);
   };
 
   // So that we can let the world know if we're resampling (useful for debugging)

@@ -689,6 +689,7 @@ void NeuralAmpModeler::ProcessBlock(iplug::sample** inputs, iplug::sample** outp
       mInputPointers, mOutputPointers, nFrames, [&](iplug::sample** osIn, iplug::sample** osOut, int osFrames) {
         runChain(osIn, osOut, (size_t)osFrames, hostRate * factor);
       });
+    // DBGMSG("Processed block with oversampling factor %d", factor);
   }
 
   std::feupdateenv(&fe_state);
