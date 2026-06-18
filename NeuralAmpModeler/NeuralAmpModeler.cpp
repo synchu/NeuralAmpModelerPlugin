@@ -347,19 +347,6 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       },
       gearSVG));
 
-    pGraphics
-      ->AttachControl(new NAMSettingsPageControl(b, backgroundBitmap, inputLevelBackgroundBitmap, switchHandleBitmap,
-                                                 crossSVG, style, radioButtonStyle),
-                      kCtrlTagSettingsBox)
-      ->Hide(true);
-
-    const auto slimKnobArea = b.GetCentredInside(100.f, NAM_KNOB_HEIGHT + 24.f);
-    pGraphics->AttachControl(new NAMSlimOverlayBackdropControl(b, hideSlimOverlay), kCtrlTagSlimOverlayBackdrop)
-      ->Hide(true);
-    pGraphics
-      ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
-      ->Hide(true);
-
     // Recall back / forward buttons — placed where the model icon was,
     // i.e. the 40px slot directly to the left of the model file browser.
     {
@@ -389,6 +376,22 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
       pGraphics->GetControlWithTag(kCtrlTagRecallBack)->SetTooltip("Recall previous configuration");
       pGraphics->GetControlWithTag(kCtrlTagRecallForward)->SetTooltip("Recall next configuration");
     }
+
+
+    pGraphics
+      ->AttachControl(new NAMSettingsPageControl(b, backgroundBitmap, inputLevelBackgroundBitmap, switchHandleBitmap,
+                                                 crossSVG, style, radioButtonStyle),
+                      kCtrlTagSettingsBox)
+      ->Hide(true);
+
+    const auto slimKnobArea = b.GetCentredInside(100.f, NAM_KNOB_HEIGHT + 24.f);
+    pGraphics->AttachControl(new NAMSlimOverlayBackdropControl(b, hideSlimOverlay), kCtrlTagSlimOverlayBackdrop)
+      ->Hide(true);
+    pGraphics
+      ->AttachControl(new NAMKnobControl(slimKnobArea, kSlim, "Slim", style, knobBackgroundBitmap), kCtrlTagSlimKnob)
+      ->Hide(true);
+
+    
 
     pGraphics->ForAllControlsFunc([](IControl* pControl) {
       pControl->SetMouseEventsWhenDisabled(true);
