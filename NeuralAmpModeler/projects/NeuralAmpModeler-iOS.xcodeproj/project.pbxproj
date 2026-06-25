@@ -68,6 +68,7 @@
 		4FBDC97A29FFF143004FF203 /* ring_buffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4FBDC97329FFF143004FF203 /* ring_buffer.h */; };
 		4FBDC97B29FFF143004FF203 /* film.h in Headers */ = {isa = PBXBuildFile; fileRef = 4FBDC97429FFF143004FF203 /* film.h */; };
 		4FBDC97C29FFF143004FF203 /* gating_activations.h in Headers */ = {isa = PBXBuildFile; fileRef = 4FBDC97529FFF143004FF203 /* gating_activations.h */; };
+		C0DEC0DE0000000000000004 /* compiler.h in Headers */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000003 /* compiler.h */; };
 		4FBDC97D29FFF143004FF203 /* registry.h in Headers */ = {isa = PBXBuildFile; fileRef = 4FBDC97629FFF143004FF203 /* registry.h */; };
 		4FC69835293BA47F0076EC33 /* NeuralAmpModelerAU.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FC6982F293BA47F0076EC33 /* NeuralAmpModelerAU.framework */; };
 		4FC69836293BA47F0076EC33 /* NeuralAmpModelerAU.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4FC6982F293BA47F0076EC33 /* NeuralAmpModelerAU.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -314,6 +315,7 @@
 		4FBDC97329FFF143004FF203 /* ring_buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ring_buffer.h; sourceTree = "<group>"; };
 		4FBDC97429FFF143004FF203 /* film.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = film.h; sourceTree = "<group>"; };
 		4FBDC97529FFF143004FF203 /* gating_activations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gating_activations.h; sourceTree = "<group>"; };
+		C0DEC0DE0000000000000003 /* compiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = compiler.h; sourceTree = "<group>"; };
 		4FBDC97629FFF143004FF203 /* registry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = registry.h; sourceTree = "<group>"; };
 		4FBDC94729FFF143004FF203 /* util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = util.h; sourceTree = "<group>"; };
 		4FBDC94829FFF143004FF203 /* dsp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dsp.h; sourceTree = "<group>"; };
@@ -722,6 +724,7 @@
 				4FBDC97329FFF143004FF203 /* ring_buffer.h */,
 				4FBDC97429FFF143004FF203 /* film.h */,
 				4FBDC97529FFF143004FF203 /* gating_activations.h */,
+				C0DEC0DE0000000000000003 /* compiler.h */,
 				4FBDC97629FFF143004FF203 /* registry.h */,
 			);
 			name = NAM;
@@ -909,6 +912,7 @@
 				4FBDC97A29FFF143004FF203 /* ring_buffer.h in Headers */,
 				4FBDC97B29FFF143004FF203 /* film.h in Headers */,
 				4FBDC97C29FFF143004FF203 /* gating_activations.h in Headers */,
+				C0DEC0DE0000000000000004 /* compiler.h in Headers */,
 				4FBDC97D29FFF143004FF203 /* registry.h in Headers */,
 				4FC6983B293BA5020076EC33 /* IPlugAUAudioUnit.h in Headers */,
 				AA7C860B2B43A42F00B5FB3A /* ResamplingContainer.h in Headers */,

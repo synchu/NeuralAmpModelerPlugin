@@ -520,6 +520,7 @@
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\activations.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\conv1d.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\convnet.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\compiler.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\dsp.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\film.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\gating_activations.h" />

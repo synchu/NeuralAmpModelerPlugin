@@ -326,6 +326,9 @@
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\convnet.h">
       <Filter>NAM</Filter>
     </ClInclude>
+    <ClInclude Include="..\NeuralAmpModelerCore\NAM\compiler.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\dsp.h">
       <Filter>NAM</Filter>
     </ClInclude>

@@ -42,6 +42,7 @@
 		2C569D8EE935FABE6DDBD306 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 		2D607DF523B2091F3B4F6955 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
 		315730AFC2046189865F82D1 /* gating_activations.h in Headers */ = {isa = PBXBuildFile; fileRef = AFE76D97D830827C94E3F89B /* gating_activations.h */; };
+		C0DEC0DE0000000000000002 /* compiler.h in Headers */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000001 /* compiler.h */; };
 		356A0863DD4FDFE171C0561C /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
 		388355D2916903C30FA0A86F /* registry.h in Headers */ = {isa = PBXBuildFile; fileRef = 68E8C84DB7D7AD9CD84FC6DB /* registry.h */; };
 		3A26085BC4E3D0B1C376D8A4 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA06A11CB62C27023A94D050 /* model.cpp */; };
@@ -724,6 +725,7 @@
 		4F2FB1592A0047420027AB67 /* ring_buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ring_buffer.h; sourceTree = "<group>"; };
 		4F2FB15A2A0047420027AB68 /* film.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = film.h; sourceTree = "<group>"; };
 		4F2FB15B2A0047420027AB68 /* gating_activations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gating_activations.h; sourceTree = "<group>"; };
+		C0DEC0DE0000000000000001 /* compiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = compiler.h; sourceTree = "<group>"; };
 		4F2FB15C2A0047420027AB68 /* registry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = registry.h; sourceTree = "<group>"; };
 		4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = IPlugPluginBase.cpp; path = ../../iPlug2/IPlug/IPlugPluginBase.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		4F35DEAC207E5C5A00867D8F /* IPlugPluginBase.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugPluginBase.h; path = ../../iPlug2/IPlug/IPlugPluginBase.h; sourceTree = "<group>"; tabWidth = 2; };
@@ -1359,6 +1361,7 @@
 				4F2FB14C2A0047420027AB66 /* wavenet/model.h */,
 				4F2FB15A2A0047420027AB68 /* film.h */,
 				4F2FB15B2A0047420027AB68 /* gating_activations.h */,
+				C0DEC0DE0000000000000001 /* compiler.h */,
 				4F2FB15C2A0047420027AB68 /* registry.h */,
 			);
 			name = NAM;
@@ -2075,6 +2078,7 @@
 				4F2FB1A52A0047430027AB66 /* wavenet/model.h in Headers */,
 				4F2FB1E22A0047430027AB68 /* film.h in Headers */,
 				4F2FB1E32A0047430027AB68 /* gating_activations.h in Headers */,
+				C0DEC0DE0000000000000002 /* compiler.h in Headers */,
 				4F2FB1E42A0047430027AB68 /* registry.h in Headers */,
 				4F78BE1222E73DD900AD537E /* NeuralAmpModelerAU.h in Headers */,
 				4F2FB1542A0047420027AB66 /* Resample.h in Headers */,
