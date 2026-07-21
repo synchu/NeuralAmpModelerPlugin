@@ -78,6 +78,9 @@ std::string WideToUtf8(const wchar_t* text)
   #define IDC_TAG_LABEL 1008
   #define IDC_TAG_COMBO 1009
   #define IDC_TAG_RESET 1010
+  #define IDC_GROUP_LABEL 1011
+  #define IDC_GROUP_COMBO 1012
+  #define IDC_GROUP_RESET 1013
 
 NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
                                                  std::shared_ptr<NAMLibraryTreeNode> rootNode)
@@ -120,10 +123,14 @@ void NAMLibraryBrowserWindow::SuspendInitialRedraw()
 
   if (mHwndTagCombo)
     SendMessageW(mHwndTagCombo, WM_SETREDRAW, FALSE, 0);
+  if (mHwndGroupCombo)
+    SendMessageW(mHwndGroupCombo, WM_SETREDRAW, FALSE, 0);
 }
 
 void NAMLibraryBrowserWindow::ResumeInitialRedraw()
 {
+  if (mHwndGroupCombo)
+    SendMessageW(mHwndGroupCombo, WM_SETREDRAW, TRUE, 0);
   if (mHwndTagCombo)
     SendMessageW(mHwndTagCombo, WM_SETREDRAW, TRUE, 0);
 
@@ -234,7 +241,7 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
     InitializeControls();
     SuspendInitialRedraw();
 
-    PopulateTagComboBox();
+    PopulateTagComboBox(mpLibraryManager->GetAllTags());
 
     if (mHwndSearchEdit && !mPendingSearchQuery.empty())
       SetWindowTextW(mHwndSearchEdit, Utf8ToWide(mPendingSearchQuery).c_str());
@@ -347,6 +354,12 @@ void NAMLibraryBrowserWindow::LoadSettings()
         if (v >= mMinHeight)
           mWindowH = v;
       }
+      else if (key == "GroupBy")
+      {
+        const int v = std::stoi(val);
+        if (v >= static_cast<int>(NAMLibraryGroupBy::Library) && v <= static_cast<int>(NAMLibraryGroupBy::Tag))
+          mGroupBy = static_cast<NAMLibraryGroupBy>(v);
+      }
     }
     catch (...)
     {
@@ -367,6 +380,7 @@ void NAMLibraryBrowserWindow::SaveSettings()
   file << "FontSize=" << mFontSize << "\n";
   file << "WindowW=" << mWindowW << "\n";
   file << "WindowH=" << mWindowH << "\n";
+  file << "GroupBy=" << static_cast<int>(mGroupBy) << "\n";
 }
 
 void NAMLibraryBrowserWindow::Close()
@@ -489,6 +503,24 @@ void NAMLibraryBrowserWindow::InitializeControls()
                     width - 385, 10, 220, 300, mHwndDlg, (HMENU)IDC_TAG_COMBO, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndTagCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
 
+  mHwndGroupLabel = CreateWindowW(L"STATIC", L"Group by:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, 52, 85, 35,
+                                  mHwndDlg, (HMENU)IDC_GROUP_LABEL, GetModuleHandle(nullptr), nullptr);
+  SendMessage(mHwndGroupLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
+
+  mHwndGroupCombo =
+    CreateWindowExW(WS_EX_CLIENTEDGE, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+                    100, 52, 220, 240, mHwndDlg, (HMENU)IDC_GROUP_COMBO, GetModuleHandle(nullptr), nullptr);
+  SendMessage(mHwndGroupCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  const wchar_t* groupOptions[] = {L"Default (library folders)", L"Gear make", L"Gear model", L"Tone type", L"Author", L"Tag"};
+  for (const auto* option : groupOptions)
+    SendMessageW(mHwndGroupCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(option));
+  ComboBox_SetCurSel(mHwndGroupCombo, static_cast<int>(mGroupBy));
+
+  HWND hwndGroupReset = CreateWindowW(L"BUTTON", L"X", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
+                                      325, 52, 35, 35, mHwndDlg, (HMENU)IDC_GROUP_RESET,
+                                      GetModuleHandle(nullptr), nullptr);
+  SendMessage(hwndGroupReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
+
   HWND hwndReset = CreateWindowW(L"BUTTON", L"X", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW, width - 160, 10,
                                  35, 35, mHwndDlg, (HMENU)IDC_TAG_RESET, GetModuleHandle(nullptr), nullptr);
   SendMessage(hwndReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
@@ -505,7 +537,7 @@ void NAMLibraryBrowserWindow::InitializeControls()
   mHwndTreeView = CreateWindowExW(
     WS_EX_CLIENTEDGE, WC_TREEVIEWW, L"",
     WS_CHILD | WS_VISIBLE | TVS_HASLINES | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_FULLROWSELECT, 10,
-    55, width - 20, height - 110, mHwndDlg, (HMENU)IDC_TREEVIEW, GetModuleHandle(nullptr), nullptr);
+    95, width - 20, height - 150, mHwndDlg, (HMENU)IDC_TREEVIEW, GetModuleHandle(nullptr), nullptr);
   SendMessage(mHwndTreeView, WM_SETFONT, (WPARAM)mHFont, TRUE);
   UpdateFontSize();
   SetWindowTheme(mHwndTreeView, L"Explorer", nullptr);
@@ -565,6 +597,10 @@ void NAMLibraryBrowserWindow::UpdateChildFonts()
     SendMessage(mHwndTagLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
   if (mHwndTagCombo)
     SendMessage(mHwndTagCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndGroupLabel)
+    SendMessage(mHwndGroupLabel, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  if (mHwndGroupCombo)
+    SendMessage(mHwndGroupCombo, WM_SETFONT, (WPARAM)mHFont, TRUE);
   if (mHwndFontDecButton)
     SendMessage(mHwndFontDecButton, WM_SETFONT, (WPARAM)mHFont, TRUE);
   if (mHwndFontIncButton)
@@ -579,6 +615,9 @@ void NAMLibraryBrowserWindow::UpdateChildFonts()
   HWND hReset = GetDlgItem(mHwndDlg, IDC_TAG_RESET);
   if (hReset)
     SendMessage(hReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
+  HWND hGroupReset = GetDlgItem(mHwndDlg, IDC_GROUP_RESET);
+  if (hGroupReset)
+    SendMessage(hGroupReset, WM_SETFONT, (WPARAM)mHFont, TRUE);
 }
 
 void NAMLibraryBrowserWindow::IncreaseFontSize()
@@ -651,52 +690,7 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
   if (!node || !mHwndTreeView)
     return;
 
-  std::string displayName = node->name;
-
-  if (node->IsModel())
-  {
-    std::vector<std::string> metaParts;
-    metaParts.reserve(3);
-
-    if (!node->gear_make.empty() || !node->gear_model.empty())
-    {
-      std::string gearInfo;
-      if (!node->gear_make.empty() && !node->gear_model.empty())
-        gearInfo = node->gear_make + " " + node->gear_model;
-      else if (!node->gear_make.empty())
-        gearInfo = node->gear_make;
-      else
-        gearInfo = node->gear_model;
-
-      metaParts.push_back(std::move(gearInfo));
-    }
-
-    auto addLevel = [&](const char* label, double value) {
-      if (value == 0.0)
-        return;
-
-      char buffer[32] = {};
-      snprintf(buffer, sizeof(buffer), "%s: %.1f", label, value);
-      metaParts.emplace_back(buffer);
-    };
-
-    addLevel("in", node->input_level_dbu);
-    addLevel("out", node->output_level_dbu);
-
-    if (!metaParts.empty())
-    {
-      std::ostringstream ss;
-      ss << displayName << " [";
-      for (size_t i = 0; i < metaParts.size(); ++i)
-      {
-        if (i > 0)
-          ss << ", ";
-        ss << metaParts[i];
-      }
-      ss << "]";
-      displayName = ss.str();
-    }
-  }
+  const std::string& displayName = node->GetDisplayName();
 
   const std::wstring wname = Utf8ToWide(displayName);
   if (wname.empty())
@@ -705,9 +699,11 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
   TVINSERTSTRUCTW tvis = {};
   tvis.hParent = hParent;
   tvis.hInsertAfter = TVI_LAST;
-  tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+  const bool isFolder = !node->children.empty();
+  tvis.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
   tvis.item.pszText = const_cast<LPWSTR>(wname.c_str());
   tvis.item.lParam = reinterpret_cast<LPARAM>(node.get());
+  tvis.item.cChildren = isFolder ? 1 : 0;
 
   HTREEITEM hItem =
     reinterpret_cast<HTREEITEM>(SendMessageW(mHwndTreeView, TVM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tvis)));
@@ -716,15 +712,32 @@ void NAMLibraryBrowserWindow::AddTreeNode(HTREEITEM hParent, const std::shared_p
 
   mTreeItemMap[hItem] = node;
 
-  const bool isFolder = !node->children.empty();
   const bool wantExpanded = isFolder ? GetFolderExpandedFromState(node) : false;
   const bool thisExpanded = ancestorsExpanded && (!isFolder || wantExpanded);
 
-  for (const auto& child : node->children)
-    AddTreeNode(hItem, child, thisExpanded);
+  // Native tree controls do not need descendants for collapsed folders. Add
+  // them on demand when the user expands the folder.
+  if (thisExpanded)
+  {
+    for (const auto& child : node->children)
+      AddTreeNode(hItem, child, true);
+  }
 
   if (ancestorsExpanded && isFolder && wantExpanded)
     TreeView_Expand(mHwndTreeView, hItem, TVE_EXPAND);
+}
+
+void NAMLibraryBrowserWindow::PopulateTreeNodeChildren(HTREEITEM hParentItem)
+{
+  if (!mHwndTreeView || !hParentItem || TreeView_GetChild(mHwndTreeView, hParentItem))
+    return;
+
+  const auto it = mTreeItemMap.find(hParentItem);
+  if (it == mTreeItemMap.end() || !it->second)
+    return;
+
+  for (const auto& child : it->second->children)
+    AddTreeNode(hParentItem, child, true);
 }
 
 void NAMLibraryBrowserWindow::PopulateTreeView()
@@ -825,101 +838,24 @@ void NAMLibraryBrowserWindow::PerformSearch(const std::string& query)
   const bool hasQuery = !query.empty();
   const std::string selectedTagTrimmed = Trim(mSelectedTag);
   const bool hasTag = !selectedTagTrimmed.empty();
+  const bool hasGrouping = mGroupBy != NAMLibraryGroupBy::Library;
 
-  if (!hasQuery && !hasTag)
+  if (!hasQuery && !hasTag && !hasGrouping)
   {
     mSearchRoot = nullptr;
-    PopulateTagComboBox();
+    PopulateTagComboBox(mpLibraryManager->GetAllTags());
     PopulateTreeView();
     return;
   }
 
-  std::vector<std::shared_ptr<NAMLibraryTreeNode>> searchResults =
-    hasQuery ? mpLibraryManager->SearchModels(query) : mpLibraryManager->GetAllModels();
+  auto searchResults = mpLibraryManager->FilterModels(query, selectedTagTrimmed);
+  mSearchRoot = hasGrouping
+    ? mpLibraryManager->BuildGroupedResultRoot(searchResults, mGroupBy)
+    : mpLibraryManager->BuildSearchResultRoot(searchResults);
 
-  if (hasTag)
-  {
-    const std::string selectedTagLower = ToLowerAscii(selectedTagTrimmed);
-
-    searchResults.erase(std::remove_if(searchResults.begin(), searchResults.end(),
-                                       [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-                                         if (!model)
-                                           return true;
-
-                                         for (const auto& tag : model->tags)
-                                         {
-                                           if (ToLowerAscii(Trim(tag)) == selectedTagLower)
-                                             return false;
-                                         }
-
-                                         return true;
-                                       }),
-                        searchResults.end());
-  }
-
-  mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
-  mSearchRoot->name = "Filtered Results (" + std::to_string(searchResults.size()) + " models)";
-  mSearchRoot->id = "search_root";
-  mSearchRoot->depth = 0;
-  mSearchRoot->expanded = true;
-
-  std::unordered_map<std::string, std::shared_ptr<NAMLibraryTreeNode>> nodeMap;
-  std::unordered_map<std::string, std::unordered_set<std::string>> childrenAdded;
-
-  auto addUniqueChild = [&](const std::shared_ptr<NAMLibraryTreeNode>& parentCopy,
-                            const std::shared_ptr<NAMLibraryTreeNode>& childCopy) {
-    if (!parentCopy || !childCopy)
-      return;
-
-    auto& set = childrenAdded[parentCopy->id];
-    if (set.insert(childCopy->id).second)
-      parentCopy->children.push_back(childCopy);
-  };
-
-  std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)> BuildAncestorChain;
-  BuildAncestorChain = [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
-    if (!node)
-      return nullptr;
-
-    if (auto it = nodeMap.find(node->id); it != nodeMap.end())
-      return it->second;
-
-    auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
-    nodeCopy->children.clear();
-    nodeCopy->expanded = true;
-    nodeMap.emplace(node->id, nodeCopy);
-
-    if (node->parent)
-    {
-      auto parentCopy = BuildAncestorChain(node->parent);
-      nodeCopy->parent = parentCopy;
-      if (parentCopy)
-      {
-        nodeCopy->depth = parentCopy->depth + 1;
-        addUniqueChild(parentCopy, nodeCopy);
-      }
-      else
-      {
-        nodeCopy->parent = mSearchRoot;
-        nodeCopy->depth = 1;
-        addUniqueChild(mSearchRoot, nodeCopy);
-      }
-    }
-    else
-    {
-      nodeCopy->parent = mSearchRoot;
-      nodeCopy->depth = 1;
-      addUniqueChild(mSearchRoot, nodeCopy);
-    }
-
-    return nodeCopy;
-  };
-
-  for (const auto& model : searchResults)
-    BuildAncestorChain(model);
-
-  PopulateTagComboBox(&searchResults);
-  SetExpandedStateRecursive(mSearchRoot, true);
+  // Tags are a contextual facet: only expose tags represented by the models
+  // that remain after applying the current query and tag filter.
+  PopulateTagComboBox(mpLibraryManager->CollectTags(searchResults));
   PopulateTreeView();
 }
 
@@ -930,7 +866,7 @@ void NAMLibraryBrowserWindow::ResizeControls(int width, int height)
 
   SendMessageW(mHwndDlg, WM_SETREDRAW, FALSE, 0);
 
-  HDWP hdwp = BeginDeferWindowPos(8);
+  HDWP hdwp = BeginDeferWindowPos(11);
   if (hdwp)
   {
     if (mHwndSearchEdit)
@@ -952,8 +888,18 @@ void NAMLibraryBrowserWindow::ResizeControls(int width, int height)
     if (mHwndFontIncButton)
       hdwp = DeferWindowPos(hdwp, mHwndFontIncButton, nullptr, width - 60, 10, 45, 35, SWP_NOZORDER);
 
+    if (mHwndGroupLabel)
+      hdwp = DeferWindowPos(hdwp, mHwndGroupLabel, nullptr, 10, 52, 85, 35, SWP_NOZORDER);
+
+    if (mHwndGroupCombo)
+      hdwp = DeferWindowPos(hdwp, mHwndGroupCombo, nullptr, 100, 52, 220, 240, SWP_NOZORDER);
+
+    HWND hwndGroupReset = GetDlgItem(mHwndDlg, IDC_GROUP_RESET);
+    if (hwndGroupReset)
+      hdwp = DeferWindowPos(hdwp, hwndGroupReset, nullptr, 325, 52, 35, 35, SWP_NOZORDER);
+
     if (mHwndTreeView)
-      hdwp = DeferWindowPos(hdwp, mHwndTreeView, nullptr, 10, 55, width - 20, height - 110, SWP_NOZORDER);
+      hdwp = DeferWindowPos(hdwp, mHwndTreeView, nullptr, 10, 95, width - 20, height - 150, SWP_NOZORDER);
 
     if (mHwndLoadButton)
       hdwp = DeferWindowPos(hdwp, mHwndLoadButton, nullptr, width - 400, height - 50, 240, 40, SWP_NOZORDER);
@@ -1138,6 +1084,20 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
           OnTagSelectionChanged();
         return TRUE;
       }
+      else if (wmId == IDC_GROUP_COMBO && wmEvent == CBN_SELCHANGE)
+      {
+        OnGroupSelectionChanged();
+        return TRUE;
+      }
+      else if (wmId == IDC_GROUP_RESET)
+      {
+        if (mHwndGroupCombo)
+          ComboBox_SetCurSel(mHwndGroupCombo, static_cast<int>(NAMLibraryGroupBy::Library));
+        mGroupBy = NAMLibraryGroupBy::Library;
+        SaveSettings();
+        PerformSearch(mPendingSearchQuery);
+        return TRUE;
+      }
       break;
     }
 
@@ -1192,6 +1152,13 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
           }
           return TRUE;
         }
+        else if (pnmh->code == TVN_ITEMEXPANDINGW)
+        {
+          auto* pnmtv = (LPNMTREEVIEWW)lParam;
+          if (pnmtv->action == TVE_EXPAND)
+            PopulateTreeNodeChildren(pnmtv->itemNew.hItem);
+          return FALSE;
+        }
         else if (pnmh->code == TVN_ITEMEXPANDEDW)
         {
           auto* pnmtv = (LPNMTREEVIEWW)lParam;
@@ -1240,10 +1207,14 @@ INT_PTR NAMLibraryBrowserWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM l
   return FALSE;
 }
 
-void NAMLibraryBrowserWindow::PopulateTagComboBox(
-  const std::vector<std::shared_ptr<NAMLibraryTreeNode>>* pModelsForTags)
+void NAMLibraryBrowserWindow::PopulateTagComboBox(const std::vector<std::string>& tags)
 {
   if (!mHwndTagCombo || !mpLibraryManager)
+    return;
+
+  // Search results often change without changing their tag set. Avoid native
+  // control churn in that common case while retaining contextual filtering.
+  if (tags == mDisplayedTags && ComboBox_GetCount(mHwndTagCombo) == static_cast<int>(tags.size() + 1))
     return;
 
   struct FlagGuard
@@ -1262,23 +1233,7 @@ void NAMLibraryBrowserWindow::PopulateTagComboBox(
   ComboBox_ResetContent(mHwndTagCombo);
   SendMessageW(mHwndTagCombo, CB_ADDSTRING, 0, (LPARAM)L"All tags");
 
-  std::set<std::string> uniqueTags;
-
-  const auto* modelsToUse = pModelsForTags ? pModelsForTags : &mpLibraryManager->GetAllModels();
-  for (const auto& model : *modelsToUse)
-  {
-    if (!model)
-      continue;
-
-    for (const auto& tag : model->tags)
-    {
-      std::string trimmed = Trim(tag);
-      if (!trimmed.empty())
-        uniqueTags.insert(trimmed);
-    }
-  }
-
-  for (const auto& tag : uniqueTags)
+  for (const auto& tag : tags)
   {
     const std::wstring wtag = Utf8ToWide(tag);
     SendMessageW(mHwndTagCombo, CB_ADDSTRING, 0, (LPARAM)wtag.c_str());
@@ -1303,6 +1258,7 @@ void NAMLibraryBrowserWindow::PopulateTagComboBox(
 
   SendMessageW(mHwndTagCombo, WM_SETREDRAW, TRUE, 0);
   RedrawWindow(mHwndTagCombo, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+  mDisplayedTags = tags;
 }
 
 void NAMLibraryBrowserWindow::OnTagSelectionChanged()
@@ -1335,10 +1291,27 @@ void NAMLibraryBrowserWindow::OnTagSelectionChanged()
   PerformSearch(mPendingSearchQuery);
 }
 
+void NAMLibraryBrowserWindow::OnGroupSelectionChanged()
+{
+  if (!mHwndGroupCombo)
+    return;
+
+  const int selected = ComboBox_GetCurSel(mHwndGroupCombo);
+  if (selected < static_cast<int>(NAMLibraryGroupBy::Library) ||
+      selected > static_cast<int>(NAMLibraryGroupBy::Tag))
+    return;
+
+  mGroupBy = static_cast<NAMLibraryGroupBy>(selected);
+  SaveSettings();
+  PerformSearch(mPendingSearchQuery);
+}
+
 void NAMLibraryBrowserWindow::AutoExpandDescendantsFromFlags(HTREEITEM hParentItem)
 {
   if (!mHwndTreeView || !hParentItem)
     return;
+
+  PopulateTreeNodeChildren(hParentItem);
 
   for (HTREEITEM hChild = TreeView_GetChild(mHwndTreeView, hParentItem); hChild != nullptr;
        hChild = TreeView_GetNextSibling(mHwndTreeView, hChild))

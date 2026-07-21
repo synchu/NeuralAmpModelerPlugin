@@ -34,6 +34,22 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		1AC0334A641D01CB6B117C6F /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		23F12A38355124FC541A29B8 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		7B593E4758DBAB7F44106034 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		5BA459C48D4B99F85AF38CF1 /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		00B11DD1427BC21DE19A3F0B /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		C4CE9DB1ABAB30E45185BADE /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		8D093A239A11AFDE0ED1B28D /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		C37E2AF247E189098D0D164D /* NAMLibraryBrowserWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */; };
+		B16B00000000000000000001 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000002 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000003 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000004 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000005 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000006 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000007 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
+		B16B00000000000000000008 /* NAMLibraryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B16B00000000000000000010 /* NAMLibraryManager.cpp */; };
 		121CB341D802D15830113366 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE18B820ACF913A9FCCCB41A /* container.cpp */; };
 		13D358AF0E029A17055AA8EC /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5B98CC8FD8A517D0266D4C67 /* conv1d.cpp */; };
 		18E64064D35938374CAA2F54 /* ring_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A33B491A4460DA418F92D7 /* ring_buffer.cpp */; };
@@ -656,6 +672,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = NAMLibraryBrowserWindow.mm; path = ../NAMLibraryBrowserWindow.mm; sourceTree = "<group>"; };
+		B16B00000000000000000010 /* NAMLibraryManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = NAMLibraryManager.cpp; path = ../NAMLibraryManager.cpp; sourceTree = "<group>"; };
 		4F037D75261F9DB400A752B5 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ../resources/Images.xcassets; sourceTree = "<group>"; };
 		4F03A55020A4621000EBDFFB /* IGraphicsNanoVG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IGraphicsNanoVG.h; sourceTree = "<group>"; };
 		4F03A55420A4621000EBDFFB /* IGraphicsNanoVG.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsNanoVG.cpp; sourceTree = "<group>"; };
@@ -1168,6 +1186,7 @@
 				AA341E1C2B9E5A530069C260 /* ToneStack.h */,
 				91440F96335018ED3A07B73F /* NAMPNAMEditorWindow.mm */,
 				5767682DA9165983FE702720 /* NAMLibraryBrowserWindow.mm */,
+				B16B00000000000000000010 /* NAMLibraryManager.cpp */,
 				4F9313232315CA1100DB2383 /* README.md */,
 				089C167CFE841241C02AAC07 /* Resources */,
 				32C88E010371C26100C91783 /* Other Sources */,
@@ -2756,6 +2775,7 @@
 				4FB1F58C20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
 				4F3862F22014BBEC0009F402 /* NeuralAmpModeler.cpp in Sources */,				
 							1AC0334A641D01CB6B117C6F /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000001 /* NAMLibraryManager.cpp in Sources */,
 							0D9E1322B331D98285EE33E1 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2818,6 +2838,7 @@
 				4F3EE1E5231438D000004786 /* IPlugTimer.cpp in Sources */,
 				
 							23F12A38355124FC541A29B8 /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000002 /* NAMLibraryManager.cpp in Sources */,
 							5FA1F98F3DB90FF11882C139 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2867,6 +2888,7 @@
 				4F2FB15C2A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				
 							7B593E4758DBAB7F44106034 /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000003 /* NAMLibraryManager.cpp in Sources */,
 							FB63E6F6A39EFAF2EEE499B2 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2944,6 +2966,7 @@
 				4F2FB1742A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
 				
 							5BA459C48D4B99F85AF38CF1 /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000004 /* NAMLibraryManager.cpp in Sources */,
 							F078F3DF594A74196D53697F /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2993,6 +3016,7 @@
 				4F2FB1592A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				
 							00B11DD1427BC21DE19A3F0B /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000005 /* NAMLibraryManager.cpp in Sources */,
 							4F992BFF62511B6AAA7B3B2A /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3018,6 +3042,7 @@
 				4F78BE2D22E7412300AD537E /* IGraphicsNanoVG_src.m in Sources */,
 				4FC3EFCB2086C27800BD11FA /* NeuralAmpModeler.cpp in Sources */,
 							C4CE9DB1ABAB30E45185BADE /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000006 /* NAMLibraryManager.cpp in Sources */,
 							A5AAC273513F2724A1104934 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3079,6 +3104,7 @@
 				4F78D91813B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
 				4FDAC0EA207D76C600299363 /* IPlugTimer.cpp in Sources */,				
 							8D093A239A11AFDE0ED1B28D /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000007 /* NAMLibraryManager.cpp in Sources */,
 							11CE065E2ACA3F79925CEBFF /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3144,6 +3170,7 @@
 				4F5F344720C0226200487201 /* IPlugPaths.mm in Sources */,
 				4FFBB93520863B0E00DDD0E7 /* vstnoteexpressiontypes.cpp in Sources */,				
 							C37E2AF247E189098D0D164D /* NAMLibraryBrowserWindow.mm in Sources */,
+							B16B00000000000000000008 /* NAMLibraryManager.cpp in Sources */,
 							EE3E5ECF17AA3C9B20C8CD48 /* NAMPNAMEditorWindow.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

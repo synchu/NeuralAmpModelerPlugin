@@ -3,6 +3,9 @@
 #include <cctype>
 #include <fstream>
 #include <cstdio>
+#include <map>
+#include <set>
+#include <sstream>
 #if defined(_WIN32)
   #include <Windows.h>
 #endif
@@ -28,7 +31,7 @@ bool NAMLibraryManager::LoadMetadata(const std::string& jsonFilePath)
 {
   NAM_LIBRARY_LOGA("NAMLibraryManager::LoadMetadata() ENTER\n");
 
-  std::ifstream file(jsonFilePath);
+  std::ifstream file(jsonFilePath, std::ios::binary);
   if (!file.is_open())
   {
     char msg[512];
@@ -42,8 +45,16 @@ bool NAMLibraryManager::LoadMetadata(const std::string& jsonFilePath)
   try
   {
     NAM_LIBRARY_LOGA("NAMLibraryManager: About to parse JSON\n");
-    json data;
-    file >> data;
+    file.seekg(0, std::ios::end);
+    const auto fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::string jsonText;
+    if (fileSize > 0)
+      jsonText.reserve(static_cast<size_t>(fileSize));
+    jsonText.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+
+    json data = json::parse(jsonText);
 
     NAM_LIBRARY_LOGA("NAMLibraryManager: JSON parsed successfully\n");
 
@@ -54,6 +65,12 @@ bool NAMLibraryManager::LoadMetadata(const std::string& jsonFilePath)
     mRootNode->path = "";
     mRootNode->depth = 0;
     mRootNode->expanded = true;
+    mRootNode->displayLabel = mRootNode->name;
+
+    mAllModels.clear();
+    mAllTags.clear();
+    mCachedQueryNormalized.clear();
+    mCachedQueryResults.clear();
 
     // Process items array
     if (data.contains("items") && data["items"].is_array())
@@ -62,6 +79,7 @@ bool NAMLibraryManager::LoadMetadata(const std::string& jsonFilePath)
       std::snprintf(msg, sizeof(msg), "NAMLibraryManager: Found %zu top-level items\n", data["items"].size());
       NAM_LIBRARY_LOGA(msg);
 
+      mRootNode->children.reserve(data["items"].size());
       for (const auto& topItem : data["items"])
       {
         auto node = BuildNodeFromJson(&topItem, mRootNode, 1);
@@ -80,9 +98,9 @@ bool NAMLibraryManager::LoadMetadata(const std::string& jsonFilePath)
       NAM_LIBRARY_LOGA("NAMLibraryManager: No 'items' array found in JSON\n");
     }
 
-    // Build flattened list for searching
-    mAllModels.clear();
-    FlattenModels(mRootNode);
+    // Tags are indexed once, instead of being rediscovered every time the
+    // browser opens or the search query changes.
+    mAllTags = CollectTags(mAllModels);
 
     char msg[256];
     std::snprintf(msg, sizeof(msg), "NAMLibraryManager: Total models found: %zu\n", mAllModels.size());
@@ -133,8 +151,15 @@ std::shared_ptr<NAMLibraryTreeNode> NAMLibraryManager::BuildNodeFromJson(
   node->gear_model = getString(*pJsonNode, "gear_model");
   node->tone_type = getString(*pJsonNode, "tone_type");
   
-  // Extract tags array
-  node->tags = pJsonNode->value("tags", std::vector<std::string>());
+  // Extract tags array without allowing malformed data to abort the load.
+  if (pJsonNode->contains("tags") && (*pJsonNode)["tags"].is_array())
+  {
+    for (const auto& tag : (*pJsonNode)["tags"])
+    {
+      if (tag.is_string())
+        node->tags.push_back(tag.get<std::string>());
+    }
+  }
   
   // Extract numeric fields
   node->loudness = getNumber(*pJsonNode, "loudness", 0.0);
@@ -143,9 +168,90 @@ std::shared_ptr<NAMLibraryTreeNode> NAMLibraryManager::BuildNodeFromJson(
   node->output_level_dbu = getNumber(*pJsonNode, "output_level_dbu", 0.0);
   node->validation_esr = getNumber(*pJsonNode, "validation_esr", 0.0);
 
+  if (parent && parent->id != "root")
+  {
+    node->breadcrumb = parent->breadcrumb;
+    if (!node->breadcrumb.empty())
+      node->breadcrumb += " / ";
+    node->breadcrumb += parent->name;
+  }
+
+  node->displayLabel = node->name;
+  if (node->IsModel())
+  {
+    std::vector<std::string> metadata;
+    if (!node->gear_make.empty() || !node->gear_model.empty())
+    {
+      std::string gear = node->gear_make;
+      if (!gear.empty() && !node->gear_model.empty())
+        gear += " ";
+      gear += node->gear_model;
+      if (!gear.empty())
+        metadata.push_back(std::move(gear));
+    }
+
+    auto addLevel = [&](const char* label, double value) {
+      if (value == 0.0)
+        return;
+      char buffer[32] = {};
+      std::snprintf(buffer, sizeof(buffer), "%s: %.1f", label, value);
+      metadata.emplace_back(buffer);
+    };
+    addLevel("in", node->input_level_dbu);
+    addLevel("out", node->output_level_dbu);
+
+    if (!metadata.empty())
+    {
+      node->displayLabel += " [";
+      for (size_t i = 0; i < metadata.size(); ++i)
+      {
+        if (i > 0)
+          node->displayLabel += ", ";
+        node->displayLabel += metadata[i];
+      }
+      node->displayLabel += "]";
+    }
+  }
+
+  // PresetManager searches every scalar field. Mirror that behavior, but
+  // normalize it once at load time instead of on every keystroke.
+  std::string searchable;
+  auto appendSearchPart = [&](const std::string& value) {
+    const std::string normalized = NormalizeForSearch(value);
+    if (normalized.empty())
+      return;
+    if (!searchable.empty())
+      searchable.push_back(' ');
+    searchable += normalized;
+  };
+
+  for (auto it = pJsonNode->begin(); it != pJsonNode->end(); ++it)
+  {
+    if (it.key() == "children" || it.key() == "tags" || it.value().is_null())
+      continue;
+    if (it.value().is_string())
+      appendSearchPart(it.value().get<std::string>());
+    else if (it.value().is_primitive())
+      appendSearchPart(it.value().dump());
+  }
+
+  appendSearchPart(node->breadcrumb);
+  node->tagsNormalized.reserve(node->tags.size());
+  for (const auto& tag : node->tags)
+  {
+    std::string normalizedTag = NormalizeForSearch(tag);
+    node->tagsNormalized.push_back(normalizedTag);
+    appendSearchPart(tag);
+  }
+  node->searchTextNormalized = std::move(searchable);
+
+  if (node->IsModel())
+    mAllModels.push_back(node);
+
   // Process children recursively
   if (pJsonNode->contains("children") && (*pJsonNode)["children"].is_array())
   {
+    node->children.reserve((*pJsonNode)["children"].size());
     for (const auto& child : (*pJsonNode)["children"])
     {
       auto childNode = BuildNodeFromJson(&child, node, depth + 1);
@@ -159,66 +265,225 @@ std::shared_ptr<NAMLibraryTreeNode> NAMLibraryManager::BuildNodeFromJson(
   return node;
 }
 
-void NAMLibraryManager::FlattenModels(const std::shared_ptr<NAMLibraryTreeNode>& node)
-{
-  if (!node)
-    return;
-
-  if (node->IsModel())
-  {
-    mAllModels.push_back(node);
-  }
-
-  for (const auto& child : node->children)
-  {
-    FlattenModels(child);
-  }
-}
-
 std::vector<std::shared_ptr<NAMLibraryTreeNode>> NAMLibraryManager::SearchModels(const std::string& query) const
 {
-  std::vector<std::shared_ptr<NAMLibraryTreeNode>> results;
-
-  if (query.empty())
+  const std::string normalizedQuery = NormalizeForSearch(query);
+  if (normalizedQuery.empty())
     return mAllModels;
 
-  for (const auto& model : mAllModels)
+  if (normalizedQuery == mCachedQueryNormalized)
+    return mCachedQueryResults;
+
+  const bool extendsCachedQuery = !mCachedQueryNormalized.empty() &&
+    normalizedQuery.size() >= mCachedQueryNormalized.size() &&
+    normalizedQuery.compare(0, mCachedQueryNormalized.size(), mCachedQueryNormalized) == 0;
+  const auto& candidates = extendsCachedQuery ? mCachedQueryResults : mAllModels;
+
+  std::vector<std::string> terms;
+  std::istringstream termStream(normalizedQuery);
+  for (std::string term; termStream >> term;)
+    terms.push_back(std::move(term));
+
+  std::vector<std::shared_ptr<NAMLibraryTreeNode>> results;
+  results.reserve(candidates.size());
+  for (const auto& model : candidates)
   {
-    if (ContainsIgnoreCase(model->name, query))
-    {
-      results.push_back(model);
+    if (!model)
       continue;
-    }
 
-    if (ContainsIgnoreCase(model->metadataName, query))
+    bool matches = true;
+    for (const auto& term : terms)
     {
-      results.push_back(model);
-      continue;
-    }
-
-    if (ContainsIgnoreCase(model->gear_make, query) || ContainsIgnoreCase(model->gear_model, query))
-    {
-      results.push_back(model);
-      continue;
-    }
-
-    if (ContainsIgnoreCase(model->tone_type, query))
-    {
-      results.push_back(model);
-      continue;
-    }
-
-    for (const auto& tag : model->tags)
-    {
-      if (ContainsIgnoreCase(tag, query))
+      if (model->searchTextNormalized.find(term) == std::string::npos)
       {
-        results.push_back(model);
+        matches = false;
         break;
       }
     }
+    if (matches)
+      results.push_back(model);
   }
 
+  mCachedQueryNormalized = normalizedQuery;
+  mCachedQueryResults = results;
   return results;
+}
+
+std::vector<std::shared_ptr<NAMLibraryTreeNode>> NAMLibraryManager::FilterModels(
+  const std::string& query, const std::string& exactTag) const
+{
+  auto results = SearchModels(query);
+  const std::string normalizedTag = NormalizeForSearch(exactTag);
+  if (normalizedTag.empty())
+    return results;
+
+  results.erase(std::remove_if(results.begin(), results.end(), [&](const auto& model) {
+    if (!model)
+      return true;
+    return std::find(model->tagsNormalized.begin(), model->tagsNormalized.end(), normalizedTag) ==
+      model->tagsNormalized.end();
+  }), results.end());
+  return results;
+}
+
+std::shared_ptr<NAMLibraryTreeNode> NAMLibraryManager::BuildSearchResultRoot(
+  const std::vector<std::shared_ptr<NAMLibraryTreeNode>>& models) const
+{
+  auto root = std::make_shared<NAMLibraryTreeNode>();
+  root->name = "Filtered Results (" + std::to_string(models.size()) + " models)";
+  root->displayLabel = root->name;
+  root->id = "search_root";
+  root->expanded = true;
+  root->children.reserve(models.size());
+
+  for (const auto& model : models)
+  {
+    if (!model)
+      continue;
+    auto copy = std::make_shared<NAMLibraryTreeNode>(*model);
+    copy->children.clear();
+    copy->parent = root;
+    copy->depth = 1;
+    copy->expanded = false;
+    if (!copy->breadcrumb.empty())
+      copy->displayLabel += "  -  " + copy->breadcrumb;
+    root->children.push_back(std::move(copy));
+  }
+  return root;
+}
+
+std::shared_ptr<NAMLibraryTreeNode> NAMLibraryManager::BuildGroupedResultRoot(
+  const std::vector<std::shared_ptr<NAMLibraryTreeNode>>& models,
+  NAMLibraryGroupBy groupBy) const
+{
+  if (groupBy == NAMLibraryGroupBy::Library)
+    return BuildSearchResultRoot(models);
+
+  struct Group
+  {
+    std::string label;
+    std::vector<std::shared_ptr<NAMLibraryTreeNode>> models;
+  };
+
+  std::map<std::string, Group> groups;
+  for (const auto& model : models)
+  {
+    if (!model)
+      continue;
+
+    std::vector<std::string> values;
+    std::string missingLabel;
+    switch (groupBy)
+    {
+      case NAMLibraryGroupBy::GearMake:
+        values.push_back(model->gear_make);
+        missingLabel = "(Unspecified gear make)";
+        break;
+      case NAMLibraryGroupBy::GearModel:
+        values.push_back(model->gear_model);
+        missingLabel = "(Unspecified gear model)";
+        break;
+      case NAMLibraryGroupBy::ToneType:
+        values.push_back(model->tone_type);
+        missingLabel = "(Unspecified tone type)";
+        break;
+      case NAMLibraryGroupBy::Author:
+        values.push_back(model->modeled_by);
+        missingLabel = "(Unknown author)";
+        break;
+      case NAMLibraryGroupBy::Tag:
+        values = model->tags;
+        missingLabel = "(Untagged)";
+        break;
+      case NAMLibraryGroupBy::Library:
+        break;
+    }
+
+    if (values.empty())
+      values.push_back(missingLabel);
+
+    std::set<std::string> groupsAddedForModel;
+    for (auto value : values)
+    {
+      if (NormalizeForSearch(value).empty())
+        value = missingLabel;
+      const std::string key = NormalizeForSearch(value);
+      if (key.empty() || !groupsAddedForModel.insert(key).second)
+        continue;
+
+      auto& group = groups[key];
+      if (group.label.empty())
+        group.label = std::move(value);
+      group.models.push_back(model);
+    }
+  }
+
+  auto root = std::make_shared<NAMLibraryTreeNode>();
+  root->name = "Grouped Results (" + std::to_string(models.size()) + " models)";
+  root->displayLabel = root->name;
+  root->id = "grouped_root";
+  root->expanded = true;
+  root->children.reserve(groups.size());
+
+  for (auto& entry : groups)
+  {
+    auto& group = entry.second;
+    std::sort(group.models.begin(), group.models.end(), [&](const auto& lhs, const auto& rhs) {
+      const std::string left = lhs ? NormalizeForSearch(lhs->GetDisplayName()) : std::string{};
+      const std::string right = rhs ? NormalizeForSearch(rhs->GetDisplayName()) : std::string{};
+      if (left != right)
+        return left < right;
+      return lhs && rhs ? lhs->path < rhs->path : static_cast<bool>(lhs);
+    });
+
+    auto groupNode = std::make_shared<NAMLibraryTreeNode>();
+    groupNode->name = group.label;
+    groupNode->displayLabel = group.label + " (" + std::to_string(group.models.size()) + ")";
+    groupNode->id = "group_" + std::to_string(static_cast<int>(groupBy)) + "_" + entry.first;
+    groupNode->parent = root;
+    groupNode->depth = 1;
+    groupNode->expanded = false;
+    groupNode->children.reserve(group.models.size());
+
+    for (const auto& model : group.models)
+    {
+      auto copy = std::make_shared<NAMLibraryTreeNode>(*model);
+      copy->children.clear();
+      copy->parent = groupNode;
+      copy->depth = 2;
+      copy->expanded = false;
+      if (!copy->breadcrumb.empty())
+        copy->displayLabel += "  -  " + copy->breadcrumb;
+      groupNode->children.push_back(std::move(copy));
+    }
+
+    root->children.push_back(std::move(groupNode));
+  }
+
+  return root;
+}
+
+std::vector<std::string> NAMLibraryManager::CollectTags(
+  const std::vector<std::shared_ptr<NAMLibraryTreeNode>>& models) const
+{
+  std::map<std::string, std::string> tagsByNormalizedName;
+  for (const auto& model : models)
+  {
+    if (!model)
+      continue;
+    for (const auto& tag : model->tags)
+    {
+      const std::string normalized = NormalizeForSearch(tag);
+      if (!normalized.empty())
+        tagsByNormalizedName.emplace(normalized, tag);
+    }
+  }
+
+  std::vector<std::string> tags;
+  tags.reserve(tagsByNormalizedName.size());
+  for (const auto& entry : tagsByNormalizedName)
+    tags.push_back(entry.second);
+  return tags;
 }
 
 bool NAMLibraryManager::IsModelPathValid(const std::shared_ptr<NAMLibraryTreeNode>& model) const
@@ -230,13 +495,26 @@ bool NAMLibraryManager::IsModelPathValid(const std::shared_ptr<NAMLibraryTreeNod
   return file.good();
 }
 
-bool NAMLibraryManager::ContainsIgnoreCase(const std::string& haystack, const std::string& needle)
+std::string NAMLibraryManager::NormalizeForSearch(const std::string& text)
 {
-  std::string lowerHaystack = haystack;
-  std::string lowerNeedle = needle;
-
-  std::transform(lowerHaystack.begin(), lowerHaystack.end(), lowerHaystack.begin(), ::tolower);
-  std::transform(lowerNeedle.begin(), lowerNeedle.end(), lowerNeedle.begin(), ::tolower);
-
-  return lowerHaystack.find(lowerNeedle) != std::string::npos;
+  std::string normalized;
+  normalized.reserve(text.size());
+  bool previousWasSpace = true;
+  for (unsigned char ch : text)
+  {
+    if (std::isspace(ch))
+    {
+      if (!previousWasSpace)
+        normalized.push_back(' ');
+      previousWasSpace = true;
+    }
+    else
+    {
+      normalized.push_back(static_cast<char>(std::tolower(ch)));
+      previousWasSpace = false;
+    }
+  }
+  if (!normalized.empty() && normalized.back() == ' ')
+    normalized.pop_back();
+  return normalized;
 }

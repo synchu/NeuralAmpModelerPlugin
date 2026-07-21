@@ -181,25 +181,7 @@ void NAMLibraryBrowserPanel::PerformSearch(const std::string& query)
   else
   {
     auto searchResults = mpLibraryManager->SearchModels(query);
-    
-    auto searchRoot = std::make_shared<NAMLibraryTreeNode>();
-    searchRoot->name = "Search Results (" + std::to_string(searchResults.size()) + " models)";
-    searchRoot->id = "search_root";
-    searchRoot->depth = 0;
-    searchRoot->expanded = true;
-    
-    for (const auto& result : searchResults)
-    {
-      auto resultCopy = std::make_shared<NAMLibraryTreeNode>();
-      *resultCopy = *result;
-      resultCopy->depth = 1;
-      resultCopy->parent = searchRoot;
-      resultCopy->children.clear();
-      
-      searchRoot->children.push_back(resultCopy);
-    }
-    
-    mpTreeView->SetRootNode(searchRoot);
+    mpTreeView->SetRootNode(mpLibraryManager->BuildSearchResultRoot(searchResults));
   }
   
   mpTreeView->RefreshTree();

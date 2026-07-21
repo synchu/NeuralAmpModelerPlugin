@@ -143,7 +143,7 @@ namespace
 @end
 
 using VoidFn = std::function<void()>;
-using FilterFn = std::function<void(const std::string&, const std::string&)>;
+using FilterFn = std::function<void(const std::string&, const std::string&, NAMLibraryGroupBy)>;
 using ExpandChangedFn = std::function<void(const std::shared_ptr<NAMLibraryTreeNode>&, bool)>;
 using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNode>&)>;
 
@@ -154,8 +154,11 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 @property (nonatomic, strong) NSTextField* searchField;
 @property (nonatomic, strong) NSPopUpButton* tagPopup;
 @property (nonatomic, strong) NSButton* tagResetButton;
+@property (nonatomic, strong) NSPopUpButton* groupPopup;
+@property (nonatomic, strong) NSButton* groupResetButton;
 @property (nonatomic, strong) NSTextField* searchLabel;
 @property (nonatomic, strong) NSTextField* tagLabel;
+@property (nonatomic, strong) NSTextField* groupLabel;
 @property (nonatomic, strong) NSButton* fontIncButton;
 @property (nonatomic, strong) NSButton* fontDecButton;
 @property (nonatomic, strong) NSButton* cancelButton;
@@ -182,6 +185,8 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 - (void)setSearchTextFromUtf8:(const std::string&)query;
 - (std::string)currentQuery;
 - (std::string)currentTag;
+- (NAMLibraryGroupBy)currentGroupBy;
+- (void)setGroupBy:(NAMLibraryGroupBy)groupBy;
 - (void)applyFontSize:(int)fontSize;
 @end
 
@@ -268,6 +273,20 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.tagResetButton.translatesAutoresizingMaskIntoConstraints = NO;
   [cv addSubview:self.tagResetButton];
 
+  self.groupLabel = [self makeLabel:@"Group by:"];
+  [cv addSubview:self.groupLabel];
+
+  self.groupPopup = [NSPopUpButton new];
+  self.groupPopup.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.groupPopup addItemsWithTitles:@[@"Default (library folders)", @"Gear make", @"Gear model", @"Tone type", @"Author", @"Tag"]];
+  self.groupPopup.target = self;
+  self.groupPopup.action = @selector(groupChanged:);
+  [cv addSubview:self.groupPopup];
+
+  self.groupResetButton = [NSButton buttonWithTitle:@"X" target:self action:@selector(resetGroup:)];
+  self.groupResetButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [cv addSubview:self.groupResetButton];
+
   self.fontDecButton = [NSButton buttonWithTitle:@"A-" target:self action:@selector(fontDec:)];
   self.fontIncButton = [NSButton buttonWithTitle:@"A+" target:self action:@selector(fontInc:)];
   self.fontIncButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -325,6 +344,9 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
     @"tagLabel": self.tagLabel,
     @"tagPopup": self.tagPopup,
     @"tagReset": self.tagResetButton,
+    @"groupLabel": self.groupLabel,
+    @"groupPopup": self.groupPopup,
+    @"groupReset": self.groupResetButton,
     @"scroll": scroll,
     @"load": self.loadButton,
     @"cancel": self.cancelButton,
@@ -345,13 +367,19 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
                                                                    views:v]];
 
   [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
+    @"H:|-10-[groupLabel(85)]-6-[groupPopup(220)]-6-[groupReset(34)]"
+                                                                 options:NSLayoutFormatAlignAllCenterY
+                                                                 metrics:nil
+                                                                   views:v]];
+
+  [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
     @"H:[cancel(120)]-10-[load(210)]-10-|"
                                                                  options:0
                                                                  metrics:nil
                                                                    views:v]];
 
   [cv addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:
-    @"V:|-10-[searchField(28)]-10-[scroll]-10-[load(30)]-10-|"
+    @"V:|-10-[searchField(28)]-8-[groupPopup(28)]-10-[scroll]-10-[load(30)]-10-|"
                                                                  options:0
                                                                  metrics:nil
                                                                    views:v]];
@@ -377,8 +405,11 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
   self.searchLabel.font = uiFont;
   self.tagLabel.font = uiFont;
+  self.groupLabel.font = uiFont;
   self.searchField.font = uiFont;
   self.tagPopup.font = uiFont;
+  self.groupPopup.font = uiFont;
+  self.groupResetButton.font = uiFont;
   self.tagResetButton.font = uiFont;
   self.fontIncButton.font = uiFont;
   self.fontDecButton.font = uiFont;
@@ -435,9 +466,12 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
 
     auto node = ((NAMNodeWrapper*) child).node;
     if (node && !node->children.empty() && self.shouldExpandNode && self.shouldExpandNode(node))
+    {
       [self.outlineView expandItem:child];
-
-    [self restoreExpansionStateForItem:child];
+      // A collapsed branch is materialized by NSOutlineView when the user
+      // opens it; do not traverse the branch during initial load.
+      [self restoreExpansionStateForItem:child];
+    }
   }
 }
 
@@ -604,13 +638,30 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   return s.UTF8String ? s.UTF8String : "";
 }
 
+- (NAMLibraryGroupBy)currentGroupBy
+{
+  NSInteger index = self.groupPopup.indexOfSelectedItem;
+  if (index < static_cast<NSInteger>(NAMLibraryGroupBy::Library) ||
+      index > static_cast<NSInteger>(NAMLibraryGroupBy::Tag))
+    return NAMLibraryGroupBy::Library;
+  return static_cast<NAMLibraryGroupBy>(index);
+}
+
+- (void)setGroupBy:(NAMLibraryGroupBy)groupBy
+{
+  NSInteger index = static_cast<NSInteger>(groupBy);
+  if (index < 0 || index >= self.groupPopup.numberOfItems)
+    index = 0;
+  [self.groupPopup selectItemAtIndex:index];
+}
+
 - (void)notifyFilterChanged
 {
   if (self.suppressFilterCallbacks)
     return;
 
   if (self.onFilterChanged)
-    self.onFilterChanged([self currentQuery], [self currentTag]);
+    self.onFilterChanged([self currentQuery], [self currentTag], [self currentGroupBy]);
 }
 
 - (void)searchChanged:(NSNotification*)n
@@ -640,6 +691,23 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   [self notifyFilterChanged];
 }
 
+- (void)groupChanged:(id)sender
+{
+  (void) sender;
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
+  [self notifyFilterChanged];
+}
+
+- (void)resetGroup:(id)sender
+{
+  (void) sender;
+  [self.groupPopup selectItemAtIndex:0];
+  [self.searchTimer invalidate];
+  self.searchTimer = nil;
+  [self notifyFilterChanged];
+}
+
 - (void)resetTag:(id)sender
 {
   (void) sender;
@@ -651,7 +719,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   self.searchTimer = nil;
 
   if (self.onFilterChanged)
-    self.onFilterChanged([self currentQuery], "");
+    self.onFilterChanged([self currentQuery], "", [self currentGroupBy]);
 }
 
 - (void)selectionChanged:(NSNotification*)n
@@ -736,51 +804,7 @@ using ShouldExpandFn = std::function<bool(const std::shared_ptr<NAMLibraryTreeNo
   }
 
   auto n = ((NAMNodeWrapper*) item).node;
-  std::string label = n ? n->name : "";
-
-  if (n && n->IsModel())
-  {
-    std::vector<std::string> metaParts;
-    metaParts.reserve(3);
-
-    if (!n->gear_make.empty() || !n->gear_model.empty())
-    {
-      std::string gear;
-      if (!n->gear_make.empty() && !n->gear_model.empty())
-        gear = n->gear_make + " " + n->gear_model;
-      else if (!n->gear_make.empty())
-        gear = n->gear_make;
-      else
-        gear = n->gear_model;
-
-      if (!gear.empty())
-        metaParts.push_back(std::move(gear));
-    }
-
-    auto addLevel = [&](const char* prefix, double value) {
-      if (value == 0.0)
-        return;
-
-      char buf[32] = {};
-      snprintf(buf, sizeof(buf), "%s: %.1f", prefix, value);
-      metaParts.emplace_back(buf);
-    };
-
-    addLevel("in", n->input_level_dbu);
-    addLevel("out", n->output_level_dbu);
-
-    if (!metaParts.empty())
-    {
-      label += " [";
-      for (size_t i = 0; i < metaParts.size(); ++i)
-      {
-        if (i > 0)
-          label += ", ";
-        label += metaParts[i];
-      }
-      label += "]";
-    }
-  }
+  const std::string label = n ? n->GetDisplayName() : std::string{};
 
   cell.textField.stringValue = [NSString stringWithUTF8String:label.c_str()] ?: @"";
   cell.textField.textColor = [NSColor colorWithCalibratedWhite:220.0/255.0 alpha:1.0];
@@ -902,6 +926,12 @@ void NAMLibraryBrowserWindow::LoadSettings()
         if (v >= mMinHeight)
           mWindowH = v;
       }
+      else if (key == "GroupBy")
+      {
+        const int v = std::stoi(val);
+        if (v >= static_cast<int>(NAMLibraryGroupBy::Library) && v <= static_cast<int>(NAMLibraryGroupBy::Tag))
+          mGroupBy = static_cast<NAMLibraryGroupBy>(v);
+      }
     }
     catch (...)
     {
@@ -922,6 +952,7 @@ void NAMLibraryBrowserWindow::SaveSettings()
   file << "FontSize=" << mFontSize << "\n";
   file << "WindowW=" << mWindowW << "\n";
   file << "WindowH=" << mWindowH << "\n";
+  file << "GroupBy=" << static_cast<int>(mGroupBy) << "\n";
 }
 
 NAMLibraryBrowserWindow::NAMLibraryBrowserWindow(NAMLibraryManager* pLibraryMgr,
@@ -1052,9 +1083,15 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
       SetFolderExpandedInState(node, expanded);
     };
 
-    ctrl.onFilterChanged = [this, weak](const std::string& query, const std::string& selectedTag) {
+    ctrl.onFilterChanged = [this, weak](const std::string& query,
+                                        const std::string& selectedTag,
+                                        NAMLibraryGroupBy groupBy) {
       mPendingSearchQuery = query;
       mSelectedTag = selectedTag;
+      const bool groupingChanged = mGroupBy != groupBy;
+      mGroupBy = groupBy;
+      if (groupingChanged)
+        SaveSettings();
 
       NAMLibraryWindowController* c = weak;
       if (!c)
@@ -1071,163 +1108,45 @@ void NAMLibraryBrowserWindow::Open(void* pParentWindow)
         return;
       }
 
-      if (queryTrimmed.empty() && selectedTagTrimmed.empty())
+      const bool hasGrouping = mGroupBy != NAMLibraryGroupBy::Library;
+      if (queryTrimmed.empty() && selectedTagTrimmed.empty() && !hasGrouping)
       {
         mSearchRoot = nullptr;
-
-        std::set<std::string> allTagSet;
-        const auto& allModels = mpLibraryManager->GetAllModels();
-        for (const auto& model : allModels)
-        {
-          if (!model)
-            continue;
-
-          for (const auto& tag : model->tags)
-          {
-            std::string trimmed = Trim(tag);
-            if (!trimmed.empty())
-              allTagSet.insert(trimmed);
-          }
-        }
-
-        std::vector<std::string> allTags(allTagSet.begin(), allTagSet.end());
-        [c setAvailableTags:allTags selectedTag:mSelectedTag];
+        [c setAvailableTags:mpLibraryManager->GetAllTags() selectedTag:mSelectedTag];
         c.displayRootIsFiltered = NO;
         [c setDisplayRoot:mRootNode];
         return;
       }
 
-      std::vector<std::shared_ptr<NAMLibraryTreeNode>> results =
-        queryTrimmed.empty() ? mpLibraryManager->GetAllModels() : mpLibraryManager->SearchModels(queryTrimmed);
+      const auto results = mpLibraryManager->FilterModels(queryTrimmed, selectedTagTrimmed);
+      mSearchRoot = hasGrouping
+        ? mpLibraryManager->BuildGroupedResultRoot(results, mGroupBy)
+        : mpLibraryManager->BuildSearchResultRoot(results);
 
-      if (!selectedTagTrimmed.empty())
-      {
-        const std::string selectedLower = ToLowerAscii(selectedTagTrimmed);
-
-        results.erase(
-          std::remove_if(results.begin(), results.end(),
-            [&](const std::shared_ptr<NAMLibraryTreeNode>& model) {
-              if (!model)
-                return true;
-
-              for (const auto& tag : model->tags)
-              {
-                if (ToLowerAscii(Trim(tag)) == selectedLower)
-                  return false;
-              }
-
-              return true;
-            }),
-          results.end());
-      }
-
-      std::set<std::string> filteredTagSet;
-      for (const auto& model : results)
-      {
-        if (!model)
-          continue;
-
-        for (const auto& tag : model->tags)
-        {
-          std::string trimmed = Trim(tag);
-          if (!trimmed.empty())
-            filteredTagSet.insert(trimmed);
-        }
-      }
-
-      std::vector<std::string> filteredTags(filteredTagSet.begin(), filteredTagSet.end());
-
-      mSearchRoot = std::make_shared<NAMLibraryTreeNode>();
-      mSearchRoot->name = "Filtered Results (" + std::to_string(results.size()) + " models)";
-      mSearchRoot->id = "search_root";
-      mSearchRoot->depth = 0;
-      mSearchRoot->expanded = true;
-
-      std::unordered_map<std::string, std::shared_ptr<NAMLibraryTreeNode>> nodeMap;
-      std::unordered_map<std::string, std::unordered_set<std::string>> childrenAdded;
-
-      auto addUniqueChild = [&](const std::shared_ptr<NAMLibraryTreeNode>& parentCopy,
-                                const std::shared_ptr<NAMLibraryTreeNode>& childCopy) {
-        if (!parentCopy || !childCopy)
-          return;
-
-        auto& set = childrenAdded[parentCopy->id];
-        if (set.insert(childCopy->id).second)
-          parentCopy->children.push_back(childCopy);
-      };
-
-      std::function<std::shared_ptr<NAMLibraryTreeNode>(const std::shared_ptr<NAMLibraryTreeNode>&)> BuildAncestorChain;
-      BuildAncestorChain = [&](const std::shared_ptr<NAMLibraryTreeNode>& node) -> std::shared_ptr<NAMLibraryTreeNode> {
-        if (!node)
-          return nullptr;
-
-        if (auto it = nodeMap.find(node->id); it != nodeMap.end())
-          return it->second;
-
-        auto nodeCopy = std::make_shared<NAMLibraryTreeNode>(*node);
-        nodeCopy->children.clear();
-        nodeMap.emplace(node->id, nodeCopy);
-
-        if (node->parent)
-        {
-          auto parentCopy = BuildAncestorChain(node->parent);
-          nodeCopy->parent = parentCopy;
-
-          if (parentCopy)
-          {
-            nodeCopy->depth = parentCopy->depth + 1;
-            addUniqueChild(parentCopy, nodeCopy);
-          }
-          else
-          {
-            nodeCopy->parent = mSearchRoot;
-            nodeCopy->depth = 1;
-            addUniqueChild(mSearchRoot, nodeCopy);
-          }
-        }
-        else
-        {
-          nodeCopy->parent = mSearchRoot;
-          nodeCopy->depth = 1;
-          addUniqueChild(mSearchRoot, nodeCopy);
-        }
-
-        return nodeCopy;
-      };
-
-      for (const auto& model : results)
-        BuildAncestorChain(model);
-
+      // Tags are a contextual facet of the displayed results. The controller
+      // compares the resulting list before rebuilding NSPopUpButton.
+      const auto filteredTags = mpLibraryManager->CollectTags(results);
       [c setAvailableTags:filteredTags selectedTag:selectedTagTrimmed];
-      c.displayRootIsFiltered = (mSearchRoot != nullptr);
+      c.displayRootIsFiltered = !hasGrouping && (mSearchRoot != nullptr);
       [c setDisplayRoot:mSearchRoot ? mSearchRoot : mRootNode];
     };
 
-    std::set<std::string> tagSet;
+    [ctrl setGroupBy:mGroupBy];
+
     if (mpLibraryManager)
     {
-      const auto& allModels = mpLibraryManager->GetAllModels();
-      for (const auto& model : allModels)
-      {
-        if (!model)
-          continue;
-
-        for (const auto& tag : model->tags)
-        {
-          std::string trimmed = Trim(tag);
-          if (!trimmed.empty())
-            tagSet.insert(trimmed);
-        }
-      }
+      [ctrl setAvailableTags:mpLibraryManager->GetAllTags() selectedTag:mSelectedTag];
+    }
+    else
+    {
+      const std::vector<std::string> noTags;
+      [ctrl setAvailableTags:noTags selectedTag:mSelectedTag];
     }
 
-    std::vector<std::string> sortedTags(tagSet.begin(), tagSet.end());
-    [ctrl setAvailableTags:sortedTags selectedTag:mSelectedTag];
-
-    if (!mPendingSearchQuery.empty() || !mSelectedTag.empty())
+    if (!mPendingSearchQuery.empty() || !mSelectedTag.empty() || mGroupBy != NAMLibraryGroupBy::Library)
     {
-      ctrl.displayRootIsFiltered = YES;
-      ctrl.onFilterChanged(mPendingSearchQuery, mSelectedTag);
+      ctrl.displayRootIsFiltered = (mGroupBy == NAMLibraryGroupBy::Library);
+      ctrl.onFilterChanged(mPendingSearchQuery, mSelectedTag, mGroupBy);
     }
     else
     {

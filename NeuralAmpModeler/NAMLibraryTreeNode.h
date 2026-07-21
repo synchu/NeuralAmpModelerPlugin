@@ -23,6 +23,12 @@ struct NAMLibraryTreeNode
   std::string gear_make;
   std::string gear_model;
   std::string tone_type;
+  // Derived, in-memory fields. These are built once when data.json is loaded
+  // and are never written back to the PresetManager library.
+  std::string displayLabel;
+  std::string breadcrumb;
+  std::string searchTextNormalized;
+  std::vector<std::string> tagsNormalized;
   double loudness = 0.0;
   double gain = 0.0;
   double input_level_dbu = 0.0;
@@ -31,7 +37,9 @@ struct NAMLibraryTreeNode
   
   // Tree structure
   std::vector<std::shared_ptr<NAMLibraryTreeNode>> children;
-  std::shared_ptr<NAMLibraryTreeNode> parent;
+  // Parent is non-owning so replacing/reloading data.json releases the old
+  // tree instead of retaining it through parent/child shared_ptr cycles.
+  std::weak_ptr<NAMLibraryTreeNode> parent;
   bool expanded = true;
   int depth = 0;
   
@@ -44,12 +52,8 @@ struct NAMLibraryTreeNode
     return false;
   }
   bool IsFolder() const { return path.empty(); }
-  std::string GetDisplayName() const
+  const std::string& GetDisplayName() const
   {
-    if (IsModel())
-    {
-      return name + " (" + gear_make + " " + gear_model + ")";
-    }
-    return name;
+    return displayLabel.empty() ? name : displayLabel;
   }
 };

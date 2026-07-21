@@ -52,6 +52,7 @@ private:
   void InitializeControls();
   void PopulateTreeView();
   void AddTreeNode(HTREEITEM hParent, const std::shared_ptr<NAMLibraryTreeNode>& node, bool ancestorsExpanded);
+  void PopulateTreeNodeChildren(HTREEITEM hParentItem);
   void AutoExpandDescendantsFromFlags(HTREEITEM hParentItem);
 
   void OnTreeViewSelectionChanged();
@@ -59,7 +60,8 @@ private:
   void OnLoadButtonClicked();
   void OnSearchTextChanged();
   void OnTagSelectionChanged();
-  void PopulateTagComboBox(const std::vector<std::shared_ptr<NAMLibraryTreeNode>>* pModelsForTags = nullptr);
+  void OnGroupSelectionChanged();
+  void PopulateTagComboBox(const std::vector<std::string>& tags);
   void PerformSearch(const std::string& query);
   void ResizeControls(int width, int height);
 
@@ -103,6 +105,8 @@ private:
   HWND mHwndSearchLabel = nullptr;
   HWND mHwndTagLabel = nullptr;
   HWND mHwndTagCombo = nullptr;
+  HWND mHwndGroupLabel = nullptr;
+  HWND mHwndGroupCombo = nullptr;
   HWND mHwndLoadButton = nullptr;
   HWND mHwndCancelButton = nullptr;
   HWND mHwndFontIncButton = nullptr;
@@ -120,6 +124,7 @@ private:
   static constexpr UINT SEARCH_DELAY_MS = 300;
 
   bool mIsPopulatingTags = false;
+  std::vector<std::string> mDisplayedTags;
 
 #elif defined(OS_MAC)
   void* mpWindowController = nullptr;
@@ -127,6 +132,7 @@ private:
 
   std::string mPendingSearchQuery;
   std::string mSelectedTag;
+  NAMLibraryGroupBy mGroupBy = NAMLibraryGroupBy::Library;
 
   // Cross-platform process-lifetime UI state
   std::unordered_map<std::string, bool> mExpandedState;
