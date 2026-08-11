@@ -68,6 +68,9 @@
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\get_dsp.cpp">
       <Filter>NAM</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\nam_file.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
     <ClCompile Include="..\NeuralAmpModelerCore\NAM\lstm.cpp">
       <Filter>NAM</Filter>
     </ClCompile>
@@ -326,6 +329,9 @@
     </ClInclude>
     <ClInclude Include="..\ToneStack.h" />
     <ClInclude Include="..\NeuralAmpModelerCore\NAM\get_dsp.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\nam_file.h">
       <Filter>NAM</Filter>
     </ClInclude>
   </ItemGroup>

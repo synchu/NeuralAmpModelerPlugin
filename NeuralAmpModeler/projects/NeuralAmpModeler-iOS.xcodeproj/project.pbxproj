@@ -61,6 +61,8 @@
 		4FBDC96429FFF143004FF203 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FBDC94B29FFF143004FF203 /* model.cpp */; };
 		4FBDC98029FFF143004FF203 /* slimmable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FBDC97E29FFF143004FF203 /* slimmable.cpp */; };
 		4FBDC98129FFF143004FF203 /* container.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FBDC97F29FFF143004FF203 /* container.cpp */; };
+		D4A11F112E00000200000001 /* nam_file.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F102E00000100000001 /* nam_file.cpp */; };
+		D4A11F112E00000200000002 /* nam_file.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F102E00000100000001 /* nam_file.cpp */; };
 		4FBDC96529FFF143004FF203 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FBDC94C29FFF143004FF203 /* get_dsp.cpp */; };
 		4FBDC97729FFF143004FF203 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FBDC97029FFF143004FF203 /* conv1d.cpp */; };
 		4FBDC97829FFF143004FF203 /* conv1d.h in Headers */ = {isa = PBXBuildFile; fileRef = 4FBDC97129FFF143004FF203 /* conv1d.h */; };
@@ -324,6 +326,8 @@
 		4FBDC94B29FFF143004FF203 /* model.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = wavenet/model.cpp; sourceTree = "<group>"; };
 		4FBDC97E29FFF143004FF203 /* slimmable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = wavenet/slimmable.cpp; sourceTree = "<group>"; };
 		4FBDC97F29FFF143004FF203 /* container.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = container.cpp; sourceTree = "<group>"; };
+		D4A11F102E00000100000001 /* nam_file.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = nam_file.cpp; sourceTree = "<group>"; };
+		D4A11F102E00000100000002 /* nam_file.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = nam_file.h; sourceTree = "<group>"; };
 		4FBDC94C29FFF143004FF203 /* get_dsp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = get_dsp.cpp; sourceTree = "<group>"; };
 		4FC46E58231440C8000045E7 /* web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = web; path = ../resources/web; sourceTree = "<group>"; };
 		4FC6982F293BA47F0076EC33 /* NeuralAmpModelerAU.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NeuralAmpModelerAU.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -717,6 +721,8 @@
 				4FBDC94B29FFF143004FF203 /* model.cpp */,
 				4FBDC97E29FFF143004FF203 /* slimmable.cpp */,
 				4FBDC97F29FFF143004FF203 /* container.cpp */,
+				D4A11F102E00000100000001 /* nam_file.cpp */,
+				D4A11F102E00000100000002 /* nam_file.h */,
 				4FBDC94529FFF143004FF203 /* model.h */,
 				4FBDC97029FFF143004FF203 /* conv1d.cpp */,
 				4FBDC97129FFF143004FF203 /* conv1d.h */,
@@ -1160,6 +1166,7 @@
 				4FBDC96429FFF143004FF203 /* model.cpp in Sources */,
 				4FBDC98029FFF143004FF203 /* slimmable.cpp in Sources */,
 				4FBDC98129FFF143004FF203 /* container.cpp in Sources */,
+				D4A11F112E00000200000001 /* nam_file.cpp in Sources */,
 				4FBDC97729FFF143004FF203 /* conv1d.cpp in Sources */,
 				4FBDC97929FFF143004FF203 /* ring_buffer.cpp in Sources */,
 				4FC6984C293BA6010076EC33 /* IGraphicsCoreText.mm in Sources */,
@@ -1183,6 +1190,7 @@
 				1662C5C5C56E6CAD267EF08F /* model.cpp in Sources */,
 				30CA1E085AF4585BDA0D3725 /* slimmable.cpp in Sources */,
 				13680FF9E8013839DCCC2B74 /* container.cpp in Sources */,
+				D4A11F112E00000200000002 /* nam_file.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
