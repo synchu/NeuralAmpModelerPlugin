@@ -188,7 +188,9 @@
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\convnet.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\dsp.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.cpp" />
-    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\wav.cpp" />
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\wav.cpp">
+      <ObjectFileName>$(IntDir)nam_core_wav.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\lstm.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\ring_buffer.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\nam_file.cpp" />
