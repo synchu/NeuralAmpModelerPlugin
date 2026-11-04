@@ -194,13 +194,21 @@
 		4F2FB1C22A0047430027AB66 /* wavenet/model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet/model.cpp */; };
 		4F2FB1C32A0047430027AB66 /* wavenet/model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1522A0047420027AB66 /* wavenet/model.cpp */; };
 		4F2FB1C42A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000010 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1C62A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000011 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1C72A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000012 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1C82A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000013 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1C92A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000014 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1CA2A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000015 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1CB2A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000016 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1CC2A0047430027AB66 /* get_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1532A0047420027AB66 /* get_dsp.cpp */; };
+		D4A11F002E00000200000017 /* wav.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4A11F002E00000200000001 /* wav.cpp */; };
 		4F2FB1CF2A0047430027AB66 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1562A0047420027AB67 /* conv1d.cpp */; };
 		4F2FB1D02A0047430027AB66 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1562A0047420027AB67 /* conv1d.cpp */; };
 		4F2FB1D12A0047430027AB66 /* conv1d.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F2FB1562A0047420027AB67 /* conv1d.cpp */; };
@@ -745,6 +753,8 @@
 		4F2FB1512A0047420027AB66 /* activations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = activations.cpp; sourceTree = "<group>"; };
 		4F2FB1522A0047420027AB66 /* wavenet/model.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = wavenet/model.cpp; sourceTree = "<group>"; };
 		4F2FB1532A0047420027AB66 /* get_dsp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = get_dsp.cpp; sourceTree = "<group>"; };
+		D4A11F002E00000200000001 /* wav.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = wav.cpp; sourceTree = "<group>"; };
+		D4A11F002E00000200000002 /* wav.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = wav.h; sourceTree = "<group>"; };
 		4F2FB1562A0047420027AB67 /* conv1d.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = conv1d.cpp; sourceTree = "<group>"; };
 		4F2FB1572A0047420027AB67 /* conv1d.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = conv1d.h; sourceTree = "<group>"; };
 		4F2FB1582A0047420027AB67 /* ring_buffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ring_buffer.cpp; sourceTree = "<group>"; };
@@ -1379,6 +1389,8 @@
 				4F2FB1592A0047420027AB67 /* ring_buffer.h */,
 				4F2FB14F2A0047420027AB66 /* dsp.h */,
 				4F2FB1532A0047420027AB66 /* get_dsp.cpp */,
+				D4A11F002E00000200000001 /* wav.cpp */,
+				D4A11F002E00000200000002 /* wav.h */,
 				AAB7BBB62CC4B8C6000B8B6E /* get_dsp.h */,
 				4F2FB14D2A0047420027AB66 /* lstm.cpp */,
 				4F2FB14A2A0047420027AB66 /* lstm.h */,
@@ -2741,6 +2753,7 @@
 				4F2FB15B2A0047420027AB66 /* RecursiveLinearFilter.cpp in Sources */,
 				4F2FB1782A0047430027AB66 /* ImpulseResponse.cpp in Sources */,
 				4F2FB1CA2A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000015 /* wav.cpp in Sources */,
 				4F2FB1972A0047430027AB66 /* dsp.cpp in Sources */,				
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2752,6 +2765,7 @@
 				4F2FB1942A0047430027AB66 /* dsp.cpp in Sources */,
 				4F7C495F255DDFC500DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F2FB1C72A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000012 /* wav.cpp in Sources */,
 				4F2FB1A92A0047430027AB66 /* lstm.cpp in Sources */,
 				4F03A5AF20A4621100EBDFFB /* IGraphics.cpp in Sources */,
 				4F6369E020A464BB0022C370 /* IGraphicsNanoVG_src.m in Sources */,
@@ -2823,6 +2837,7 @@
 				4F7C496E255DDFCB00DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1D1231438D000004786 /* swell-appstub.mm in Sources */,
 				4F2FB1CC2A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000017 /* wav.cpp in Sources */,
 				4F7C496D255DDFCB00DF7588 /* IControls.cpp in Sources */,
 				4F3EE1D2231438D000004786 /* swell-misc.mm in Sources */,
 				4F3EE1D3231438D000004786 /* swell-wnd.mm in Sources */,
@@ -2874,6 +2889,7 @@
 				4F78BE1E22E7406D00AD537E /* IGraphicsNanoVG_src.m in Sources */,
 				4F78BE1F22E7406D00AD537E /* IGraphics.cpp in Sources */,
 				4F2FB1CB2A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000016 /* wav.cpp in Sources */,
 				4F2FB1852A0047430027AB66 /* wav.cpp in Sources */,
 				4F2FB1B92A0047430027AB66 /* activations.cpp in Sources */,
 				4F78BE2022E7406D00AD537E /* IGraphicsEditorDelegate.cpp in Sources */,
@@ -2918,6 +2934,7 @@
 				4F7C495D255DDFC400DF7588 /* ITextEntryControl.cpp in Sources */,
 				B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */,
 				4F2FB1C62A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000011 /* wav.cpp in Sources */,
 				4F3862F12014BBEC0009F402 /* NeuralAmpModeler.cpp in Sources */,
 				4F81591F205D50EB00393585 /* pluginfactory.cpp in Sources */,
 				4F6FD2B322675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
@@ -3004,6 +3021,7 @@
 				4F03A5B020A4621100EBDFFB /* IGraphics.cpp in Sources */,
 				4F35DEB1207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
 				4F2FB1C82A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000013 /* wav.cpp in Sources */,
 				4F2FB1822A0047430027AB66 /* wav.cpp in Sources */,
 				4F2FB1B62A0047430027AB66 /* activations.cpp in Sources */,
 				4F5F344520C0226200487201 /* IPlugPaths.mm in Sources */,
@@ -3094,6 +3112,7 @@
 				4F7C4956255DDFC300DF7588 /* IPopupMenuControl.cpp in Sources */,
 				4F5C5F6B21BED08700E024A7 /* swell-appstub.mm in Sources */,
 				4F2FB1C42A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000010 /* wav.cpp in Sources */,
 				4F7C4955255DDFC300DF7588 /* IControls.cpp in Sources */,
 				4FD16D4013B635A0001D0217 /* swell-misc.mm in Sources */,
 				4FD16D4213B635AB001D0217 /* swell-wnd.mm in Sources */,
@@ -3176,6 +3195,7 @@
 				4FFBB92120863B0E00DDD0E7 /* vstcomponentbase.cpp in Sources */,
 				4FFBB92220863B0E00DDD0E7 /* IPlugVST3_Processor.cpp in Sources */,
 				4F2FB1C92A0047430027AB66 /* get_dsp.cpp in Sources */,
+				D4A11F002E00000200000014 /* wav.cpp in Sources */,
 				4F993F7623055C98000313AF /* IPlugProcessor.cpp in Sources */,
 				4FFBB92320863B0E00DDD0E7 /* conststringtable.cpp in Sources */,
 				4FFBB92420863B0E00DDD0E7 /* vstaudioeffect.cpp in Sources */,
