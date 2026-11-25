@@ -1,6 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\wav.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\sequential.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\linear.cpp">
+      <Filter>NAM</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\iPlug2\IPlug\AAX\IPlugAAX.cpp">
       <Filter>IPlug\AAX</Filter>
     </ClCompile>
@@ -92,21 +101,24 @@
     <ClCompile Include="..\AudioDSPTools\dsp\dsp.cpp">
       <Filter>dsp</Filter>
     </ClCompile>
-    <ClCompile Include="..\AudioDSPTools\dsp\ImpulseResponse.cpp">
-      <Filter>dsp</Filter>
-    </ClCompile>
     <ClCompile Include="..\AudioDSPTools\dsp\NoiseGate.cpp">
       <Filter>dsp</Filter>
     </ClCompile>
     <ClCompile Include="..\AudioDSPTools\dsp\RecursiveLinearFilter.cpp">
       <Filter>dsp</Filter>
     </ClCompile>
-    <ClCompile Include="..\AudioDSPTools\dsp\wav.cpp">
-      <Filter>dsp</Filter>
-    </ClCompile>
     <ClCompile Include="..\ToneStack.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\ResamplingNAM.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\sequential.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\linear.h">
+      <Filter>NAM</Filter>
+    </ClInclude>
     <ClInclude Include="..\resources\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
@@ -288,9 +300,6 @@
     <ClInclude Include="..\AudioDSPTools\dsp\dsp.h">
       <Filter>dsp</Filter>
     </ClInclude>
-    <ClInclude Include="..\AudioDSPTools\dsp\ImpulseResponse.h">
-      <Filter>dsp</Filter>
-    </ClInclude>
     <ClInclude Include="..\AudioDSPTools\dsp\NoiseGate.h">
       <Filter>dsp</Filter>
     </ClInclude>
@@ -301,9 +310,6 @@
       <Filter>dsp</Filter>
     </ClInclude>
     <ClInclude Include="..\AudioDSPTools\dsp\version.h">
-      <Filter>dsp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\AudioDSPTools\dsp\wav.h">
       <Filter>dsp</Filter>
     </ClInclude>
     <ClInclude Include="..\..\iPlug2\IPlug\Extras\NonIntegerResampler.h">

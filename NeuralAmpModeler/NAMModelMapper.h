@@ -13,7 +13,7 @@
 
 #include "../NeuralAmpModelerCore/NAM/dsp.h"
 
-class ResamplingNAM;
+#include "ResamplingNAM.h"
 
 // Per-model parameter overrides (optional).
 // If a value is set, it will be applied when the model activates.
@@ -69,7 +69,7 @@ public:
   NAMModelMapper& operator=(NAMModelMapper&&) = delete;
 
   // Whether the mapper is active
-  bool IsActive() const { return mActive && !mSlots.empty(); }
+  bool IsActive() const { return mActive.load(); }
   void SetActive(bool active) { mActive = active; }
 
   // Whether a background preload is in progress
@@ -128,6 +128,14 @@ public:
   size_t GetSlotCount() const { return mSlots.size(); }
   const std::vector<ModelMapSlot>& GetSlots() const { return mSlots; }
 
+  void PrepareModels(double sampleRate, int blockSize)
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
+    for (auto& slot : mSlots)
+      if (slot.preloadedModel && slot.preloadedModel->GetExpectedSampleRate() != sampleRate)
+        slot.preloadedModel->Reset(sampleRate, blockSize);
+  }
+
   // Reset active slot tracking (e.g. when sample rate changes)
   void ResetActiveSlot()
   {
@@ -156,7 +164,7 @@ private:
 
   std::vector<ModelMapSlot> mSlots;
   int mActiveSlotIndex = -1;
-  bool mActive = false;
+  std::atomic<bool> mActive{false};
   std::string mLoadedPNAMPath;
   mutable std::mutex mMutex;
 

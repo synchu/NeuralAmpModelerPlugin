@@ -413,10 +413,8 @@
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugProcessor.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugTimer.cpp" />
     <ClCompile Include="..\..\AudioDSPTools\dsp\dsp.cpp" />
-    <ClCompile Include="..\..\AudioDSPTools\dsp\ImpulseResponse.cpp" />
     <ClCompile Include="..\..\AudioDSPTools\dsp\NoiseGate.cpp" />
     <ClCompile Include="..\..\AudioDSPTools\dsp\RecursiveLinearFilter.cpp" />
-    <ClCompile Include="..\..\AudioDSPTools\dsp\wav.cpp" />
     <ClCompile Include="..\NeuralAmpModeler.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\activations.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\conv1d.cpp" />
@@ -430,6 +428,8 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(RelativeDir)</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.cpp" />
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\sequential.cpp" />
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\linear.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\wav.cpp">
       <ObjectFileName>$(IntDir)nam_core_wav.obj</ObjectFileName>
     </ClCompile>
@@ -524,7 +524,6 @@
     <ClInclude Include="..\..\iPlug2\IPlug\IPlug_include_in_plug_hdr.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlug_include_in_plug_src.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\dsp.h" />
-    <ClInclude Include="..\..\AudioDSPTools\dsp\ImpulseResponse.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\NoiseGate.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\RecursiveLinearFilter.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\Resample.h" />
@@ -534,10 +533,10 @@
     <ClInclude Include="..\..\AudioDSPTools\dsp\ResamplingContainer\Dependencies\WDL\wdltypes.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\ResamplingContainer\ResamplingContainer.h" />
     <ClInclude Include="..\..\AudioDSPTools\dsp\version.h" />
-    <ClInclude Include="..\..\AudioDSPTools\dsp\wav.h" />
     <ClInclude Include="..\Colors.h" />
     <ClInclude Include="..\config.h" />
     <ClInclude Include="..\NeuralAmpModeler.h" />
+    <ClInclude Include="..\ResamplingNAM.h" />
     <ClInclude Include="..\NeuralAmpModelerControls.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\activations.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\conv1d.h" />
@@ -547,6 +546,8 @@
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\film.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\gating_activations.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\sequential.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\linear.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\lstm.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\nam_file.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\registry.h" />

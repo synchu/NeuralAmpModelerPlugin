@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cmath> // std::round
+#include <cctype>
 #include <cstdio> // FILE, fclose
+#include <filesystem>
 #include <sstream> // std::stringstream
 #include <unordered_map> // std::unordered_map
 #include "IControls.h"
@@ -38,6 +40,12 @@ enum class NAMBrowserState
 {
   Empty, // when no file loaded, show "Get" button
   Loaded // when file loaded, show "Clear" button
+};
+
+enum class NAMFileLoadSource
+{
+  ExistingBrowserSelection,
+  FilePickerSelection
 };
 
 // Where the corner button on the plugin (settings, close settings) goes
@@ -422,12 +430,14 @@ class NAMGetButtonControl : public NAMSquareButtonControl
 public:
   NAMGetButtonControl(const IRECT& bounds, const char* label, const char* url, const ISVG& globeSVG)
   : NAMSquareButtonControl(
-      bounds,
-      [url](IControl* pCaller) {
-        WDL_String fullURL(url);
-        pCaller->GetUI()->OpenURL(fullURL.Get());
-      },
-      globeSVG)
+    bounds,
+    [url](IControl* pCaller) {
+      WDL_String fullURL(url);
+      auto* ui = pCaller->GetUI();
+      ui->ReleaseMouseCapture();
+      ui->OpenURL(fullURL.Get());
+    },
+    globeSVG)
   {
     SetTooltip(label);
   }
@@ -465,6 +475,48 @@ public:
 
   void Draw(IGraphics& g) override { g.DrawFittedBitmap(mBitmap, mRECT); }
 
+  void SetupMenu()
+  {
+    if (std::strcmp(mExtension.Get(), "wav nam") != 0)
+    {
+      IDirBrowseControlBase::SetupMenu();
+      return;
+    }
+
+    // This iPlug2 version scans only one extension. Populate the cab's flat directory menu locally so the file
+    // picker, popup menu, and previous/next buttons all see both supported formats.
+    mFiles.Empty(true);
+    mItems.Empty(false);
+    mMainMenu.Clear();
+    mSelectedItemIndex = -1;
+    for (int pathIndex = 0; pathIndex < mPaths.GetSize(); ++pathIndex)
+    {
+      std::error_code error;
+      const auto directory = std::filesystem::u8path(mPaths.Get(pathIndex)->Get());
+      for (std::filesystem::directory_iterator entry(directory, error), end; !error && entry != end;
+           entry.increment(error))
+      {
+        const auto& path = entry->path();
+        const auto name = path.filename().u8string();
+        std::error_code fileError;
+        auto extension = path.extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (name.empty() || name[0] == '.' || !entry->is_regular_file(fileError)
+            || (extension != ".wav" && extension != ".nam"))
+          continue;
+        const auto label = path.stem().u8string();
+        auto* item = new IPopupMenu::Item(
+          reinterpret_cast<const char*>(label.c_str()), IPopupMenu::Item::kNoFlags, mFiles.GetSize());
+        mMainMenu.AddItem(item, -2 /* sort alphabetically */);
+        const auto fullPath = path.u8string();
+        mFiles.Add(new WDL_String(reinterpret_cast<const char*>(fullPath.c_str())));
+      }
+    }
+    for (int i = 0; i < mMainMenu.NItems(); ++i)
+      mItems.Add(mMainMenu.GetItem(i));
+  }
+
   void OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int valIdx) override
   {
     if (pSelectedMenu)
@@ -474,7 +526,7 @@ public:
       if (pItem)
       {
         mSelectedItemIndex = mItems.Find(pItem);
-        LoadFileAtCurrentIndex();
+        LoadFileAtCurrentIndex(NAMFileLoadSource::ExistingBrowserSelection);
       }
     }
   }
@@ -490,7 +542,7 @@ public:
       if (mSelectedItemIndex < 0)
         mSelectedItemIndex = nItems - 1;
 
-      LoadFileAtCurrentIndex();
+      LoadFileAtCurrentIndex(NAMFileLoadSource::ExistingBrowserSelection);
     };
 
     auto nextFileFunc = [&](IControl* pCaller) {
@@ -502,7 +554,7 @@ public:
       if (mSelectedItemIndex >= nItems)
         mSelectedItemIndex = 0;
 
-      LoadFileAtCurrentIndex();
+      LoadFileAtCurrentIndex(NAMFileLoadSource::ExistingBrowserSelection);
     };
 
     auto loadFileFunc = [&](IControl* pCaller) {
@@ -517,7 +569,7 @@ public:
           AddPath(path.Get(), "");
           SetupMenu();
           SelectFirstFile();
-          LoadFileAtCurrentIndex();
+          LoadFileAtCurrentIndex(NAMFileLoadSource::ExistingBrowserSelection);
         }
       });
 #else
@@ -545,7 +597,7 @@ public:
             AddPath(pathStr, "");
             SetupMenu();
             SetSelectedFile(fileName.Get());
-            LoadFileAtCurrentIndex();
+            LoadFileAtCurrentIndex(NAMFileLoadSource::FilePickerSelection, &fileName, &path);
           }
           else
           {
@@ -589,9 +641,8 @@ public:
     const auto clearAndGetButtonBounds = padded.ReduceFromRight(buttonWidth);
     const auto leftButtonBounds = padded.ReduceFromLeft(buttonWidth);
     const auto rightButtonBounds = padded.ReduceFromLeft(buttonWidth);
-    // Library button only for model browser — use mDialogExtension, NOT mExtension
-    // (mExtension is hardcoded "nam" in the base class constructor for both browsers)
-    const bool isModelBrowser = strstr(mDialogExtension.Get(), "nam") != nullptr;
+    // The cabinet selector also accepts NAM files, but only the amp selector has a library button.
+    const bool isModelBrowser = mClearMsgTag == kMsgTagClearModel;
 
     IRECT libraryButtonBounds;
     if (isModelBrowser)
@@ -628,18 +679,33 @@ public:
     SetBrowserState(NAMBrowserState::Empty);
   }
 
-  void LoadFileAtCurrentIndex()
+  void LoadFileAtCurrentIndex(NAMFileLoadSource source, const WDL_String* filePickerFileName = nullptr,
+                              const WDL_String* filePickerPath = nullptr)
   {
-    if (mSelectedItemIndex > -1 && mSelectedItemIndex < NItems())
+    if (source == NAMFileLoadSource::FilePickerSelection && mSelectedItemIndex == -1 && filePickerFileName != nullptr
+        && filePickerPath != nullptr)
     {
-      WDL_String fileName, path;
-      GetSelectedFile(fileName);
-
-      const size_t maxChars = strstr(mDialogExtension.Get(), "nam") ? 35 : 45;
-      mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, maxChars);
-
-      mCompletionHandlerFunc(fileName, path);
+      // PNAM chains are selectable from the dialog but excluded from model cycling.
+      auto extension = std::filesystem::u8path(filePickerFileName->Get()).extension().string();
+      std::transform(extension.begin(), extension.end(), extension.begin(),
+                     [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+      if (mClearMsgTag == kMsgTagClearModel && extension == ".pnam")
+        mCompletionHandlerFunc(*filePickerFileName, *filePickerPath);
+      else
+        ReportDirectoryScanFailure(*filePickerFileName, *filePickerPath);
+      return;
     }
+
+    if (mSelectedItemIndex < 0 || mSelectedItemIndex >= NItems())
+    {
+      ReportUnexpectedLoadFailure(source, filePickerFileName);
+      return;
+    }
+
+    WDL_String fileName, path;
+    GetSelectedFile(fileName);
+    mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, mClearMsgTag == kMsgTagClearModel ? 35 : 45);
+    mCompletionHandlerFunc(fileName, path);
   }
 
   void OnMsgFromDelegate(int msgTag, int dataSize, const void* pData) override
@@ -654,7 +720,7 @@ public:
       }
       break;
       case kMsgTagLoadedModel:
-      case kMsgTagLoadedIR:
+      case kMsgTagLoadedCab:
       {
         WDL_String fileName, directory;
         fileName.Set(reinterpret_cast<const char*>(pData));
@@ -705,6 +771,39 @@ public:
   }
 
 private:
+  void ReportDirectoryScanFailure(const WDL_String& fileName, const WDL_String& path)
+  {
+    mFileNameControl->SetLabelAndTooltipEllipsizing(fileName, mClearMsgTag == kMsgTagClearModel ? 35 : 45);
+    const std::string label = std::string("(FAILED) ") + mFileNameControl->GetLabelStr();
+
+    std::stringstream message;
+    message << "The selected file '" << fileName.Get() << "' was not found after scanning directory '" << path.Get()
+            << "'. The host may not have granted permission to enumerate that directory.";
+
+    mFileNameControl->SetLabelStr(label.c_str());
+    mFileNameControl->SetTooltip(message.str().c_str());
+    SetBrowserState(NAMBrowserState::Empty);
+    std::fprintf(stderr, "NAM: File picker selection produced index -1. %s\n", message.str().c_str());
+  }
+
+  void ReportUnexpectedLoadFailure(NAMFileLoadSource source, const WDL_String* filePickerFileName)
+  {
+    if (filePickerFileName != nullptr)
+      mFileNameControl->SetLabelAndTooltipEllipsizing(*filePickerFileName, mClearMsgTag == kMsgTagClearModel ? 35 : 45);
+
+    const std::string label = std::string("(FAILED) ") + mFileNameControl->GetLabelStr();
+    const std::string message =
+      "The selected file could not be loaded because the file browser encountered an "
+      "unexpected selection state. Please select the file again.";
+
+    mFileNameControl->SetLabelStr(label.c_str());
+    mFileNameControl->SetTooltip(message.c_str());
+    SetBrowserState(NAMBrowserState::Empty);
+    std::fprintf(stderr, "NAM: %s Source: %s; selected index: %d; item count: %d.\n", message.c_str(),
+                 source == NAMFileLoadSource::FilePickerSelection ? "file picker" : "existing browser selection",
+                 mSelectedItemIndex, NItems());
+  }
+
   void SelectFirstFile() { mSelectedItemIndex = mFiles.GetSize() ? 0 : -1; }
 
   void GetSelectedFileDirectory(WDL_String& path)
@@ -753,43 +852,59 @@ private:
   ISVG mLibrarySVG;
 };
 
-class NAMMeterControl : public WithFileDrop<IVPeakAvgMeterControl<>>, public IBitmapBase
+template <int Channels>
+class NAMMeterControl : public WithFileDrop<IVPeakAvgMeterControl<Channels>>, public IBitmapBase
 {
   static constexpr float KMeterMin = -70.0f;
   static constexpr float KMeterMax = -0.01f;
 
 public:
   NAMMeterControl(const IRECT& bounds, const IBitmap& bitmap, const IVStyle& style)
-  : WithFileDrop<IVPeakAvgMeterControl<>>(bounds, "", style.WithShowValue(false).WithDrawFrame(false).WithWidgetFrac(0.8),
-                            EDirection::Vertical, {}, 0, KMeterMin, KMeterMax, {})
+  : WithFileDrop<IVPeakAvgMeterControl<Channels>>(bounds, "", style.WithShowValue(false).WithDrawFrame(false).WithWidgetFrac(0.8),
+                                    EDirection::Vertical, {}, 0, KMeterMin, KMeterMax, {})
   , IBitmapBase(bitmap)
   {
-    SetPeakSize(1.0f);
+    this->SetPeakSize(1.0f);
   }
 
-  void OnRescale() override { mBitmap = GetUI()->GetScaledBitmap(mBitmap); }
+  void OnRescale() override { mBitmap = this->GetUI()->GetScaledBitmap(mBitmap); }
 
-  virtual void OnResize() override
+  void OnResize() override
   {
-    SetTargetRECT(MakeRects(mRECT));
-    mWidgetBounds = mWidgetBounds.GetMidHPadded(5).GetVPadded(10);
-    MakeTrackRects(mWidgetBounds);
-    MakeStepRects(mWidgetBounds, mNSteps);
-    SetDirty(false);
+    this->SetTargetRECT(this->MakeRects(this->mRECT));
+    this->mWidgetBounds = this->mWidgetBounds.GetMidHPadded(5.0f).GetVPadded(10);
+    this->MakeTrackRects(this->mWidgetBounds);
+    this->MakeStepRects(this->mWidgetBounds, this->mNSteps);
+    this->SetDirty(false);
   }
 
   void DrawBackground(IGraphics& g, const IRECT& r) override { g.DrawFittedBitmap(mBitmap, r); }
 
+  void DrawWidget(IGraphics& g) override
+  {
+    if constexpr (Channels == 2)
+    {
+      // Draw equal levels together so fractional UI scaling can't leave a seam.
+      if (this->GetValue(0) == this->GetValue(1))
+      {
+        this->DrawTrack(g, this->mWidgetBounds, 0);
+        return;
+      }
+    }
+    IVPeakAvgMeterControl<Channels>::DrawWidget(g);
+  }
+
   void DrawTrackHandle(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
   {
     if (r.H() > 2)
-      g.FillRect(GetColor(kX1), r, &mBlend);
+      g.FillRect(this->GetColor(kX1), r, &this->mBlend);
   }
 
   void DrawPeak(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
   {
-    g.DrawGrid(COLOR_BLACK, mTrackBounds.Get()[chIdx], 10, 2);
-    g.FillRect(GetColor(kX3), r, &mBlend);
+    const IRECT track(r.L, this->mWidgetBounds.T, r.R, this->mWidgetBounds.B);
+    g.DrawGrid(COLOR_BLACK, track, 10, 2);
+    g.FillRect(this->GetColor(kX3), r, &this->mBlend);
   }
 };
 
@@ -840,7 +955,7 @@ class ModelInfoControl : public IContainerBaseWithNamedChildren
 public:
   ModelInfoControl(const IRECT& bounds, const IVStyle& style)
   : IContainerBaseWithNamedChildren(bounds)
-  , mStyle(style) {};
+  , mStyle(style){};
 
   void ClearModelInfo()
   {
@@ -1153,7 +1268,7 @@ private:
     AboutControl(const IRECT& bounds, const IVStyle& style, const IText& text)
     : IContainerBase(bounds)
     , mStyle(style)
-    , mText(text) {};
+    , mText(text){};
 
     void OnAttached() override
     {

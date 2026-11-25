@@ -24,7 +24,7 @@ PROJECT_BASE=NeuralAmpModeler
 CODESIGN=0
 
 # macOS codesigning/notarization
-INSTALLER_PKG_ID_PREFIX=${INSTALLER_PKG_ID_PREFIX:-com.StevenAtkinson}
+INSTALLER_PKG_ID_PREFIX=${INSTALLER_PKG_ID_PREFIX:-com.synchu}
 APP_SPECIFIC_ID=${APP_SPECIFIC_ID:-TODO}
 APP_SPECIFIC_PWD=${APP_SPECIFIC_PWD:-TODO}
 
@@ -154,8 +154,8 @@ fi
 # build xcode project. Change target to build individual formats, or add to All target in the xcode project
 
 set -o pipefail
-xcodebuild -project "./projects/$PLUGIN_NAME-macOS.xcodeproj" \
-  -xcconfig "./config/$PLUGIN_NAME-mac.xcconfig" \
+xcodebuild -project "./projects/$PROJECT_BASE-macOS.xcodeproj" \
+  -xcconfig "./config/$PROJECT_BASE-mac.xcconfig" \
   DEMO_VERSION="$DEMO" \
   -target "All" \
   -UseModernBuildSystem=NO \
@@ -184,15 +184,15 @@ echo "setting icons"
 echo ""
 
 if [ -d "$AU" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$AU"
+  "./$SCRIPTS/SetFileIcon" -image "resources/$PROJECT_BASE.icns" -file "$AU"
 fi
 
 if [ -d $VST3 ]; then
-  ./$SCRIPTS/SetFileIcon -image resources/$PLUGIN_NAME.icns -file $VST3
+  ./$SCRIPTS/SetFileIcon -image resources/$PROJECT_BASE.icns -file $VST3
 fi
 
 if [ -d "$AAX" ]; then
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$AAX"
+  "./$SCRIPTS/SetFileIcon" -image "resources/$PROJECT_BASE.icns" -file "$AAX"
 fi
 
 #---------------------------------------------------------------------------------------------------------
@@ -269,19 +269,19 @@ if [ $BUILD_INSTALLER == 1 ]; then
   fi
 
   # set installer icon
-  "./$SCRIPTS/SetFileIcon" -image "resources/$PLUGIN_NAME.icns" -file "$PKG"
+  "./$SCRIPTS/SetFileIcon" -image "resources/$PROJECT_BASE.icns" -file "$PKG"
 
   #---------------------------------------------------------------------------------------------------------
   # make dmg, can use dmgcanvas http://www.araelium.com/dmgcanvas/ to make a nice dmg, fallback to hdiutil
   echo "building dmg"
   echo ""
 
-  if [ -d "installer/$PLUGIN_NAME.dmgCanvas" ]; then
-    dmgcanvas "installer/$PLUGIN_NAME.dmgCanvas" "build-mac/$ARCHIVE_NAME.dmg"
+  if [ -d "installer/$PROJECT_BASE.dmgCanvas" ]; then
+    dmgcanvas "installer/$PROJECT_BASE.dmgCanvas" "build-mac/$ARCHIVE_NAME.dmg"
   else
     cp installer/changelog.txt build-mac/installer/
     cp installer/known-issues.txt build-mac/installer/
-    cp "manual/$PLUGIN_NAME manual.pdf" build-mac/installer/
+    cp "manual/$PROJECT_BASE manual.pdf" build-mac/installer/
     hdiutil create "build-mac/$ARCHIVE_NAME.dmg" -format UDZO -srcfolder build-mac/installer/ -ov -anyowners -volname "$PLUGIN_NAME"
   fi
 

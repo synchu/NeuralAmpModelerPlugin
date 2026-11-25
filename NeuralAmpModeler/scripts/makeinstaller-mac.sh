@@ -26,8 +26,8 @@ if [ "$VERSION" == "" ]; then
   exit 1
 fi
 
-PRODUCT_NAME=NeuralAmpModeler
-PKG_ID_PREFIX="${INSTALLER_PKG_ID_PREFIX:-com.StevenAtkinson}"
+PRODUCT_NAME=NeuralAmpModelerAVX
+PKG_ID_PREFIX="${INSTALLER_PKG_ID_PREFIX:-com.synchu}"
 
 # locations
 PRODUCTS="build-mac"
@@ -171,7 +171,7 @@ cat > ${TARGET_DIR}/distribution.xml << XMLEND
     <license file="license.rtf" mime-type="application/rtf"/>
     <readme file="readme-mac.rtf" mime-type="application/rtf"/>
     <welcome file="intro.rtf" mime-type="application/rtf"/>
-    <background file="${PRODUCT_NAME}-installer-bg.png" alignment="topleft" scaling="none"/>
+    <background file="NeuralAmpModeler-installer-bg.png" alignment="topleft" scaling="none"/>
     ${VST3_PKG_REF}
     ${AU_PKG_REF}
     ${AAX_PKG_REF}
@@ -197,7 +197,7 @@ XMLEND
 # --resources .
 
 TEMP_RESOURCES=$(mktemp -d)
-cp ./installer/license.rtf ${TEMP_RESOURCES}
+cp ./installer/{license.rtf,readme-mac.rtf,intro.rtf,NeuralAmpModeler-installer-bg.png} "${TEMP_RESOURCES}"
 productbuild --resources ${TEMP_RESOURCES} --distribution ${TARGET_DIR}/distribution.xml --package-path ${PKG_DIR} "${TARGET_DIR}/$OUTPUT_BASE_FILENAME"
 
 rm ${TARGET_DIR}/distribution.xml

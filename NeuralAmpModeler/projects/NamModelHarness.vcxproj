@@ -188,6 +188,8 @@
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\convnet.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\dsp.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.cpp" />
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\sequential.cpp" />
+    <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\linear.cpp" />
     <ClCompile Include="..\..\NeuralAmpModelerCore\NAM\wav.cpp">
       <ObjectFileName>$(IntDir)nam_core_wav.obj</ObjectFileName>
     </ClCompile>
@@ -208,6 +210,9 @@
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\film.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\gating_activations.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\get_dsp.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\wav.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\sequential.h" />
+    <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\linear.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\lstm.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\nam_file.h" />
     <ClInclude Include="..\..\NeuralAmpModelerCore\NAM\model_config.h" />

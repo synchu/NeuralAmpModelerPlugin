@@ -50,24 +50,34 @@ void NeuralAmpModeler::_UnserializeApplyConfig(nlohmann::json& config)
   OnParamReset(iplug::EParamSource::kPresetRecall);
   LEAVE_PARAMS_MUTEX
 
-  mNAMPath.Set(static_cast<std::string>(config["NAMPath"]).c_str());
-  mIRPath.Set(static_cast<std::string>(config["IRPath"]).c_str());
+  const WDL_String modelPath(static_cast<std::string>(config["NAMPath"]).c_str());
+  const WDL_String cabPath(static_cast<std::string>(config["IRPath"]).c_str());
+  {
+    const std::lock_guard lock(mDSPStagingMutex);
+    mNAMPath = modelPath;
+    mCabPath = cabPath;
+  }
 
+  if (modelPath.GetLength())
+  {
+    _StageModel(modelPath);
+  }
+  if (cabPath.GetLength())
+  {
+    _StageCab(cabPath);
+  }
   // Restore .pnam path if present (added in current version)
   if (config.contains("PNAMPath"))
   {
     const std::string pnamPath = config["PNAMPath"];
+    const std::lock_guard lock(mDSPStagingMutex);
     mPNAMPath.Set(pnamPath.c_str());
     // Actual chain loading is deferred to OnUIOpen
   }
 
-  if (mNAMPath.GetLength())
-    _StageModel(mNAMPath);
-  if (mIRPath.GetLength())
-    _StageIR(mIRPath);
 }
 
-// Unserialize NAM Path, IR path, then named keys
+// Unserialize model path, cab path, then named keys
 int _UnserializePathsAndExpectedKeys(const iplug::IByteChunk& chunk, int startPos, nlohmann::json& config,
                                      std::vector<std::string>& paramNames)
 {
@@ -92,8 +102,11 @@ void _RenameKeys(nlohmann::json& j, std::unordered_map<std::string, std::string>
   // Assumes no aliasing!
   for (auto it = newNames.begin(); it != newNames.end(); ++it)
   {
-    j[it->second] = j[it->first];
-    j.erase(it->first);
+    if (j.contains(it->first))
+    {
+      j[it->second] = j[it->first];
+      j.erase(it->first);
+    }
   }
 }
 
@@ -101,10 +114,10 @@ void _RenameKeys(nlohmann::json& j, std::unordered_map<std::string, std::string>
 
 void _UpdateConfigFrom_0_7_14(nlohmann::json& config)
 {
-  // Fill me in once something changes!
+  _RenameKeys(config, {{"IRToggle", "CabToggle"}});
 }
 
-int _GetConfigFrom_0_7_14(const iplug::IByteChunk& chunk, int startPos, nlohmann::json& config)
+int _GetConfigFrom_0_7_14(const iplug::IByteChunk& chunk, int startPos, nlohmann::json& config, bool hasVoice)
 {
   std::vector<std::string> paramNames{"Input",
                                       "Threshold",
@@ -118,16 +131,23 @@ int _GetConfigFrom_0_7_14(const iplug::IByteChunk& chunk, int startPos, nlohmann
                                       "CalibrateInput",
                                       "InputCalibrationLevel",
                                       "OutputMode",
-                                      "Slim",
-                                      "Voice"};  // kAmpGain — must match EParams order
+                                      "Slim"};
+  if (hasVoice)
+    paramNames.emplace_back("Voice");
 
   int pos = _UnserializePathsAndExpectedKeys(chunk, startPos, config, paramNames);
 
   // Read the trailing PNAMPath appended by SerializeState after SerializeParams
   WDL_String pnamPath;
-  pos = chunk.GetStr(pnamPath, pos);
-  if (pnamPath.GetLength())
-    config["PNAMPath"] = std::string(pnamPath.Get());
+  if (hasVoice && pos >= 0 && pos < chunk.Size())
+  {
+    const int end = chunk.GetStr(pnamPath, pos);
+    if (end >= 0)
+    {
+      config["PNAMPath"] = std::string(pnamPath.Get());
+      pos = end;
+    }
+  }
 
   _UpdateConfigFrom_0_7_14(config);
   return pos;
@@ -222,7 +242,7 @@ public:
   _Version(const int major, const int minor, const int patch)
   : mMajor(major)
   , mMinor(minor)
-  , mPatch(patch) {};
+  , mPatch(patch){};
   _Version(const std::string& versionStr)
   {
     std::istringstream stream(versionStr);
@@ -295,7 +315,7 @@ int NeuralAmpModeler::_UnserializeStateWithKnownVersion(const iplug::IByteChunk&
   nlohmann::json config;
   if (version >= _Version(0, 7, 14))
   {
-    pos = _GetConfigFrom_0_7_14(chunk, pos, config);
+    pos = _GetConfigFrom_0_7_14(chunk, pos, config, versionStr.ends_with("avx"));
   }
   else if (version >= _Version(0, 7, 12))
   {

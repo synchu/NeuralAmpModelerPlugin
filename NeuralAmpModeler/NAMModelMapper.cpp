@@ -1,7 +1,8 @@
 #include "NAMModelMapper.h"
 #include "../iPlug2/IPlug/IPlugConstants.h"  
 #include "../NeuralAmpModelerCore/NAM/get_dsp.h"
-#include "NeuralAmpModeler.h" // ResamplingNAM
+#include "ResamplingNAM.h"
+#include <fstream>
 #include "json.hpp"
 
 #include <cstdio>
@@ -24,7 +25,7 @@ PNAMLoadResult NAMModelMapper::LoadFromFile(const std::string& pnamPath, double 
   PNAMLoadResult result;
 
   // --- Parse JSON ---
-  std::ifstream f(pnamPath);
+  std::ifstream f(std::filesystem::u8path(pnamPath));
   if (!f.is_open())
   {
     result.errorMessage = "Cannot open file: " + pnamPath;
@@ -80,7 +81,7 @@ PNAMLoadResult NAMModelMapper::LoadFromFile(const std::string& pnamPath, double 
     }
 
     // Check if the .nam file exists
-    if (!slot.namFilePath.empty() && !std::filesystem::exists(slot.namFilePath))
+    if (!slot.namFilePath.empty() && !std::filesystem::exists(std::filesystem::u8path(slot.namFilePath)))
     {
       if (resolver)
       {
@@ -161,6 +162,7 @@ int NAMModelMapper::PreloadAll(double sampleRate, int blockSize)
       {
         auto dspPath = std::filesystem::u8path(item.namFilePath);
         std::unique_ptr<nam::DSP> rawModel = nam::get_dsp(dspPath);
+        ValidatePluginModel(rawModel.get());
         resampling = std::make_shared<ResamplingNAM>(std::move(rawModel), sampleRate);
         resampling->Reset(sampleRate, blockSize);
 
@@ -226,6 +228,8 @@ std::shared_ptr<ResamplingNAM> NAMModelMapper::EvaluateInputGain(double inputGai
 {
   std::lock_guard<std::mutex> lock(mMutex);
 
+  if (!mActive)
+    return nullptr;
   int newIndex = FindSlotForGain(inputGainValue);
 
   if (newIndex == mActiveSlotIndex || newIndex < 0)

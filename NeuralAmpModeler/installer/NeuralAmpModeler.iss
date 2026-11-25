@@ -2,14 +2,14 @@
 #define PluginSourceDir "NeuralAmpModelerAVX.vst3"
 
 [Setup]
-AppName=NeuralAmpModeler
+AppName=NeuralAmpModelerAVX
 AppContact=neuralampmodeler@gmail.com
 AppCopyright=Copyright (C) 2022 Steven Atkinson
 AppPublisher=Steven Atkinson
 AppPublisherURL=https://www.neuralampmodeler.com/
 AppSupportURL=https://www.neuralampmodeler.com/
-AppVersion=0.7.15avx
-VersionInfoVersion=0.7.15
+AppVersion=0.8.0avx
+VersionInfoVersion=0.8.0
 DefaultDirName={commonpf64}\NeuralAmpModelerAVX
 DefaultGroupName=NeuralAmpModelerAVX
 Compression=lzma2
@@ -17,7 +17,7 @@ SolidCompression=yes
 OutputDir=.\..\build-win\installer
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=NeuralAmpModeler Installer
+OutputBaseFilename=NeuralAmpModelerAVX Installer
 LicenseFile=license.rtf
 SetupLogging=yes
 ShowComponentSizes=no
@@ -82,7 +82,7 @@ Source: "changelog.txt"; DestDir: "{app}"
 Source: "readme-win.rtf"; DestDir: "{app}"; DestName: "readme.rtf"; Flags: isreadme
 
 [Icons]
-Name: "{group}\NeuralAmpModeler"; Filename: "{app}\NeuralAmpModeler_x64.exe"
+Name: "{group}\NeuralAmpModeler"; Filename: "{app}\NeuralAmpModelerAVX.exe"
 Name: "{group}\User guide"; Filename: "{app}\NeuralAmpModeler manual.pdf"
 Name: "{group}\Changelog"; Filename: "{app}\changelog.txt"
 ;Name: "{group}\readme"; Filename: "{app}\readme.rtf"

@@ -6,8 +6,8 @@
   #import <Cocoa/Cocoa.h>
 #endif
 
-#define IPLUG_AUVIEWCONTROLLER IPlugAUViewController_vNeuralAmpModeler
-#define IPLUG_AUAUDIOUNIT IPlugAUAudioUnit_vNeuralAmpModeler
+#define IPLUG_AUVIEWCONTROLLER IPlugAUViewController_vNeuralAmpModelerAVX
+#define IPLUG_AUAUDIOUNIT IPlugAUAudioUnit_vNeuralAmpModelerAVX
 #import <NeuralAmpModelerAU/IPlugAUAudioUnit.h>
 #import <NeuralAmpModelerAU/IPlugAUViewController.h>
 
@@ -17,4 +17,4 @@ FOUNDATION_EXPORT double NeuralAmpModelerAUVersionNumber;
 //! Project version string for NeuralAmpModelerAU.
 FOUNDATION_EXPORT const unsigned char NeuralAmpModelerAUVersionString[];
 
-@class IPlugAUViewController_vNeuralAmpModeler;
+@class IPlugAUViewController_vNeuralAmpModelerAVX;

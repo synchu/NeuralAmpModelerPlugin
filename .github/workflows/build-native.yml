@@ -218,6 +218,30 @@ jobs:
           RUBY
         shell: bash
 
+      - name: Build Steinberg validator (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git "$RUNNER_TEMP/vst3sdk"
+          cd "$RUNNER_TEMP/vst3sdk"
+          git submodule update --init --depth=1 pluginterfaces base public.sdk cmake
+          cmake -S . -B VST3_BUILD -DSMTG_ENABLE_VST3_PLUGIN_EXAMPLES=OFF -DSMTG_ENABLE_VST3_HOSTING_EXAMPLES=ON -DSMTG_ENABLE_VSTGUI_SUPPORT=OFF
+          cmake --build VST3_BUILD --target validator --config Release --parallel 2
+        shell: bash
+
+      - name: Build Steinberg validator (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP "vst3sdk"
+          git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git $sdk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C $sdk submodule update --init --depth=1 pluginterfaces base public.sdk cmake
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake -S $sdk -B (Join-Path $sdk "VST3_BUILD") -DSMTG_ENABLE_VST3_PLUGIN_EXAMPLES=OFF -DSMTG_ENABLE_VST3_HOSTING_EXAMPLES=ON -DSMTG_ENABLE_VSTGUI_SUPPORT=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build (Join-Path $sdk "VST3_BUILD") --target validator --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        shell: pwsh
+
       # ---------- macOS ----------
       - name: Build macOS
         if: startsWith(matrix.os, 'macos')
@@ -225,6 +249,12 @@ jobs:
           set -o pipefail
           cd ${{ env.PROJECT_NAME }}/scripts
           ./makedist-mac.sh full installer 2>&1 | tee "${GITHUB_WORKSPACE}/${{ matrix.log_path }}"
+        shell: bash
+
+      - name: Validate VST3 bundle (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          "$RUNNER_TEMP/vst3sdk/VST3_BUILD/bin/validator" "$HOME/Library/Audio/Plug-Ins/VST3/NeuralAmpModelerAVX.vst3"
         shell: bash
 
       # ---------- Windows (Clang AVX) ----------
@@ -253,10 +283,34 @@ jobs:
         working-directory: ${{ env.PROJECT_NAME }}
         run: |
           New-Item -ItemType Directory -Force -Path "build-win\out"
-          Copy-Item "build-win\vst3\x64\Release-Clang-x64-v3\NeuralAmpModelerAVX.vst3" `
-                    "build-win\out\NeuralAmpModelerAVX_Clang.vst3"
+          Copy-Item "build-win\NeuralAmpModelerAVX.vst3" "build-win\out" -Recurse
           Copy-Item "build-win\app\x64\Release-Clang-x64-v3\NeuralAmpModelerAVX.exe" `
                     "build-win\out\NeuralAmpModelerAVX_Clang.exe"
+        shell: pwsh
+
+      - name: Validate VST3 bundle (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          $validator = Get-ChildItem (Join-Path $env:RUNNER_TEMP "vst3sdk/VST3_BUILD") -Filter validator.exe -Recurse | Select-Object -First 1
+          if (-not $validator) { throw "Could not find validator.exe in the VST3 SDK build" }
+          $bundle = Join-Path $env:GITHUB_WORKSPACE "NeuralAmpModeler/build-win/NeuralAmpModelerAVX.vst3"
+          & $validator.FullName $bundle
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        shell: pwsh
+
+      - name: Run CTest suite
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP "vst3sdk"
+          if ($env:RUNNER_OS -eq 'Windows') {
+            $bundle = Join-Path $env:GITHUB_WORKSPACE "NeuralAmpModeler/build-win/NeuralAmpModelerAVX.vst3"
+          } else {
+            $bundle = Join-Path $HOME "Library/Audio/Plug-Ins/VST3/NeuralAmpModelerAVX.vst3"
+          }
+          cmake -S tests -B build-tests -DCMAKE_BUILD_TYPE=Release "-DNAM_VST3_SDK_ROOT=$sdk" "-DNAM_VST3_TEST_PLUGIN=$bundle"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-tests --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build-tests -C Release --output-on-failure --no-tests=error
         shell: pwsh
 
       # ---------- Upload logs ----------

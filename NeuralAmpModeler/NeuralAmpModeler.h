@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../AudioDSPTools/dsp/ImpulseResponse.h"
+#include <array>
+#include <atomic>
+#include <mutex>
+
 #include "../AudioDSPTools/dsp/NoiseGate.h"
 #include "../AudioDSPTools/dsp/dsp.h"
-#include "../AudioDSPTools/dsp/wav.h"
-
-#include "../NeuralAmpModelerCore/NAM/dsp.h"
-#include "../NeuralAmpModelerCore/NAM/slimmable.h"
+#include "ResamplingNAM.h"
 
 #include <array>
 #include <filesystem>
@@ -21,17 +21,17 @@
 #include "IPlug_include_in_plug_hdr.h"
 #include "ISender.h"
 
-#include "../../AudioDSPTools/dsp/ResamplingContainer/ResamplingContainer.h"
 
 const int kNumPresets = 1;
-// The plugin is mono inside
-constexpr size_t kNumChannelsInternal = 1;
+// Both slots take mono input and may produce mono or stereo output.
+constexpr size_t kMaxNumChannelsInternal = 2;
 
-class NAMSender : public iplug::IPeakAvgSender<>
+template <int Channels>
+class NAMSender : public iplug::IPeakAvgSender<Channels>
 {
 public:
   NAMSender()
-  : iplug::IPeakAvgSender<>(-90.0, true, 5.0f, 1.0f, 300.0f, 500.0f)
+  : iplug::IPeakAvgSender<Channels>(-90.0, true, 5.0f, 1.0f, 300.0f, 500.0f)
   {
   }
 };
@@ -49,7 +49,7 @@ enum EParams
   // The rest is fine though.
   kNoiseGateActive,
   kEQActive,
-  kIRToggle,
+  kCabToggle,
   // Input calibration
   kCalibrateInput,
   kInputCalibrationLevel,
@@ -64,7 +64,7 @@ const int numKnobs = 6;
 enum ECtrlTags
 {
   kCtrlTagModelFileBrowser = 0,
-  kCtrlTagIRFileBrowser,
+  kCtrlTagCabFileBrowser,
   kCtrlTagInputMeter,
   kCtrlTagOutputMeter,
   kCtrlTagSettingsBox,
@@ -85,139 +85,23 @@ enum EMsgTags
 {
   // These tags are used from UI -> DSP
   kMsgTagClearModel = 0,
-  kMsgTagClearIR,
+  kMsgTagClearCab,
   kMsgTagHighlightColor,
   // The following tags are from DSP -> UI
   kMsgTagLoadFailed,
   kMsgTagLoadedModel,
-  kMsgTagLoadedIR,
+  kMsgTagLoadedCab,
   kMsgTagSetPNAMBoundaries,  // DSP -> UI: float[] of normalised boundary positions for Amp Gain knob
   kMsgTagSetBrowserLabel,    // DSP -> UI: temporarily override model browser label (hover)
   kMsgTagRestoreBrowserLabel,// DSP -> UI: restore model browser label to chain name
   kNumMsgTags
 };
 
-// Get the sample rate of a NAM model.
-// Sometimes, the model doesn't know its own sample rate; this wrapper guesses 48k based on the way that most
-// people have used NAM in the past.
-inline double GetNAMSampleRate(const std::unique_ptr<nam::DSP>& model)
-{
-  // Some models are from when we didn't have sample rate in the model.
-  // For those, this wraps with the assumption that they're 48k models, which is probably true.
-  const double assumedSampleRate = 48000.0;
-  const double reportedEncapsulatedSampleRate = model->GetExpectedSampleRate();
-  const double encapsulatedSampleRate =
-    reportedEncapsulatedSampleRate <= 0.0 ? assumedSampleRate : reportedEncapsulatedSampleRate;
-  return encapsulatedSampleRate;
-};
-
-class ResamplingNAM : public nam::DSP
-{
-public:
-  // Resampling wrapper around the NAM models
-  ResamplingNAM(std::unique_ptr<nam::DSP> encapsulated, const double expected_sample_rate)
-  : nam::DSP(encapsulated->NumInputChannels(), encapsulated->NumOutputChannels(), expected_sample_rate)
-  , mEncapsulated(std::move(encapsulated))
-  , mResampler(GetNAMSampleRate(mEncapsulated))
-  {
-    // Assign the encapsulated object's processing function  to this object's member so that the resampler can use it:
-    auto ProcessBlockFunc = [&](NAM_SAMPLE** input, NAM_SAMPLE** output, int numFrames) {
-      mEncapsulated->process(input, output, numFrames);
-    };
-    mBlockProcessFunc = ProcessBlockFunc;
-
-    // Get the other information from the encapsulated NAM so that we can tell the outside world about what we're
-    // holding.
-    if (mEncapsulated->HasLoudness())
-    {
-      SetLoudness(mEncapsulated->GetLoudness());
-    }
-    if (mEncapsulated->HasInputLevel())
-    {
-      SetInputLevel(mEncapsulated->GetInputLevel());
-    }
-    if (mEncapsulated->HasOutputLevel())
-    {
-      SetOutputLevel(mEncapsulated->GetOutputLevel());
-    }
-
-    // NOTE: prewarm samples doesn't mean anything--we can prewarm the encapsulated model as it likes and be good to
-    // go.
-    // _prewarm_samples = 0;
-
-    // And be ready
-    int maxBlockSize = 2048; // Conservative
-    Reset(expected_sample_rate, maxBlockSize);
-  };
-
-  ~ResamplingNAM() = default;
-
-  void prewarm() override { mEncapsulated->prewarm(); };
-
-  void process(NAM_SAMPLE** input, NAM_SAMPLE** output, const int num_frames) override
-  {
-    if (num_frames > mMaxExternalBlockSize)
-      // We can afford to be careful
-      throw std::runtime_error("More frames were provided than the max expected!");
-
-    if (!NeedToResample())
-    {
-      mEncapsulated->process(input, output, num_frames);
-    }
-    else
-    {
-      mResampler.ProcessBlock(input, output, num_frames, mBlockProcessFunc);
-    }
-  };
-
-  int GetLatency() const { return NeedToResample() ? mResampler.GetLatency() : 0; };
-
-  void Reset(const double sampleRate, const int maxBlockSize) override
-  {
-    mExpectedSampleRate = sampleRate;
-    mMaxExternalBlockSize = maxBlockSize;
-    mResampler.Reset(sampleRate, maxBlockSize);
-
-    // Allocations in the encapsulated model (HACK)
-    // Stolen some code from the resampler; it'd be nice to have these exposed as methods? :)
-    const double mUpRatio = sampleRate / GetEncapsulatedSampleRate();
-    const auto maxEncapsulatedBlockSize = static_cast<int>(std::ceil(static_cast<double>(maxBlockSize) / mUpRatio));
-    // This got updated in the latest upstream NAMCore
-    // ResetAndPrewarm() is now just Reset(), and you can control whether it prewarms with SetPrewarmOnReset()
-    // since with was ResetAndPrewarm(), we are now Setting prewarm on reset to true, and then calling Reset()
-    mEncapsulated->SetPrewarmOnReset(true);
-    mEncapsulated->Reset(sampleRate, maxEncapsulatedBlockSize);
-  };
-
-  // So that we can let the world know if we're resampling (useful for debugging)
-  double GetEncapsulatedSampleRate() const { return GetNAMSampleRate(mEncapsulated); };
-
-  nam::SlimmableModel* GetSlimmableModel() { return dynamic_cast<nam::SlimmableModel*>(mEncapsulated.get()); }
-  const nam::SlimmableModel* GetSlimmableModel() const
-  {
-    return dynamic_cast<const nam::SlimmableModel*>(mEncapsulated.get());
-  }
-
-private:
-  bool NeedToResample() const { return GetExpectedSampleRate() != GetEncapsulatedSampleRate(); };
-  // The encapsulated NAM
-  std::unique_ptr<nam::DSP> mEncapsulated;
-
-  // The resampling wrapper
-  dsp::ResamplingContainer<NAM_SAMPLE, 1, 12> mResampler;
-
-  // Used to check that we don't get too large a block to process.
-  int mMaxExternalBlockSize = 0;
-
-  // This function is defined to conform to the interface expected by the iPlug2 resampler.
-  std::function<void(NAM_SAMPLE**, NAM_SAMPLE**, int)> mBlockProcessFunc;
-};
-
 class NeuralAmpModeler final : public iplug::Plugin
 {
 public:
   NeuralAmpModeler(const iplug::InstanceInfo& info);
-  ~NeuralAmpModeler();
+  ~NeuralAmpModeler() override;
 
   void ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames) override;
   void OnReset() override;
@@ -254,45 +138,31 @@ public:
   void _UpdateCurrentRecallParams();
 
 private:
-  // Allocates mInputPointers and mOutputPointers
-  void _AllocateIOPointers(const size_t nChans);
-  // Moves DSP modules from staging area to the main area.
-  // Also deletes DSP modules that are flagged for removal.
-  // Exists so that we don't try to use a DSP module that's only
-  // partially-instantiated.
+  static constexpr int kMaxInternalBlockSize = 2048;
+
+  // Applies pending module and parameter changes at the start of a host block.
   void _ApplyDSPStaging();
-  // Deallocates mInputPointers and mOutputPointers
-  void _DeallocateIOPointers();
   // Fallback that just copies inputs to outputs if mDSP doesn't hold a model.
   void _FallbackDSP(iplug::sample** inputs, iplug::sample** outputs, const size_t numChannels, const size_t numFrames);
-  // Sizes based on mInputArray
-  size_t _GetBufferNumChannels() const;
-  size_t _GetBufferNumFrames() const;
   void _InitToneStack();
-  // Loads a NAM model and stores it to mStagedNAM
+  // Loads a NAM model and stores it to mStagedModel.
   // Returns an empty string on success, or an error message on failure.
   std::string _StageModel(const WDL_String& dspFile);
-  // Loads an IR and stores it to mStagedIR.
-  // Return status code so that error messages can be relayed if
-  // it wasn't successful.
-  dsp::wav::LoadReturnCode _StageIR(const WDL_String& irPath);
+  // Loads a WAV or NAM cab and stores it to mStagedCab.
+  // Returns an empty string on success, or an error message on failure.
+  std::string _StageCab(const WDL_String& cabPath);
 
-  bool _HaveModel() const { return this->mModel != nullptr; };
-  // Prepare the input & output buffers
-  void _PrepareBuffers(const size_t numChannels, const size_t numFrames);
-  // Manage pointers
-  void _PrepareIOPointers(const size_t nChans);
-  // Copy the input buffer to the object, applying input level.
-  // :param nChansIn: In from external
-  // :param nChansOut: Out to the internal of the DSP routine
-  void _ProcessInput(iplug::sample** inputs, const size_t nFrames, const size_t nChansIn, const size_t nChansOut);
+  void _ProcessBlock(iplug::sample** inputs, iplug::sample** outputs, int nFrames, size_t numChannelsExternalIn,
+                     size_t numChannelsExternalOut);
+  // Mix the host inputs to mono and apply input gain.
+  void _ProcessInput(iplug::sample** inputs, const size_t nFrames, const size_t nChansIn);
   // Copy the output to the output buffer, applying output level.
   // :param nChansIn: In from internal
   // :param nChansOut: Out to external
   void _ProcessOutput(iplug::sample** inputs, iplug::sample** outputs, const size_t nFrames, const size_t nChansIn,
                       const size_t nChansOut);
-  // Resetting for models and IRs, called by OnReset
-  void _ResetModelAndIR(const double sampleRate, const int maxBlockSize);
+  // Resetting for the model and cab, called by OnReset
+  void _ResetModelAndCab(const double sampleRate);
 
   void _SetInputGain();
   void _SetOutputGain();
@@ -308,14 +178,14 @@ private:
   // Update all controls that depend on a model
   void _UpdateControlsFromModel();
 
-  // Make sure that the latency is reported correctly.
-  void _UpdateLatency();
+  // Report latency and tail length to the host.
+  void _UpdateLatencyAndTail();
 
   // Update level meters
   // Called within ProcessBlock().
   // Assume _ProcessInput() and _ProcessOutput() were run immediately before.
   void _UpdateMeters(iplug::sample** inputPointer, iplug::sample** outputPointer, const size_t nFrames,
-                     const size_t nChansIn, const size_t nChansOut);
+                     const size_t nChansOut);
 
   // Library path resolution helpers
   std::string GetNAMLibraryDataJsonPath() const;
@@ -325,52 +195,67 @@ private:
 
   // Member data
 
-  // Input arrays to NAM
-  std::vector<std::vector<iplug::sample>> mInputArray;
-  // Output from NAM
-  std::vector<std::vector<iplug::sample>> mOutputArray;
-  // Pointer versions
-  iplug::sample** mInputPointers = nullptr;
-  iplug::sample** mOutputPointers = nullptr;
+  using SampleBuffer = std::array<iplug::sample, kMaxInternalBlockSize>;
+  SampleBuffer mInputBuffer{};
+  std::array<SampleBuffer, kMaxNumChannelsInternal> mModelOutput{};
+  // Separate cab output avoids requiring NAM architectures to support in-place processing.
+  std::array<SampleBuffer, kMaxNumChannelsInternal> mCabinetOutput{};
+  SampleBuffer mCabinetInput{};
 
   // Input and output gain
   double mInputGain = 1.0;
   double mOutputGain = 1.0;
+  bool mCabEnabled = true;
 
   // Noise gates
-  dsp::noise_gate::Trigger mNoiseGateTrigger;
-  dsp::noise_gate::Gain mNoiseGateGain;
+  dsp::noise_gate::Trigger mNoiseGateTrigger; // Mono input to the trigger
+  dsp::noise_gate::Gain mNoiseGateGain; // Gain reduction applied to left/mono output of the amp...
+  dsp::noise_gate::Gain mNoiseGateGainRight; // ...and the right output, if applicable.
   // The model actually being used:
   std::shared_ptr<ResamplingNAM> mModel;
-  // And the IR
-  std::unique_ptr<dsp::ImpulseResponse> mIR;
-  // Manages switching what DSP is being used.
-  std::shared_ptr<ResamplingNAM> mStagedModel;
-  std::unique_ptr<dsp::ImpulseResponse> mStagedIR;
-  // Flags to take away the modules at a safe time.
-  std::atomic<bool> mShouldRemoveModel = false;
-  std::atomic<bool> mShouldRemoveIR = false;
+  struct Cabinet
+  {
+    std::unique_ptr<ResamplingNAM> model;
+    // Independent state for a mono cab processing the right side of a stereo amp.
+    std::unique_ptr<ResamplingNAM> right;
+    bool isWav = false;
 
+    void Reset(double sampleRate);
+  };
+  Cabinet mCab;
+
+  // Mutex to prevent the staging routines (_StageModel(), _StageCab()) from changing what's in the "mStaged{Model,Cab}"
+  // members while _ApplyDSPStaging() is getting from them.
+  mutable std::mutex mDSPStagingMutex;
+  std::atomic<double> mDSPStagingSampleRate{iplug::DEFAULT_SAMPLE_RATE};
+  std::shared_ptr<ResamplingNAM> mStagedModel;
+  Cabinet mStagedCab;
+  bool mShouldRemoveModel = false;
+  bool mShouldRemoveCab = false;
+
+  std::atomic<bool> mDSPGainsAndTimingDirty{true};
+  std::atomic<bool> mToneStackDirty{true};
+  std::atomic<bool> mSlimDirty{false};
   std::atomic<bool> mNewModelLoadedInDSP = false;
   std::atomic<bool> mModelCleared = false;
 
   // Tone stack modules
   std::unique_ptr<dsp::tone_stack::AbstractToneStack> mToneStack;
 
-  // Post-IR filters
+  // Post-cab filters
   recursive_linear_filter::HighPass mHighPass;
-  //  recursive_linear_filter::LowPass mLowPass;
 
   // Path to model's config.json or model.nam
   WDL_String mNAMPath;
-  // Path to IR (.wav file)
-  WDL_String mIRPath;
+  // Path to the cab (.wav or .nam file). Keep IRPath in serialized state for compatibility.
+  WDL_String mCabPath;
 
   WDL_String mHighLightColor{PluginColors::NAM_THEMECOLOR.ToColorCode()};
 
   std::unordered_map<std::string, double> mNAMParams = {{"Input", 0.0}, {"Output", 0.0}};
 
-  NAMSender mInputSender, mOutputSender;
+  NAMSender<1> mInputSender; // Mono input
+  NAMSender<2> mOutputSender; // Stereo output
   
   // Library browser
   NAMLibraryManager mLibraryManager;
@@ -402,7 +287,7 @@ private:
   std::shared_ptr<ResamplingNAM> mMapperPendingModel;
   float  mOutputFadeGain = 1.0f;
   int    mOutputFadeDir  = 0;    // -1 = fading out, +1 = fading in, 0 = idle
-  bool   mPendingGainRecalc = false; // deferred _SetInputGain/_SetOutputGain after model swap
+  std::shared_ptr<ResamplingNAM> mMapperRequestedModel; // Published under mDSPStagingMutex
   static constexpr int kModelFadeSamples = 256;  // ~5ms at 48kHz
 
   // Tracks which slot's name is currently shown on the voice button tooltip
