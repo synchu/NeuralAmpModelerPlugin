@@ -1860,7 +1860,7 @@ void NeuralAmpModeler::_UpdateRecallButtonStates()
 #include "Unserialization.cpp"
 
 
-void NeuralAmpModeler::HandleFileDrop(const char* str)
+void NeuralAmpModeler::HandleFileDrop(const char* str, bool droppedOnCabBrowser)
 {
   if (!str || !strlen(str))
     return;
@@ -1874,7 +1874,8 @@ void NeuralAmpModeler::HandleFileDrop(const char* str)
   else if (extension == ".nam" || extension == ".wav")
   {
     const WDL_String path(str);
-    const auto error = extension == ".nam" ? _StageModel(path) : _StageCab(path);
+    const bool loadCab = extension == ".wav" || droppedOnCabBrowser;
+    const auto error = loadCab ? _StageCab(path) : _StageModel(path);
     if (!error.empty())
       _ShowMessageBox(GetUI(), error.c_str(), "Failed to load dropped file", kMB_OK);
   }

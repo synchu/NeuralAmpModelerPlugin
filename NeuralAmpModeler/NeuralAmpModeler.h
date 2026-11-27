@@ -130,7 +130,7 @@ public:
   std::unordered_map<std::string, bool> mLibraryBrowserExpandedState;
 
   // Drag-and-drop file handling (moved from IControl.h hack)
-  void HandleFileDrop(const char* str);
+  void HandleFileDrop(const char* str, bool droppedOnCabBrowser);
   // Recall (back / forward configuration history)
   void RecallBack();
   void RecallForward();

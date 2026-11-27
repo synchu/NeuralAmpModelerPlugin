@@ -32,7 +32,12 @@ public:
   using T::T; // inherit all constructors
   void OnDrop(const char* str) override
   {
-    static_cast<PLUG_CLASS_NAME*>(this->GetDelegate())->HandleFileDrop(str);
+    // iPlug2 sends the drop to the hit control, which may be a browser button or label.
+    const auto* cabBrowser = this->GetUI()->GetControlWithTag(kCtrlTagCabFileBrowser);
+    const IControl* target = this;
+    while (target && target != cabBrowser)
+      target = target->GetParent();
+    static_cast<PLUG_CLASS_NAME*>(this->GetDelegate())->HandleFileDrop(str, target != nullptr);
   }
 };
 
@@ -470,7 +475,10 @@ public:
   , mGetButtonURL(getButtonURL)
   , mBrowserState(NAMBrowserState::Empty)  
   {
-    mIgnoreMouse = true;
+    // Take drops between the child controls and while the cabinet is bypassed.
+    const bool isCabBrowser = mClearMsgTag == kMsgTagClearCab;
+    SetIgnoreMouse(!isCabBrowser);
+    SetMouseEventsWhenDisabled(isCabBrowser);
   }
 
   void Draw(IGraphics& g) override { g.DrawFittedBitmap(mBitmap, mRECT); }
